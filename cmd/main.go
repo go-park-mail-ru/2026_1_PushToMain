@@ -1,13 +1,10 @@
 package main
 
 import (
-	"net/http"
-	"smail/internal/app/handler"
+	"smail/internal/app"
 )
 
 func main() {
-	h := handler.NewHandler()
-	r := h.InitRoutes()
-
-	http.ListenAndServe(":8090", r)
+	application := app.New()
+	application.Run()
 }
