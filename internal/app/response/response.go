@@ -1,4 +1,4 @@
-package handler
+package response
 
 import (
     "encoding/json"
@@ -15,6 +15,6 @@ func WriteJSON(w http.ResponseWriter, status int, data any) {
     json.NewEncoder(w).Encode(data)
 }
 
-func BadRequest(w http.ResponseWriter, msg string) {
-    WriteJSON(w, http.StatusBadRequest, ErrorResponse{Message: msg})
+func BadRequest(w http.ResponseWriter) {
+    WriteJSON(w, http.StatusBadRequest, ErrorResponse{Message: "Bad request"})
 }
