@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 	"encoding/json"
-	"smail/internal/models"
+	"smail/internal/app/models"
 )
 
 var EmailsMock []models.Email = []models.Email{

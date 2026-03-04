@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-	"smail/internal/handler"
+	"smail/internal/app/handler"
 )
 
 func main() {
