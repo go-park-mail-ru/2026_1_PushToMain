@@ -50,10 +50,16 @@ func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return
-	}
+        BadRequest(w, "invalid request body")
+        return
+    }
 
-	var result []models.Email
+    if req.Owner == "" {
+        BadRequest(w, "owner is required")
+        return
+    }
+
+	result := make([]models.Email, 0)
 	for _, email := range EmailsMock {
 		for _, to := range email.To {
 			if to == req.Owner {
@@ -63,8 +69,7 @@ func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	WriteJSON(w, http.StatusOK, result)
 }	
 
 func (h *Handler) GetFullEmailByID(w http.ResponseWriter, r *http.Request) {
