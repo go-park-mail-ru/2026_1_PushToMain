@@ -1,9 +1,9 @@
 package main
 
 import (
-	"auth/handlers"
-	"auth/repository"
-	"auth/service"
+	"auth/internal/handlers"
+	"auth/internal/repository"
+	"auth/internal/service"
 	"net/http"
 )
 

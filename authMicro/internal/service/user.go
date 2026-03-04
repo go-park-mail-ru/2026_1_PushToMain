@@ -1,8 +1,8 @@
 package service
 
 import (
-	"auth/repository"
-	"auth/tools"
+	"auth/internal/repository"
+	"auth/internal/tools"
 	"errors"
 )
 

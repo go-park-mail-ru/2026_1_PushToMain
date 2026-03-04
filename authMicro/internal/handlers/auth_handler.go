@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"auth/dto"
-	"auth/service"
+	"auth/internal/dto"
+	"auth/internal/service"
 	"encoding/json"
 	"net/http"
 )
