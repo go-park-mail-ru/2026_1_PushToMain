@@ -19,7 +19,7 @@ func NewHandler() *Handler {
 func (h *Handler) InitRoutes() *mux.Router {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/inbox/", h.GetEmails).Methods(http.MethodGet)
+	r.HandleFunc("/inbox/", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
 	
 	return r
 }
