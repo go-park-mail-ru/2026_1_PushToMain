@@ -2,6 +2,7 @@ package main
 
 import (
 	"auth/internal/handlers"
+	"auth/internal/middleware"
 	"auth/internal/repository"
 	"auth/internal/service"
 	"net/http"
@@ -12,8 +13,10 @@ func main() {
 	svc := service.NewAuthService(repo)
 	handler := handlers.NewAuthHandler(svc)
 
-	http.HandleFunc("/signup", handler.SignUp)
-	http.HandleFunc("/signin", handler.SignIn)
+	mux := http.NewServeMux()
 
-	http.ListenAndServe(":8080", nil)
+	mux.HandleFunc("/signup", handler.SignUp)
+	mux.HandleFunc("/signin", handler.SignIn)
+
+	http.ListenAndServe(":8080", middleware.CORS(mux))
 }

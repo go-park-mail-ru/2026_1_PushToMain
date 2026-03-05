@@ -6,6 +6,19 @@ import (
 	"errors"
 )
 
+type SignUpCommand struct {
+	Email          string
+	Password       string
+	PasswordRepeat string
+	Name           string
+	Surname        string
+}
+
+type SignInCommand struct {
+	Email    string
+	Password string
+}
+
 type AuthService struct {
 	repo repository.IUserRepository
 }
@@ -16,46 +29,47 @@ func NewAuthService(r repository.IUserRepository) *AuthService {
 	return &AuthService{repo: r}
 }
 
-func (s *AuthService) SignUp(email, password, passwordRepeat, name, surname string) (string, error) {
-	err := s.ComparePassword(password, passwordRepeat)
+func (s *AuthService) SignUp(signUp SignUpCommand) (string, error) {
+	err := s.ComparePassword(signUp.Password, signUp.PasswordRepeat)
 	if err != nil {
 		return "", err
 	}
 
-	hash, err := tools.Hash(password)
+	hash, err := tools.Hash(signUp.Password)
 	if err != nil {
 		return "", err
 	}
 
 	user := repository.User{
-		Email:    email,
+		Email:    signUp.Email,
 		Password: hash,
-		Name:     name,
-		Surname:  surname,
+		Name:     signUp.Name,
+		Surname:  signUp.Surname,
 	}
 
 	if err := s.repo.Save(user); err != nil {
 		return "", err
 	}
 
-	return tools.GenerateJWT(email, name, surname)
+	return tools.GenerateJWT(signUp.Email, signUp.Name, signUp.Surname)
 }
 
-func (s *AuthService) SignIn(email, pass string) (string, error) {
-	user, err := s.repo.FindByEmail(email)
+func (s *AuthService) SignIn(signIn SignInCommand) (string, error) {
+	user, err := s.repo.FindByEmail(signIn.Email)
 	if err != nil {
 		return "", ErrInvalidCredentials
 	}
 
-	if err := tools.Compare(user.Password, pass); err != nil {
+	if err := tools.Compare(user.Password, signIn.Password); err != nil {
 		return "", ErrInvalidCredentials
 	}
 
-	return tools.GenerateJWT(email, user.Name, user.Surname)
+	return tools.GenerateJWT(user.Email, user.Name, user.Surname)
 }
 
 var ErrPasswordNotEqual = errors.New("passwords do not match")
 
+// валидацию паролей делать здесь или в handler? а потом уже передавать в сервис только 1 пароль
 func (s *AuthService) ComparePassword(password, passwordRepeat string) error {
 	if password != passwordRepeat {
 		return ErrPasswordNotEqual

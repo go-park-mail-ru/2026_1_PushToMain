@@ -1,11 +1,25 @@
 package handlers
 
 import (
-	"auth/internal/dto"
 	"auth/internal/service"
 	"encoding/json"
 	"net/http"
 )
+
+type SignUpRequest struct {
+	Name           string `json:"name"`
+	Surname        string `json:"surname"`
+	Email          string `json:"email"`
+	Password       string `json:"password"`
+	PasswordRepeat string `json:"passwordRepeat"`
+}
+type SignInRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+type AuthResponse struct {
+	Token string `json:"token"`
+}
 
 type AuthHandler struct {
 	service *service.AuthService
@@ -16,37 +30,46 @@ func NewAuthHandler(service *service.AuthService) *AuthHandler {
 }
 
 func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
-	var req dto.SignUpRequest
+	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	token, err := handler.service.SignUp(
-		req.Email,
-		req.Password,
-		req.PasswordRepeat,
-		req.Name,
-		req.Surname,
-	)
+	cmd := service.SignUpCommand{
+		Email:          req.Email,
+		Password:       req.Password,
+		PasswordRepeat: req.PasswordRepeat,
+		Name:           req.Name,
+		Surname:        req.Surname,
+	}
 
+	token, err := handler.service.SignUp(cmd)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
 	}
 
-	json.NewEncoder(w).Encode(dto.AuthResponse{Token: token})
+	json.NewEncoder(w).Encode(AuthResponse{Token: token})
 }
 
 func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
-	var req dto.SignInRequest
-	_ = json.NewDecoder(r.Body).Decode(&req)
+	var req SignInRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
 
-	token, err := handler.service.SignIn(req.Email, req.Password)
+	cmd := service.SignInCommand{
+		Email:    req.Email,
+		Password: req.Password,
+	}
+
+	token, err := handler.service.SignIn(cmd)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
-	json.NewEncoder(w).Encode(dto.AuthResponse{Token: token})
+	json.NewEncoder(w).Encode(AuthResponse{Token: token})
 }
