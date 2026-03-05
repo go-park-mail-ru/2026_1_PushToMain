@@ -1,5 +1,7 @@
 package repository
 
+import "context"
+
 type User struct {
 	ID       int64  `json:"id"`
 	Email    string `json:"email"`
@@ -9,8 +11,8 @@ type User struct {
 }
 
 type IUserRepository interface {
-	Save(user User) error
-	FindByEmail(email string) (User, error)
+	Save(ctx context.Context, user User) error
+	FindByEmail(ctx context.Context, email string) (User, error)
 }
 
 type UserRepo struct {
@@ -23,12 +25,12 @@ func NewMemoryUserRepo() *UserRepo {
 	}
 }
 
-func (m *UserRepo) Save(user User) error {
+func (m *UserRepo) Save(ctx context.Context, user User) error {
 	m.users[user.Email] = user
 	return nil
 }
 
-func (m *UserRepo) FindByEmail(email string) (User, error) {
+func (m *UserRepo) FindByEmail(ctx context.Context, email string) (User, error) {
 	user, ok := m.users[email]
 	if !ok {
 		return User{}, ErrUserNotFound

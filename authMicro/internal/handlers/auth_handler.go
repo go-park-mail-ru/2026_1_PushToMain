@@ -44,7 +44,7 @@ func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		Surname:        req.Surname,
 	}
 
-	token, err := handler.service.SignUp(cmd)
+	token, err := handler.service.SignUp(r.Context(), cmd)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusConflict)
 		return
@@ -65,7 +65,7 @@ func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	}
 
-	token, err := handler.service.SignIn(cmd)
+	token, err := handler.service.SignIn(r.Context(), cmd)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return

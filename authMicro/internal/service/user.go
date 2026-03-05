@@ -3,6 +3,7 @@ package service
 import (
 	"auth/internal/repository"
 	"auth/internal/tools"
+	"context"
 	"errors"
 )
 
@@ -29,7 +30,7 @@ func NewAuthService(r repository.IUserRepository) *AuthService {
 	return &AuthService{repo: r}
 }
 
-func (s *AuthService) SignUp(signUp SignUpCommand) (string, error) {
+func (s *AuthService) SignUp(ctx context.Context, signUp SignUpCommand) (string, error) {
 	err := s.ComparePassword(signUp.Password, signUp.PasswordRepeat)
 	if err != nil {
 		return "", err
@@ -47,15 +48,15 @@ func (s *AuthService) SignUp(signUp SignUpCommand) (string, error) {
 		Surname:  signUp.Surname,
 	}
 
-	if err := s.repo.Save(user); err != nil {
+	if err := s.repo.Save(ctx, user); err != nil {
 		return "", err
 	}
 
 	return tools.GenerateJWT(signUp.Email, signUp.Name, signUp.Surname)
 }
 
-func (s *AuthService) SignIn(signIn SignInCommand) (string, error) {
-	user, err := s.repo.FindByEmail(signIn.Email)
+func (s *AuthService) SignIn(ctx context.Context, signIn SignInCommand) (string, error) {
+	user, err := s.repo.FindByEmail(ctx, signIn.Email)
 	if err != nil {
 		return "", ErrInvalidCredentials
 	}
