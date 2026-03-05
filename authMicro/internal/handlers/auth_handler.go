@@ -7,11 +7,10 @@ import (
 )
 
 type SignUpRequest struct {
-	Name           string `json:"name"`
-	Surname        string `json:"surname"`
-	Email          string `json:"email"`
-	Password       string `json:"password"`
-	PasswordRepeat string `json:"passwordRepeat"`
+	Name     string `json:"name"`
+	Surname  string `json:"surname"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 type SignInRequest struct {
 	Email    string `json:"email"`
@@ -37,11 +36,10 @@ func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := service.SignUpCommand{
-		Email:          req.Email,
-		Password:       req.Password,
-		PasswordRepeat: req.PasswordRepeat,
-		Name:           req.Name,
-		Surname:        req.Surname,
+		Email:    req.Email,
+		Password: req.Password,
+		Name:     req.Name,
+		Surname:  req.Surname,
 	}
 
 	token, err := handler.service.SignUp(r.Context(), cmd)

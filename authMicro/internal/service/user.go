@@ -8,11 +8,10 @@ import (
 )
 
 type SignUpCommand struct {
-	Email          string
-	Password       string
-	PasswordRepeat string
-	Name           string
-	Surname        string
+	Email    string
+	Password string
+	Name     string
+	Surname  string
 }
 
 type SignInCommand struct {
@@ -31,11 +30,6 @@ func NewAuthService(r repository.IUserRepository) *AuthService {
 }
 
 func (s *AuthService) SignUp(ctx context.Context, signUp SignUpCommand) (string, error) {
-	err := s.ComparePassword(signUp.Password, signUp.PasswordRepeat)
-	if err != nil {
-		return "", err
-	}
-
 	hash, err := tools.Hash(signUp.Password)
 	if err != nil {
 		return "", err
@@ -66,14 +60,4 @@ func (s *AuthService) SignIn(ctx context.Context, signIn SignInCommand) (string,
 	}
 
 	return tools.GenerateJWT(user.Email, user.Name, user.Surname)
-}
-
-var ErrPasswordNotEqual = errors.New("passwords do not match")
-
-// валидацию паролей делать здесь или в handler? а потом уже передавать в сервис только 1 пароль
-func (s *AuthService) ComparePassword(password, passwordRepeat string) error {
-	if password != passwordRepeat {
-		return ErrPasswordNotEqual
-	}
-	return nil
 }
