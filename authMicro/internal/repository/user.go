@@ -1,6 +1,9 @@
 package repository
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 type User struct {
 	ID       int64  `json:"id"`
@@ -29,6 +32,8 @@ func (m *UserRepo) Save(ctx context.Context, user User) error {
 	m.users[user.Email] = user
 	return nil
 }
+
+var ErrUserNotFound = errors.New("user not found")
 
 func (m *UserRepo) FindByEmail(ctx context.Context, email string) (User, error) {
 	user, ok := m.users[email]

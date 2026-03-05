@@ -24,12 +24,19 @@ type AuthService struct {
 }
 
 var ErrInvalidCredentials = errors.New("invalid password")
+var ErrUserAlreadyExists = errors.New("user already exists")
 
 func NewAuthService(r repository.IUserRepository) *AuthService {
 	return &AuthService{repo: r}
 }
 
 func (s *AuthService) SignUp(ctx context.Context, signUp SignUpCommand) (string, error) {
+	_, err := s.repo.FindByEmail(ctx, signUp.Email)
+
+	if err == nil {
+		return "", ErrUserAlreadyExists
+	}
+
 	hash, err := tools.Hash(signUp.Password)
 	if err != nil {
 		return "", err
