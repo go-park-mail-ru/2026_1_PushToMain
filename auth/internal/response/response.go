@@ -9,9 +9,7 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-// middleware ставит application.json
 func WriteJSON(w http.ResponseWriter, status int, data any) error {
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	//что с этой ошибкой по итогу делать?
 	if err := json.NewEncoder(w).Encode(data); err != nil {
