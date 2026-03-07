@@ -8,9 +8,16 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/tools"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var ErrUserAlreadyExists = errors.New("user already exists")
+var ErrUserNotFound = errors.New("user not found")
+var ErrFailedToGenerateHash = errors.New("failed to generate Hash for password")
+var ErrFindUser = errors.New("failed to find user")
+var ErrFailedToSaveUser = errors.New("failed to save user")
+var ErrToGenerateJWT = errors.New("failed to generate jwt")
+var ErrWrongPassword = errors.New("wrong password")
 
 type UserRepository interface {
 	Save(ctx context.Context, user models.User) error
@@ -34,17 +41,19 @@ type SignUpInput struct {
 
 func (s *AuthService) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
 	_, err := s.repo.FindByEmail(ctx, signUp.Email)
-
 	if err == nil {
-		return "", fmt.Errorf("faild to signUp bcz user already exist: %w", ErrUserAlreadyExists)
+		err = ErrUserAlreadyExists
+		return "", fmt.Errorf("faild to signUp bcz user already exist: %w", err)
 	}
 
 	if !errors.Is(err, repository.ErrUserNotFound) {
+		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to find user: %w", err)
 	}
 
 	hash, err := tools.Hash(signUp.Password)
 	if err != nil {
+		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate hash for password: %w", err)
 	}
 
@@ -54,11 +63,13 @@ func (s *AuthService) SignUp(ctx context.Context, signUp SignUpInput) (string, e
 		Name:     signUp.Name,
 		Surname:  signUp.Surname,
 	}); err != nil {
+		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to save user: %w", err)
 	}
 
 	token, err := tools.GenerateJWT(signUp.Email, signUp.Name, signUp.Surname)
 	if err != nil {
+		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
 	}
 
@@ -73,16 +84,32 @@ type SignInInput struct {
 func (s *AuthService) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
 	user, err := s.repo.FindByEmail(ctx, signIn.Email)
 	if err != nil {
-		return "", fmt.Errorf("failed to find user by email: %w", err)
+		err = mapRepositoryError(err)
+		return "", fmt.Errorf("failed to find user: %w", err)
 	}
 
 	if err := tools.ComparePasswordAndHash(user.Password, signIn.Password); err != nil {
-		return "", fmt.Errorf("failed to compare passwords: %w", err)
+		err = mapRepositoryError(err)
+		return "", fmt.Errorf("wrong password: %w", err)
 	}
 	token, err := tools.GenerateJWT(user.Email, user.Name, user.Surname)
 	if err != nil {
+		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
 	}
 
 	return token, nil
+}
+
+func mapRepositoryError(err error) error {
+	switch {
+	case errors.Is(err, repository.ErrUserNotFound):
+		return ErrUserNotFound
+	case errors.Is(err, repository.ErrUserNotFound):
+		return ErrUserNotFound
+	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+		return ErrWrongPassword
+	default:
+		return err
+	}
 }

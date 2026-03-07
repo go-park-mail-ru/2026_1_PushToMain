@@ -6,10 +6,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/service"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
@@ -50,17 +48,11 @@ func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		Surname:  req.Surname,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, service.ErrUserAlreadyExists):
-			response.StatusConflict(w)
-
-		default:
-			response.InternalError(w)
-		}
+		parseCommonErrors(err, w)
 		return
 	}
 
-	response.OK(w, AuthResponse{
+	json.NewEncoder(w).Encode(AuthResponse{
 		Token: token,
 	})
 }
@@ -82,22 +74,27 @@ func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	})
 	if err != nil {
-		switch {
-
-		case errors.Is(err, repository.ErrUserNotFound):
-			response.Unauthorized(w)
-
-		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
-			response.Unauthorized(w)
-
-		default:
-			response.InternalError(w)
-		}
-
+		parseCommonErrors(err, w)
 		return
 	}
-
-	response.OK(w, AuthResponse{
+	json.NewEncoder(w).Encode(AuthResponse{
 		Token: token,
 	})
+}
+
+func parseCommonErrors(err error, w http.ResponseWriter) {
+	switch {
+
+	case errors.Is(err, service.ErrUserNotFound):
+		response.Unauthorized(w)
+
+	case errors.Is(err, service.ErrWrongPassword):
+		response.Unauthorized(w)
+
+	case errors.Is(err, service.ErrUserAlreadyExists):
+		response.StatusConflict(w)
+
+	default:
+		response.InternalError(w)
+	}
 }

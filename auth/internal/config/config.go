@@ -18,12 +18,6 @@ type Config struct {
 	CORS CORSConfig
 }
 
-type CORSConfig struct {
-	AllowedOrigins []string
-	AllowedMethods []string
-	AllowedHeaders []string
-}
-
 func Load() *Config {
 
 	_ = godotenv.Load()

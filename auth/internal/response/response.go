@@ -9,11 +9,15 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 }
 
-func WriteJSON(w http.ResponseWriter, status int, data any) {
+// middleware ставит application.json
+func WriteJSON(w http.ResponseWriter, status int, data any) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		return err
+	}
+	return nil
 }
 
 func BadRequest(w http.ResponseWriter) {
@@ -38,9 +42,4 @@ func StatusConflict(w http.ResponseWriter) {
 	WriteJSON(w, http.StatusConflict, ErrorResponse{
 		Message: "User already exsist",
 	})
-}
-
-// чтоб в handler не писать write json и статус ok, а только полезуню data и responsewriter закидывать
-func OK(w http.ResponseWriter, data any) {
-	WriteJSON(w, http.StatusOK, data)
 }

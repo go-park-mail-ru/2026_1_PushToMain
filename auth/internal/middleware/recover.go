@@ -3,6 +3,8 @@ package middleware
 import (
 	"log"
 	"net/http"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/response"
 )
 
 func Panic(next http.Handler) http.Handler {
@@ -13,11 +15,7 @@ func Panic(next http.Handler) http.Handler {
 
 				log.Println("panic recovered:", err)
 
-				http.Error(
-					w,
-					"internal server error",
-					http.StatusInternalServerError,
-				)
+				response.InternalError(w)
 			}
 		}()
 
