@@ -23,10 +23,12 @@ func main() {
 	mux.HandleFunc("/signup", handler.SignUp)
 	mux.HandleFunc("/signin", handler.SignIn)
 
-	handlerWithMiddleware :=
+	handlerChain :=
 		middleware.Panic(
-			middleware.CORS(middleware.CORSConfig(cfg.CORS))(mux),
+			middleware.CORS(cfg.CORS)(
+				middleware.JSON(mux),
+			),
 		)
 
-	http.ListenAndServe(":"+cfg.ServerPort, handlerWithMiddleware)
+	http.ListenAndServe(":"+cfg.ServerPort, handlerChain)
 }
