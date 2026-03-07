@@ -3,42 +3,38 @@ package repository
 import (
 	"context"
 	"errors"
+	"sync"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
 )
 
-type User struct {
-	ID       int64  `json:"id"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
-	Surname  string `json:"surname"`
-}
-
-type IUserRepository interface {
-	Save(ctx context.Context, user User) error
-	FindByEmail(ctx context.Context, email string) (User, error)
-}
+var ErrUserNotFound = errors.New("user not found")
 
 type UserRepo struct {
-	users map[string]User
+	mu    sync.Mutex
+	users map[string]models.User
 }
 
 func NewMemoryUserRepo() *UserRepo {
 	return &UserRepo{
-		users: make(map[string]User),
+		users: make(map[string]models.User),
 	}
 }
 
-func (m *UserRepo) Save(ctx context.Context, user User) error {
-	m.users[user.Email] = user
+func (repo *UserRepo) Save(ctx context.Context, user models.User) error {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	repo.users[user.Email] = user
 	return nil
 }
 
-var ErrUserNotFound = errors.New("user not found")
-
-func (m *UserRepo) FindByEmail(ctx context.Context, email string) (User, error) {
-	user, ok := m.users[email]
+func (repo *UserRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	user, ok := repo.users[email]
 	if !ok {
-		return User{}, ErrUserNotFound
+		return nil, ErrUserNotFound
 	}
-	return user, nil
+
+	return &user, nil
 }

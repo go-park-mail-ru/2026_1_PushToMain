@@ -18,10 +18,8 @@ type jwtHeader struct {
 }
 
 type jwtPayload struct {
-	Email   string `json:"email"`
-	Name    string `json:"name"`
-	Surname string `json:"surname"`
-	Exp     int64  `json:"exp"`
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
 }
 
 func GenerateJWT(email, name, surname string) (string, error) {
@@ -31,10 +29,8 @@ func GenerateJWT(email, name, surname string) (string, error) {
 	}
 
 	payload := jwtPayload{
-		Email:   email,
-		Name:    name,
-		Surname: surname,
-		Exp:     time.Now().Add(24 * time.Hour).Unix(),
+		Email: email,
+		Exp:   time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	headerJSON, err := json.Marshal(header)
@@ -63,32 +59,32 @@ func sign(data string) string {
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func ValidateJWT(token string) (string, error) {
+func ValidateJWT(token string) (*jwtPayload, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
-		return "", errors.New("invalid token format")
+		return nil, errors.New("invalid token format")
 	}
 
 	unsigned := parts[0] + "." + parts[1]
 	signature := sign(unsigned)
 
 	if !hmac.Equal([]byte(signature), []byte(parts[2])) {
-		return "", errors.New("invalid signature")
+		return nil, errors.New("invalid signature")
 	}
 
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var payload jwtPayload
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if time.Now().Unix() > payload.Exp {
-		return "", errors.New("token expired")
+		return nil, errors.New("token expired")
 	}
 
-	return payload.Email, nil
+	return &payload, nil
 }

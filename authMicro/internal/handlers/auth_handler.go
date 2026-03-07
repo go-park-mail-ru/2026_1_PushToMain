@@ -1,10 +1,33 @@
 package handlers
 
 import (
-	"auth/internal/service"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/response"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/service"
+	"golang.org/x/crypto/bcrypt"
 )
+
+type AuthService interface {
+	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
+	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
+}
+
+type AuthHandler struct {
+	service AuthService
+}
+
+func NewAuthHandler(service AuthService) *AuthHandler {
+	return &AuthHandler{service: service}
+}
+
+type AuthResponse struct {
+	Token string `json:"token"`
+}
 
 type SignUpRequest struct {
 	Name     string `json:"name"`
@@ -12,62 +35,69 @@ type SignUpRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
-type SignInRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-type AuthResponse struct {
-	Token string `json:"token"`
-}
-
-type AuthHandler struct {
-	service *service.AuthService
-}
-
-func NewAuthHandler(service *service.AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
-}
 
 func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		response.BadRequest(w)
 		return
 	}
 
-	cmd := service.SignUpCommand{
+	token, err := handler.service.SignUp(r.Context(), service.SignUpInput{
 		Email:    req.Email,
 		Password: req.Password,
 		Name:     req.Name,
 		Surname:  req.Surname,
-	}
-
-	token, err := handler.service.SignUp(r.Context(), cmd)
+	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		switch {
+		case errors.Is(err, service.ErrUserAlreadyExists):
+			response.StatusConflict(w)
+
+		default:
+			response.InternalError(w)
+		}
 		return
 	}
 
-	json.NewEncoder(w).Encode(AuthResponse{Token: token})
+	response.OK(w, AuthResponse{
+		Token: token,
+	})
+}
+
+type SignInRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		response.BadRequest(w)
 		return
 	}
 
-	cmd := service.SignInCommand{
+	token, err := handler.service.SignIn(r.Context(), service.SignInInput{
 		Email:    req.Email,
 		Password: req.Password,
-	}
-
-	token, err := handler.service.SignIn(r.Context(), cmd)
+	})
 	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		switch {
+
+		case errors.Is(err, repository.ErrUserNotFound):
+			response.Unauthorized(w)
+
+		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+			response.Unauthorized(w)
+
+		default:
+			response.InternalError(w)
+		}
+
 		return
 	}
 
-	json.NewEncoder(w).Encode(AuthResponse{Token: token})
+	response.OK(w, AuthResponse{
+		Token: token,
+	})
 }
