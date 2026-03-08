@@ -1,6 +1,6 @@
 package models
 
 type JwtPayload struct {
-	Email string
-	Exp   int64
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
 }
