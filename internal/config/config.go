@@ -19,19 +19,19 @@ type Config struct {
 	CORS middleware.CORSConfig
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
 
 	err := godotenv.Load()
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	expHours, err := strconv.Atoi(os.Getenv("JWT_EXPIRE_HOURS"))
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return &Config{
+	cfg := &Config{
 		ServerPort: os.Getenv("APP_PORT"),
 
 		JWTSecret: os.Getenv("JWT_SECRET"),
@@ -43,6 +43,7 @@ func Load() *Config {
 			AllowedHeaders: splitEnvList(os.Getenv("CORS_ALLOWED_HEADERS")),
 		},
 	}
+	return cfg, nil
 }
 
 func splitEnvList(env string) []string {

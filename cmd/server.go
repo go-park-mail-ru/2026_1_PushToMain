@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/config"
@@ -13,9 +14,9 @@ import (
 
 func main() {
 
-	cfg := config.Load()
-	if cfg == nil {
-		return
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
 	}
 	jwtManager := tools.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	repo := repository.NewMemoryUserRepo()
