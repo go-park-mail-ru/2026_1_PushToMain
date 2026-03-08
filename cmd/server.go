@@ -8,6 +8,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/tools"
 )
 
 func main() {
@@ -16,8 +17,9 @@ func main() {
 	if cfg == nil {
 		return
 	}
+	jwtManager := tools.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	repo := repository.NewMemoryUserRepo()
-	svc := service.NewAuthService(repo)
+	svc := service.NewAuthService(repo, jwtManager)
 	handler := handlers.NewAuthHandler(svc)
 
 	mux := http.NewServeMux()

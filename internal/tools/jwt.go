@@ -8,29 +8,36 @@ import (
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
 )
 
-var secretKey = []byte("super-secret-key")
+type JWTManager struct {
+	secretKey []byte
+	expire    time.Duration
+}
+
+func NewJWTManager(secret string, expire time.Duration) *JWTManager {
+	return &JWTManager{
+		secretKey: []byte(secret),
+		expire:    expire,
+	}
+}
 
 type jwtHeader struct {
 	Alg string `json:"alg"`
 	Typ string `json:"typ"`
 }
 
-type jwtPayload struct {
-	Email string `json:"email"`
-	Exp   int64  `json:"exp"`
-}
-
-func GenerateJWT(email, name, surname string) (string, error) {
+func (j *JWTManager) GenerateJWT(email string) (string, error) {
 	header := jwtHeader{
 		Alg: "HS256",
 		Typ: "JWT",
 	}
 
-	payload := jwtPayload{
+	payload := models.JwtPayload{
 		Email: email,
-		Exp:   time.Now().Add(24 * time.Hour).Unix(),
+		Exp:   time.Now().Add(j.expire).Unix(),
 	}
 
 	headerJSON, err := json.Marshal(header)
@@ -48,25 +55,25 @@ func GenerateJWT(email, name, surname string) (string, error) {
 
 	unsignedToken := headerEncoded + "." + payloadEncoded
 
-	signature := sign(unsignedToken)
+	signature := j.sign(unsignedToken)
 
 	return unsignedToken + "." + signature, nil
 }
 
-func sign(data string) string {
-	h := hmac.New(sha256.New, secretKey)
+func (j *JWTManager) sign(data string) string {
+	h := hmac.New(sha256.New, j.secretKey)
 	h.Write([]byte(data))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func ValidateJWT(token string) (*jwtPayload, error) {
+func (j *JWTManager) ValidateJWT(token string) (*models.JwtPayload, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid token format")
 	}
 
 	unsigned := parts[0] + "." + parts[1]
-	signature := sign(unsigned)
+	signature := j.sign(unsigned)
 
 	if !hmac.Equal([]byte(signature), []byte(parts[2])) {
 		return nil, errors.New("invalid signature")
@@ -77,7 +84,7 @@ func ValidateJWT(token string) (*jwtPayload, error) {
 		return nil, err
 	}
 
-	var payload jwtPayload
+	var payload models.JwtPayload
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
 		return nil, err
 	}

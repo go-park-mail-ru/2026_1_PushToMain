@@ -24,12 +24,20 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 }
 
-type AuthService struct {
-	repo UserRepository
+type JWTManager interface {
+	GenerateJWT(email string) (string, error)
+	ValidateJWT(token string) (*models.JwtPayload, error)
 }
 
-func NewAuthService(r UserRepository) *AuthService {
-	return &AuthService{repo: r}
+type AuthService struct {
+	repo UserRepository
+	jwt  JWTManager
+}
+
+func NewAuthService(r UserRepository, jwt JWTManager) *AuthService {
+	return &AuthService{
+		repo: r,
+		jwt:  jwt}
 }
 
 type SignUpInput struct {
@@ -67,7 +75,7 @@ func (s *AuthService) SignUp(ctx context.Context, signUp SignUpInput) (string, e
 		return "", fmt.Errorf("failed to save user: %w", err)
 	}
 
-	token, err := tools.GenerateJWT(signUp.Email, signUp.Name, signUp.Surname)
+	token, err := s.jwt.GenerateJWT(signUp.Email)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
@@ -92,7 +100,7 @@ func (s *AuthService) SignIn(ctx context.Context, signIn SignInInput) (string, e
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("wrong password: %w", err)
 	}
-	token, err := tools.GenerateJWT(user.Email, user.Name, user.Surname)
+	token, err := s.jwt.GenerateJWT(user.Email)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
@@ -103,8 +111,6 @@ func (s *AuthService) SignIn(ctx context.Context, signIn SignInInput) (string, e
 
 func mapRepositoryError(err error) error {
 	switch {
-	case errors.Is(err, repository.ErrUserNotFound):
-		return ErrUserNotFound
 	case errors.Is(err, repository.ErrUserNotFound):
 		return ErrUserNotFound
 	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
