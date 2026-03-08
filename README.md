@@ -20,7 +20,7 @@
 
 ## Связанные проекты
 
-- **Frontend-часть:** [Wave Music Frontend](https://github.com/frontend-park-mail-ru/2026_1_PushToMain)
+- **Frontend-часть:** [Smail Frontend](https://github.com/frontend-park-mail-ru/2026_1_PushToMain)
 
 ## Реализация
 - [Ссылка на deploy (пока ее нет :) )]()
