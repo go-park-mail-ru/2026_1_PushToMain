@@ -52,9 +52,10 @@ func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(AuthResponse{
-		Token: token,
-	})
+	if err := json.NewEncoder(w).Encode(AuthResponse{Token: token}); err != nil {
+		response.InternalError(w)
+		return
+	}
 }
 
 type SignInRequest struct {
@@ -77,9 +78,10 @@ func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	json.NewEncoder(w).Encode(AuthResponse{
-		Token: token,
-	})
+	if err := json.NewEncoder(w).Encode(AuthResponse{Token: token}); err != nil {
+		response.InternalError(w)
+		return
+	}
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {

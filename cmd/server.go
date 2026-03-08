@@ -13,7 +13,9 @@ import (
 func main() {
 
 	cfg := config.Load()
-
+	if cfg == nil {
+		return
+	}
 	repo := repository.NewMemoryUserRepo()
 	svc := service.NewAuthService(repo)
 	handler := handlers.NewAuthHandler(svc)

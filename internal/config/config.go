@@ -21,9 +21,15 @@ type Config struct {
 
 func Load() *Config {
 
-	_ = godotenv.Load()
+	err := godotenv.Load()
+	if err != nil {
+		return nil
+	}
 
-	expHours, _ := strconv.Atoi(os.Getenv("JWT_EXPIRE_HOURS"))
+	expHours, err := strconv.Atoi(os.Getenv("JWT_EXPIRE_HOURS"))
+	if err != nil {
+		return nil
+	}
 
 	return &Config{
 		ServerPort: os.Getenv("APP_PORT"),
