@@ -2,11 +2,8 @@ package main
 
 import (
 	"smail/internal/app"
-<<<<<<< Updated upstream
-=======
 	"fmt"
 	_ "smail/docs"
->>>>>>> Stashed changes
 )
 
 // @title           Smail API
