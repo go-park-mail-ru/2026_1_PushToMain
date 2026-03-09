@@ -34,6 +34,18 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+// @Summary Регистрация пользователя
+// @Description Создает нового пользователя и возвращает JWT токен
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body SignUpRequest true "Данные нового пользователя"
+// @Success 200 {object} AuthResponse "JWT токен"
+// @Failure 400 {object} map[string]string "BAD_REQUEST"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 409 {object} map[string]string "User already exists"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /signup [post]
 func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,6 +75,17 @@ type SignInRequest struct {
 	Password string `json:"password"`
 }
 
+// @Summary Авторизация пользователя
+// @Description Вход пользователя с выдачей JWT токена
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body SignInRequest true "Данные для входа"
+// @Success 200 {object} AuthResponse "JWT токен"
+// @Failure 400 {object} map[string]string "BAD_REQUEST"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /signin [post]
 func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
