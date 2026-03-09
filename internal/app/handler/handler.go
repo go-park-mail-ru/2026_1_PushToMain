@@ -14,9 +14,10 @@ func NewHandler(service AuthService) *Handler {
 	return &Handler{authService: service}
 }
 
-func (h *Handler) InitRoutes(router *mux.Router) {
-	router.HandleFunc("/signup", h.SignUp).Methods(http.MethodPost, http.MethodOptions)
-	router.HandleFunc("/signin", h.SignIn).Methods(http.MethodPost, http.MethodOptions)
-	router.HandleFunc("/inbox", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
-	router.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
+func (h *Handler) InitRoutes(public, private *mux.Router) {
+	public.HandleFunc("/signup", h.SignUp).Methods(http.MethodPost, http.MethodOptions)
+	public.HandleFunc("/signin", h.SignIn).Methods(http.MethodPost, http.MethodOptions)
+	public.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
+
+	private.HandleFunc("/emails", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
 }

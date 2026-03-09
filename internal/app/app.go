@@ -5,7 +5,7 @@ import (
 	"log"
 	"github.com/gorilla/mux"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/handler"
-	// "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
@@ -34,14 +34,16 @@ func (app *App) Run() {
 	handler := handler.NewHandler(authService)
 
 	router := mux.NewRouter()
-	handler.InitRoutes(router)
 
-	// handlerChain :=
-	// 	middleware.Panic(
-	// 		middleware.CORS(cfg.CORS)(
-	// 			middleware.JSON(router),
-	// 		),
-	// 	)
+	public := router.PathPrefix("/api/v1").Subrouter()
+	public.Use(middleware.Panic)
+	public.Use(middleware.CORS(cfg.CORS))
+	public.Use(middleware.JSON)
+
+	private := public.PathPrefix("").Subrouter()
+	private.Use(middleware.AuthMiddleware(jwtManager))
+
+	handler.InitRoutes(public, private)
 
 	http.ListenAndServe(":"+cfg.ServerPort, router)
 }
