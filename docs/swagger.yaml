@@ -1,0 +1,53 @@
+basePath: /
+definitions:
+  handler.EmailRequest:
+    properties:
+      owner:
+        type: string
+    type: object
+  models.Email:
+    properties:
+      body:
+        type: string
+      email-id:
+        type: string
+      from:
+        type: string
+      header:
+        type: string
+      to:
+        items:
+          type: string
+        type: array
+    type: object
+host: localhost:8087
+info:
+  contact: {}
+  title: Smail API
+  version: "1.0"
+paths:
+  /emails:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список писем, в которых пользователь указан получателем
+      parameters:
+      - description: Владелец почты
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handler.EmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Email'
+            type: array
+      summary: Получить письма пользователя
+      tags:
+      - emails
+swagger: "2.0"

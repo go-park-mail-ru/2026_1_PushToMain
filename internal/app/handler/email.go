@@ -45,17 +45,27 @@ var EmailsMock []models.Email = []models.Email{
     },
 }
 
-var EmailRequest struct {
+type EmailRequest struct {
 	Owner models.EmailName `json:"owner"`
 }
 
+var emailRequest EmailRequest
+
+// @Summary      Получить письма пользователя
+// @Description  Возвращает список писем, в которых пользователь указан получателем
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        input body handler.EmailRequest true "Владелец почты"
+// @Success      200    {array}   models.Email
+// @Router       /emails [get]
 func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
-	if err := json.NewDecoder(r.Body).Decode(&EmailRequest); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&emailRequest); err != nil {
         response.BadRequest(w)
         return
     }
 
-    if EmailRequest.Owner == "" {
+    if emailRequest.Owner == "" {
         response.BadRequest(w)
         return
     }
@@ -63,7 +73,7 @@ func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	result := make([]models.Email, 0)
 	for _, email := range EmailsMock {
 		for _, to := range email.To {
-			if to == EmailRequest.Owner {
+			if to == emailRequest.Owner {
 				result = append(result, email)
 				break
 			}
