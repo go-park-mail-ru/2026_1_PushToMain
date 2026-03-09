@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/response"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
 )
 

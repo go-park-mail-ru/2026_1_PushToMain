@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/response"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
 func Panic(next http.Handler) http.Handler {

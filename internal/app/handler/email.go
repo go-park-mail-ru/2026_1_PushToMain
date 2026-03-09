@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"encoding/json"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
-    "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/response"
+    "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
 var EmailsMock []models.Email = []models.Email{
