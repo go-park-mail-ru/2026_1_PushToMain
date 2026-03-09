@@ -15,14 +15,6 @@ type AuthService interface {
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
 }
 
-type AuthHandler struct {
-	service AuthService
-}
-
-func NewAuthHandler(service AuthService) *AuthHandler {
-	return &AuthHandler{service: service}
-}
-
 type AuthResponse struct {
 	Token string `json:"token"`
 }
@@ -34,14 +26,14 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
-func (handler *AuthHandler) SignUp(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w)
 		return
 	}
 
-	token, err := handler.service.SignUp(r.Context(), service.SignUpInput{
+	token, err := handler.authService.SignUp(r.Context(), service.SignUpInput{
 		Email:    req.Email,
 		Password: req.Password,
 		Name:     req.Name,
@@ -63,14 +55,14 @@ type SignInRequest struct {
 	Password string `json:"password"`
 }
 
-func (handler *AuthHandler) SignIn(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w)
 		return
 	}
 
-	token, err := handler.service.SignIn(r.Context(), service.SignInInput{
+	token, err := handler.authService.SignIn(r.Context(), service.SignInInput{
 		Email:    req.Email,
 		Password: req.Password,
 	})

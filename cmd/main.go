@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
-	"fmt"
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 )
 

@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"log"
 	"github.com/gorilla/mux"
-	httpSwagger "github.com/swaggo/http-swagger"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/handler"
+	// "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
@@ -30,23 +30,19 @@ func (app *App) Run() {
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	repo := repository.NewMemoryUserRepo()
-	svc := service.NewAuthService(repo, jwtManager)
-	h := handler.NewAuthHandler(svc)
+	authService := service.NewAuthService(repo, jwtManager)
+	handler := handler.NewHandler(authService)
 
 	router := mux.NewRouter()
+	handler.InitRoutes(router)
 
-	router.HandleFunc("/signup", h.SignUp)
-	router.HandleFunc("/signin", h.SignIn)
-	router.HandleFunc("/inbox/", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
-	router.PathPrefix("/docs/").Handler(httpSwagger.WrapHandler)
+	// handlerChain :=
+	// 	middleware.Panic(
+	// 		middleware.CORS(cfg.CORS)(
+	// 			middleware.JSON(router),
+	// 		),
+	// 	)
 
-	handlerChain :=
-		middleware.Panic(
-			middleware.CORS(cfg.CORS)(
-				middleware.JSON(router),
-			),
-		)
-
-	http.ListenAndServe(":"+cfg.ServerPort, handlerChain)
+	http.ListenAndServe(":"+cfg.ServerPort, router)
 }
 
