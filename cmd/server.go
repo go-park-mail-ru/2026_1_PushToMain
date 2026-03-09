@@ -1,29 +1,22 @@
-package app
+package main
 
 import (
+	"log"
 	"net/http"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/handler"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/config"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/handlers"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/tools"
 )
 
-type App struct {
-
-}
-
-func New() *App {
-	return &App{
-
-	}
-}
-
-func (app *App) Run() {
-	handler := handler.NewHandler()
-	router := handler.InitRoutes()
-
+func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	jwtManager := tools.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	repo := repository.NewMemoryUserRepo()
 	svc := service.NewAuthService(repo, jwtManager)
@@ -42,7 +35,4 @@ func (app *App) Run() {
 		)
 
 	http.ListenAndServe(":"+cfg.ServerPort, handlerChain)
-
-	http.ListenAndServe(":8087", router)
 }
-

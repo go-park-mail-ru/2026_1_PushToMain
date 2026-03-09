@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	httpSwagger "github.com/swaggo/http-swagger"
-	_ "smail/docs"
+	_ "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/docs"
 )
 
 type Handler struct {

@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 	"encoding/json"
-	"smail/internal/app/models"
-    "smail/internal/app/response"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
+    "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/response"
 )
 
 var EmailsMock []models.Email = []models.Email{
@@ -49,8 +49,6 @@ type EmailRequest struct {
 	Owner models.EmailName `json:"owner"`
 }
 
-var emailRequest EmailRequest
-
 // @Summary      Получить письма пользователя
 // @Description  Возвращает список писем, в которых пользователь указан получателем
 // @Tags         emails
@@ -60,6 +58,7 @@ var emailRequest EmailRequest
 // @Success      200    {array}   models.Email
 // @Router       /emails [get]
 func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
+    var emailRequest EmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&emailRequest); err != nil {
         response.BadRequest(w)
         return

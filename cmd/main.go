@@ -1,9 +1,9 @@
 package main
 
 import (
-	"smail/internal/app"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
 	"fmt"
-	_ "smail/docs"
+	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 )
 
 // @title           Smail API
