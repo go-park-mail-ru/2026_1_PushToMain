@@ -12,13 +12,13 @@ import (
 )
 
 var (
-    ErrUserAlreadyExists   = errors.New("user already exists")
-    ErrUserNotFound        = errors.New("user not found")
-    ErrFailedToGenerateHash = errors.New("failed to generate hash for password")
-    ErrFindUser            = errors.New("failed to find user")
-    ErrFailedToSaveUser    = errors.New("failed to save user")
-    ErrToGenerateJWT       = errors.New("failed to generate jwt")
-    ErrWrongPassword       = errors.New("wrong password")
+	ErrUserAlreadyExists    = errors.New("user already exists")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrFailedToGenerateHash = errors.New("failed to generate hash for password")
+	ErrFindUser             = errors.New("failed to find user")
+	ErrFailedToSaveUser     = errors.New("failed to save user")
+	ErrToGenerateJWT        = errors.New("failed to generate jwt")
+	ErrWrongPassword        = errors.New("wrong password")
 )
 
 type UserRepository interface {

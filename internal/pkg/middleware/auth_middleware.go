@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
@@ -21,23 +20,14 @@ func AuthMiddleware(jwtManager *utils.JWTManager) func(http.Handler) http.Handle
 
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-			authHeader := r.Header.Get("Authorization")
+			cookie, err := r.Cookie("session_token")
 
-			if authHeader == "" {
+			if err != nil {
 				response.Unauthorized(w)
 				return
 			}
 
-			parts := strings.Split(authHeader, " ")
-
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				response.Unauthorized(w)
-				return
-			}
-
-			token := parts[1]
-
-			claims, err := jwtManager.ValidateJWT(token)
+			claims, err := jwtManager.ValidateJWT(cookie.Value)
 			if err != nil {
 				response.Unauthorized(w)
 				return

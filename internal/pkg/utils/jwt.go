@@ -32,6 +32,10 @@ type jwtHeader struct {
 	Typ string `json:"typ"`
 }
 
+func (j *JWTManager) TTL() time.Duration {
+	return j.expire
+}
+
 func (j *JWTManager) GenerateJWT(email string) (string, error) {
 	header := jwtHeader{
 		Alg: "HS256",

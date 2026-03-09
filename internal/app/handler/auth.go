@@ -5,18 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
+
+const sessionTokenCookie = "session_token"
 
 type AuthService interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
-}
-
-type AuthResponse struct {
-	Token string `json:"token"`
 }
 
 type SignUpRequest struct {
@@ -44,7 +43,15 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(AuthResponse{Token: token}); err != nil {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    token,
+		Expires:  time.Now().Add(handler.ttl),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		response.InternalError(w)
 		return
 	}
@@ -70,7 +77,32 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	if err := json.NewEncoder(w).Encode(AuthResponse{Token: token}); err != nil {
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    token,
+		Expires:  time.Now().Add(handler.ttl),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+		return
+	}
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		response.InternalError(w)
 		return
 	}
