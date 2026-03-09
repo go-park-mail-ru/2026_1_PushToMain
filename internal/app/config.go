@@ -1,4 +1,4 @@
-package config
+package app
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/joho/godotenv"
 )
 

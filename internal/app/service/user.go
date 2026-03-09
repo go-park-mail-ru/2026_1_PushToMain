@@ -28,7 +28,7 @@ type UserRepository interface {
 
 type JWTManager interface {
 	GenerateJWT(email string) (string, error)
-	ValidateJWT(token string) (*models.JwtPayload, error)
+	ValidateJWT(token string) (*utils.JwtPayload, error)
 }
 
 type AuthService struct {

@@ -12,27 +12,27 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/tools"
 )
 
-func main() {
-	cfg, err := config.Load()
-	if err != nil {
-		log.Fatal(err)
-	}
-	jwtManager := tools.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
-	repo := repository.NewMemoryUserRepo()
-	svc := service.NewAuthService(repo, jwtManager)
-	handler := handlers.NewAuthHandler(svc)
+// func main() {
+// 	cfg, err := config.Load()
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	jwtManager := tools.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
+// 	repo := repository.NewMemoryUserRepo()
+// 	svc := service.NewAuthService(repo, jwtManager)
+// 	handler := handlers.NewAuthHandler(svc)
 
-	mux := http.NewServeMux()
+// 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/signup", handler.SignUp)
-	mux.HandleFunc("/signin", handler.SignIn)
+// 	mux.HandleFunc("/signup", handler.SignUp)
+// 	mux.HandleFunc("/signin", handler.SignIn)
 
-	handlerChain :=
-		middleware.Panic(
-			middleware.CORS(cfg.CORS)(
-				middleware.JSON(mux),
-			),
-		)
+// 	handlerChain :=
+// 		middleware.Panic(
+// 			middleware.CORS(cfg.CORS)(
+// 				middleware.JSON(mux),
+// 			),
+// 		)
 
-	http.ListenAndServe(":"+cfg.ServerPort, handlerChain)
-}
+// 	http.ListenAndServe(":"+cfg.ServerPort, handlerChain)
+// }

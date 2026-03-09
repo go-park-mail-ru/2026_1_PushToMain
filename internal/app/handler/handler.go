@@ -2,9 +2,6 @@ package handler
 
 import (
 	"github.com/gorilla/mux"
-	"net/http"
-	httpSwagger "github.com/swaggo/http-swagger"
-	_ "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/docs"
 )
 
 type Handler struct {
@@ -21,8 +18,8 @@ func NewHandler() *Handler {
 func (h *Handler) InitRoutes() *mux.Router {
 	r := mux.NewRouter()
 
-	r.HandleFunc("/inbox/", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
-	r.PathPrefix("/docs/").Handler(httpSwagger.WrapHandler)
+	// r.HandleFunc("/inbox/", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
+	// r.PathPrefix("/docs/").Handler(httpSwagger.WrapHandler)
 	
 	return r
 }
