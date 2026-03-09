@@ -14,7 +14,7 @@ test:
 	go test ./...
 
 api:
-	swag init -g main.go --output docs --dir ./cmd,./internal/app/handler,./internal/app/models
+	swag init -g main.go --output docs --dir ./cmd,./internal/app/handler,./internal/app/models,./internal/pkg/response,./internal/pkg/middleware,./internal/pkg/utils
 
 clean:
 	rm -rf $(BUILD_DIR)
