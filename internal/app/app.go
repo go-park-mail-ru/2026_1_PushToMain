@@ -22,15 +22,7 @@ type App struct {
 }
 
 func New() *App {
-	handler := handler.NewHandler()
-	router := handler.InitRoutes()
-	
-	return &App{
-		Server: http.Server {
-			Addr: 		serverAddress,
-			Handler: 	router,
-		},
-	}
+	return &App{}
 }
 
 func (app *App) shutdownGracefully() error {
@@ -58,6 +50,15 @@ func (app *App) shutdownGracefully() error {
 }
 
 func (app *App) Run() error {
+	handler := handler.NewHandler()
+	router := handler.InitRoutes()
+
+	app.Router = router
+	app.Server = http.Server{
+		Addr:    serverAddress,
+		Handler: router,
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -68,8 +69,9 @@ func (app *App) Run() error {
 	}()
 
 	fmt.Printf("listening on %s", serverAddress)
+
 	<-ctx.Done()
-	
+
 	return app.shutdownGracefully()
 }
 
