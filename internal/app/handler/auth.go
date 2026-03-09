@@ -25,6 +25,16 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+// @Summary      Регистрация
+// @Description  Создаёт нового пользователя и устанавливает сессионную куку
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        input  body      handler.SignUpRequest  true  "Данные для регистрации"
+// @Success      200    {object}  map[string]string
+// @Failure      400    {object}  response.ErrorResponse
+// @Failure      500    {object}  response.ErrorResponse
+// @Router       /auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -62,6 +72,16 @@ type SignInRequest struct {
 	Password string `json:"password"`
 }
 
+// @Summary      Вход
+// @Description  Аутентифицирует пользователя и устанавливает сессионную куку
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        input  body      handler.SignInRequest  true  "Данные для входа"
+// @Success      200    {object}  map[string]string
+// @Failure      400    {object}  response.ErrorResponse
+// @Failure      500    {object}  response.ErrorResponse
+// @Router       /auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -92,6 +112,13 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Выход
+// @Description  Завершает сессию пользователя, сбрасывает сессионную куку
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Failure      500  {object}  response.ErrorResponse
+// @Router       /auth/logout [post]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{

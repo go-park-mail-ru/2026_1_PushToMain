@@ -47,12 +47,13 @@ var EmailsMock []models.Email = []models.Email{
 }
 
 // @Summary      Получить письма пользователя
-// @Description  Возвращает список писем, в которых пользователь указан получателем
+// @Description  Возвращает список писем, в которых авторизованный пользователь указан получателем
 // @Tags         emails
-// @Accept       json
 // @Produce      json
-// @Param        input body handler.EmailRequest true "Владелец почты"
-// @Success      200    {array}   models.Email
+// @Success      200  {array}   models.Email
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     BearerAuth
 // @Router       /emails [get]
 func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	payload, err := middleware.ClaimsFromContext(r.Context())
