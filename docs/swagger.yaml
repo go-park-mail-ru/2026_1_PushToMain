@@ -1,4 +1,3 @@
-basePath: /
 definitions:
   handlers.AuthResponse:
     properties:
@@ -23,25 +22,16 @@ definitions:
       surname:
         type: string
     type: object
-  response.ErrorResponse:
-    properties:
-      error:
-        type: string
-    type: object
-host: localhost:8080
 info:
   contact: {}
-  description: API для авторизации пользователей
-  title: Auth API
-  version: "1.0"
 paths:
   /signin:
     post:
       consumes:
       - application/json
-      description: Вход пользователя с выдачей jwt
+      description: Вход пользователя с выдачей JWT токена
       parameters:
-      - description: Credentials
+      - description: Данные для входа
         in: body
         name: request
         required: true
@@ -51,31 +41,37 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: JWT токен
           schema:
             $ref: '#/definitions/handlers.AuthResponse'
         "400":
-          description: Bad request
+          description: BAD_REQUEST
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Авторизация
+            additionalProperties:
+              type: string
+            type: object
+      summary: Авторизация пользователя
       tags:
       - auth
   /signup:
     post:
       consumes:
       - application/json
-      description: Создает нового пользователя и выдает jwt
+      description: Создает нового пользователя и возвращает JWT токен
       parameters:
-      - description: User data
+      - description: Данные нового пользователя
         in: body
         name: request
         required: true
@@ -85,25 +81,33 @@ paths:
       - application/json
       responses:
         "200":
-          description: OK
+          description: JWT токен
           schema:
             $ref: '#/definitions/handlers.AuthResponse'
         "400":
-          description: Bad request
+          description: BAD_REQUEST
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "409":
-          description: Conflict
+          description: User already exists
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
+            additionalProperties:
+              type: string
+            type: object
       summary: Регистрация пользователя
       tags:
       - auth
