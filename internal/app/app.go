@@ -18,10 +18,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-const (
-	shutdownMaxTime = 5 * time.Second
-	serverAddress   = "127.0.0.1:8087"
-)
+const shutdownMaxTime = 5 * time.Second
 
 type App struct {
 	Server  http.Server
@@ -69,8 +66,6 @@ func (app *App) Run() {
 			fmt.Printf("server error: %v", err)
 		}
 	}()
-
-	fmt.Printf("listening on %s", serverAddress)
 
 	<-ctx.Done()
 
