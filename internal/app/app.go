@@ -1,8 +1,13 @@
 package app
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/handler"
@@ -13,7 +18,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+const (
+	shutdownMaxTime = 5 * time.Second
+	serverAddress   = "127.0.0.1:8087"
+)
+
 type App struct {
+	Server  http.Server
+	Address string
 }
 
 func New() *App {
@@ -24,6 +36,7 @@ func (app *App) Run() {
 	cfg, err := Load()
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
@@ -43,5 +56,48 @@ func (app *App) Run() {
 
 	handler.InitRoutes(public, private)
 
-	http.ListenAndServe(":"+cfg.ServerPort, router)
+	app.Server = http.Server{
+		Addr:    ":" + cfg.ServerPort,
+		Handler: router,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		if err := app.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("server error: %v", err)
+		}
+	}()
+
+	fmt.Printf("listening on %s", serverAddress)
+
+	<-ctx.Done()
+
+	if err := app.shutdownGracefully(); err != nil {
+		fmt.Printf("An error during shutdown: %v", err)
+	}
+}
+
+func (app *App) shutdownGracefully() error {
+	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
+	defer cancel()
+
+	fmt.Println("shutting down server")
+
+	fullShutdown := make(chan struct{}, 1)
+	go func() {
+		if err := app.Server.Shutdown(shutdownContex); err != nil {
+			fmt.Printf("HTTP server Shutdown: %v", err)
+		}
+		close(fullShutdown)
+	}()
+	select {
+	case <-shutdownContex.Done():
+		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
+	case <-fullShutdown:
+		fmt.Println("Server shut down successfully")
+	}
+
+	return nil
 }
