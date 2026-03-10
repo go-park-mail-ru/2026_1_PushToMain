@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
@@ -38,6 +39,16 @@ type SignUpRequest struct {
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if len(req.Password) < 8 {
+		response.BadRequest(w)
+		return
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
 		response.BadRequest(w)
 		return
 	}
