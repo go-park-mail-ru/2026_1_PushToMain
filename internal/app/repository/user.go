@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"sync"
-
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
+	
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
 )
 
 var ErrUserNotFound = errors.New("user not found")

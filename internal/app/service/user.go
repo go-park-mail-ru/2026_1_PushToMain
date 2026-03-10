@@ -5,19 +5,21 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/repository"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/tools"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserAlreadyExists = errors.New("user already exists")
-var ErrUserNotFound = errors.New("user not found")
-var ErrFailedToGenerateHash = errors.New("failed to generate Hash for password")
-var ErrFindUser = errors.New("failed to find user")
-var ErrFailedToSaveUser = errors.New("failed to save user")
-var ErrToGenerateJWT = errors.New("failed to generate jwt")
-var ErrWrongPassword = errors.New("wrong password")
+var (
+	ErrUserAlreadyExists    = errors.New("user already exists")
+	ErrUserNotFound         = errors.New("user not found")
+	ErrFailedToGenerateHash = errors.New("failed to generate hash for password")
+	ErrFindUser             = errors.New("failed to find user")
+	ErrFailedToSaveUser     = errors.New("failed to save user")
+	ErrToGenerateJWT        = errors.New("failed to generate jwt")
+	ErrWrongPassword        = errors.New("wrong password")
+)
 
 type UserRepository interface {
 	Save(ctx context.Context, user models.User) error
@@ -26,7 +28,7 @@ type UserRepository interface {
 
 type JWTManager interface {
 	GenerateJWT(email string) (string, error)
-	ValidateJWT(token string) (*models.JwtPayload, error)
+	ValidateJWT(token string) (*utils.JwtPayload, error)
 }
 
 type AuthService struct {
@@ -59,7 +61,7 @@ func (s *AuthService) SignUp(ctx context.Context, signUp SignUpInput) (string, e
 		return "", fmt.Errorf("failed to find user: %w", err)
 	}
 
-	hash, err := tools.Hash(signUp.Password)
+	hash, err := utils.Hash(signUp.Password)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate hash for password: %w", err)
@@ -96,7 +98,7 @@ func (s *AuthService) SignIn(ctx context.Context, signIn SignInInput) (string, e
 		return "", fmt.Errorf("failed to find user: %w", err)
 	}
 
-	if err := tools.ComparePasswordAndHash(user.Password, signIn.Password); err != nil {
+	if err := utils.ComparePasswordAndHash(user.Password, signIn.Password); err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("wrong password: %w", err)
 	}

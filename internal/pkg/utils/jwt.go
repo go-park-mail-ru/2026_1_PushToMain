@@ -1,4 +1,4 @@
-package tools
+package utils
 
 import (
 	"crypto/hmac"
@@ -8,9 +8,12 @@ import (
 	"errors"
 	"strings"
 	"time"
-
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/models"
 )
+
+type JwtPayload struct {
+	Email string `json:"email"`
+	Exp   int64  `json:"exp"`
+}
 
 type JWTManager struct {
 	secretKey []byte
@@ -29,13 +32,17 @@ type jwtHeader struct {
 	Typ string `json:"typ"`
 }
 
+func (j *JWTManager) TTL() time.Duration {
+	return j.expire
+}
+
 func (j *JWTManager) GenerateJWT(email string) (string, error) {
 	header := jwtHeader{
 		Alg: "HS256",
 		Typ: "JWT",
 	}
 
-	payload := models.JwtPayload{
+	payload := JwtPayload{
 		Email: email,
 		Exp:   time.Now().Add(j.expire).Unix(),
 	}
@@ -66,7 +73,7 @@ func (j *JWTManager) sign(data string) string {
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func (j *JWTManager) ValidateJWT(token string) (*models.JwtPayload, error) {
+func (j *JWTManager) ValidateJWT(token string) (*JwtPayload, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 3 {
 		return nil, errors.New("invalid token format")
@@ -84,7 +91,7 @@ func (j *JWTManager) ValidateJWT(token string) (*models.JwtPayload, error) {
 		return nil, err
 	}
 
-	var payload models.JwtPayload
+	var payload JwtPayload
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
 		return nil, err
 	}
