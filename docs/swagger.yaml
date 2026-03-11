@@ -1,8 +1,21 @@
 basePath: /
 definitions:
-  handler.EmailRequest:
+  handler.SignInRequest:
     properties:
-      owner:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  handler.SignUpRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      surname:
         type: string
     type: object
   models.Email:
@@ -20,24 +33,112 @@ definitions:
           type: string
         type: array
     type: object
+  response.ErrorResponse:
+    properties:
+      message:
+        type: string
+    type: object
 host: localhost:8087
 info:
   contact: {}
   title: Smail API
   version: "1.0"
 paths:
-  /emails:
-    get:
+  /auth/logout:
+    post:
+      description: Завершает сессию пользователя, сбрасывает сессионную куку
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Выход
+      tags:
+      - auth
+  /auth/signin:
+    post:
       consumes:
       - application/json
-      description: Возвращает список писем, в которых пользователь указан получателем
+      description: Аутентифицирует пользователя и устанавливает сессионную куку
       parameters:
-      - description: Владелец почты
+      - description: Данные для входа
         in: body
         name: input
         required: true
         schema:
-          $ref: '#/definitions/handler.EmailRequest'
+          $ref: '#/definitions/handler.SignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Вход
+      tags:
+      - auth
+  /auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового пользователя и устанавливает сессионную куку
+      parameters:
+      - description: Данные для регистрации
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handler.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      summary: Регистрация
+      tags:
+      - auth
+  /emails:
+    get:
+      description: Возвращает список писем, в которых авторизованный пользователь
+        указан получателем
       produces:
       - application/json
       responses:
@@ -47,6 +148,20 @@ paths:
             items:
               $ref: '#/definitions/models.Email'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Получить письма пользователя
       tags:
       - emails
