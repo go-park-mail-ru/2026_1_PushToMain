@@ -51,7 +51,7 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !ValidateSignUp(req.Email, req.Password, req.Name, req.Surname) {
+	if !req.Validate() {
 		response.BadRequest(w)
 		return
 	}
@@ -104,7 +104,7 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !ValidateSignIn(req.Email, req.Password) {
+	if !req.Validate() {
 		response.BadRequest(w)
 		return
 	}
@@ -172,58 +172,58 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	}
 }
 
-func ValidateSignUp(email, password, name, surname string) bool {
+func (req *SignUpRequest) Validate() bool {
 
-	if email == "" {
+	if req.Email == "" {
 		return false
 	}
 
-	if !emailRegex.MatchString(email) {
+	if !emailRegex.MatchString(req.Email) {
 		return false
 	}
 
-	if !strings.HasSuffix(email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
 		return false
 	}
 
-	if len(password) < 8 {
+	if len(req.Password) < 8 {
 		return false
 	}
 
-	if name == "" {
+	if req.Name == "" {
 		return false
 	}
 
-	if !nameRegex.MatchString(name) {
+	if !nameRegex.MatchString(req.Name) {
 		return false
 	}
 
-	if surname == "" {
+	if req.Surname == "" {
 		return false
 	}
 
-	if !surnameRegex.MatchString(surname) {
+	if !surnameRegex.MatchString(req.Surname) {
 		return false
 	}
 
 	return true
 }
 
-func ValidateSignIn(email, password string) bool {
+func (req *SignInRequest) Validate() bool {
 
-	if email == "" {
+	if req.Email == "" {
 		return false
 	}
 
-	if !emailRegex.MatchString(email) {
+	if !emailRegex.MatchString(req.Email) {
 		return false
 	}
 
-	if !strings.HasSuffix(email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
 		return false
 	}
 
-	if len(password) < 8 {
+	if len(req.Password) < 8 {
 		return false
 	}
 
