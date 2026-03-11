@@ -52,6 +52,7 @@ var EmailsMock []models.Email = []models.Email{
 // @Produce      json
 // @Success      200  {array}   models.Email
 // @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     BearerAuth
 // @Router       /emails [get]
@@ -77,10 +78,5 @@ func (h *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// TODO: Replace WriteJSON
 	response.WriteJSON(w, http.StatusOK, result)
-}
-
-func (h *Handler) GetFullEmailByID(w http.ResponseWriter, r *http.Request) {
-
 }

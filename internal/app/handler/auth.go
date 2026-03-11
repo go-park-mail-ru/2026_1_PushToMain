@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,6 +27,12 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+var (
+	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
+	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+)
+
 // @Summary      Регистрация
 // @Description  Создаёт нового пользователя и устанавливает сессионную куку
 // @Tags         auth
@@ -34,6 +41,7 @@ type SignUpRequest struct {
 // @Param        input  body      handler.SignUpRequest  true  "Данные для регистрации"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
+// @Failure      409    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
@@ -43,12 +51,7 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(req.Password) < 8 {
-		response.BadRequest(w)
-		return
-	}
-
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !ValidateSignUp(req.Email, req.Password, req.Name, req.Surname) {
 		response.BadRequest(w)
 		return
 	}
@@ -91,11 +94,17 @@ type SignInRequest struct {
 // @Param        input  body      handler.SignInRequest  true  "Данные для входа"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
+// @Failure      401    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if !ValidateSignIn(req.Email, req.Password) {
 		response.BadRequest(w)
 		return
 	}
@@ -161,4 +170,62 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	default:
 		response.InternalError(w)
 	}
+}
+
+func ValidateSignUp(email, password, name, surname string) bool {
+
+	if email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(email) {
+		return false
+	}
+
+	if !strings.HasSuffix(email, "@smail.ru") {
+		return false
+	}
+
+	if len(password) < 8 {
+		return false
+	}
+
+	if name == "" {
+		return false
+	}
+
+	if !nameRegex.MatchString(name) {
+		return false
+	}
+
+	if surname == "" {
+		return false
+	}
+
+	if !surnameRegex.MatchString(surname) {
+		return false
+	}
+
+	return true
+}
+
+func ValidateSignIn(email, password string) bool {
+
+	if email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(email) {
+		return false
+	}
+
+	if !strings.HasSuffix(email, "@smail.ru") {
+		return false
+	}
+
+	if len(password) < 8 {
+		return false
+	}
+
+	return true
 }
