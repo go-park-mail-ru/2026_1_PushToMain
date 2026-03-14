@@ -290,8 +290,6 @@
 erDiagram
     base_profiles {
         UUID id PK
-        varchar username UK
-        varchar domain
         varchar email UK
         enum user_type
         boolean is_active
@@ -302,6 +300,7 @@ erDiagram
     profiles {
         UUID id PK
         UUID base_profile_id FK,UK
+        varchar username UK
         varchar password_hash
         varchar first_name
         varchar last_name
@@ -438,15 +437,11 @@ erDiagram
         UUID id PK
         UUID profile_id FK,UK
         varchar language
-        enum theme
-        varchar timezone
         text signature
         boolean notifications_email
         boolean notifications_push
         integer messages_per_page
         varchar forwarding_address
-        boolean auto_reply_enabled
-        text auto_reply_text
         timestamptz created_at
         timestamptz updated_at
     }
