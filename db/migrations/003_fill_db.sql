@@ -43,7 +43,7 @@ INSERT INTO profiles (base_profile_id, username, password_hash, first_name, last
     (10, 'support', '$2a$10$XKQK5QK5QK5QK5QK5QK5QO', 'Служба', 'Поддержки', NULL, 'female',  'Поддержка', 'Специалист поддержки', 1);
 
 --- Создание групп
-INSERT INTO user_groups (group_code, group_name, description, group_type, priority, is_system) VALUES
+INSERT INTO user_groups (group_code, group_name, description, group_origin, priority, is_system) VALUES
     ('all_students', 'Все студенты', 'Все студенты университета', 'system', 10, true),
     ('all_teachers', 'Все преподаватели', 'Все преподаватели и сотрудники', 'system', 10, true),
     ('sgn3_44b', 'СГН3-44Б', 'СГН3-44Б', 'custom', 20, false),
