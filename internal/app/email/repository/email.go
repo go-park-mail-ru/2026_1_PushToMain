@@ -6,12 +6,12 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 )
 
-type MemoryEmailRepo struct {
+type MemoryRepo struct {
 	emails []models.Email
 }
 
-func NewMemoryEmailRepo() *MemoryEmailRepo {
-	return &MemoryEmailRepo{
+func NewMemoryRepo() *MemoryRepo {
+	return &MemoryRepo{
 		emails: []models.Email{
 			{
 				EmailID: "email-001",
@@ -52,7 +52,7 @@ func NewMemoryEmailRepo() *MemoryEmailRepo {
 	}
 }
 
-type EmailRepository interface {
+type Repository interface {
 	GetAll(ctx context.Context) ([]models.Email, error)
 }
 
@@ -60,6 +60,6 @@ type EmailRepository interface {
 	return &MemoryEmailRepo{emails: data}
 }*/
 
-func (r *MemoryEmailRepo) GetAll(ctx context.Context) ([]models.Email, error) {
+func (r *MemoryRepo) GetAll(ctx context.Context) ([]models.Email, error) {
 	return r.emails, nil
 }

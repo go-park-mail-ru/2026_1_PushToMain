@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
 const sessionTokenCookie = "session_token"
 
-type AuthService interface {
+type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
 }
@@ -43,7 +43,7 @@ var (
 // @Failure      400    {object}  response.ErrorResponse
 // @Failure      409    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
-// @Router       /auth/signup [post]
+// @Router       api/v1/auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -56,7 +56,7 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := handler.authService.SignUp(r.Context(), service.SignUpInput{
+	token, err := handler.service.SignUp(r.Context(), service.SignUpInput{
 		Email:    req.Email,
 		Password: req.Password,
 		Name:     req.Name,
@@ -96,7 +96,7 @@ type SignInRequest struct {
 // @Failure      400    {object}  response.ErrorResponse
 // @Failure      401    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
-// @Router       /auth/signin [post]
+// @Router       api/v1/auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -109,7 +109,7 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := handler.authService.SignIn(r.Context(), service.SignInInput{
+	token, err := handler.service.SignIn(r.Context(), service.SignInInput{
 		Email:    req.Email,
 		Password: req.Password,
 	})
@@ -138,7 +138,7 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {object}  map[string]string
 // @Failure      500  {object}  response.ErrorResponse
-// @Router       /auth/logout [post]
+// @Router       api/v1/auth/logout [post]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{

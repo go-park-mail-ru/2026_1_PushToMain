@@ -6,19 +6,19 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 )
 
-type EmailRepository interface {
+type Repository interface {
 	GetAll(ctx context.Context) ([]models.Email, error)
 }
 
-type EmailService struct {
-	repo EmailRepository
+type Service struct {
+	repo Repository
 }
 
-func NewEmailService(repo EmailRepository) *EmailService {
-	return &EmailService{repo: repo}
+func New(repo Repository) *Service {
+	return &Service{repo: repo}
 }
 
-func (s *EmailService) GetEmailsByReceiver(ctx context.Context, email string) ([]models.Email, error) {
+func (s *Service) GetEmailsByReceiver(ctx context.Context, email string) ([]models.Email, error) {
 	emails, err := s.repo.GetAll(ctx)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
 
 func TestUserRepo_SaveAndFind(t *testing.T) {

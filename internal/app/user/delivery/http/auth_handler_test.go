@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 )
 
 type mockAuthService struct {
@@ -25,10 +25,10 @@ func (m *mockAuthService) SignIn(ctx context.Context, cmd service.SignInInput) (
 	return m.signInFunc(ctx, cmd)
 }
 
-func newTestHandler(auth AuthService) *Handler {
+func newTestHandler(auth Service) *Handler {
 	return &Handler{
-		authService: auth,
-		ttl:         time.Hour,
+		service: auth,
+		ttl:     time.Hour,
 	}
 }
 

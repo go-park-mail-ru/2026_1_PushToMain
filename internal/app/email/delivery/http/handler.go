@@ -8,13 +8,13 @@ import (
 )
 
 type Handler struct {
-	EmailService EmailService
+	service Service
 
 	ttl time.Duration
 }
 
-func NewHandler(service EmailService, ttl time.Duration) *Handler {
-	return &Handler{EmailService: service, ttl: ttl}
+func NewHandler(service Service, ttl time.Duration) *Handler {
+	return &Handler{service: service, ttl: ttl}
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {

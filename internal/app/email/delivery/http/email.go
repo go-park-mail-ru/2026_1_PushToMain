@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
@@ -9,12 +10,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
-type EmailService interface {
+type Service interface {
 	GetEmailsByReceiver(ctx context.Context, email string) ([]models.Email, error)
-}
-
-func NewEmailHandler(s EmailService) *Handler {
-	return &Handler{EmailService: s}
 }
 
 // @Summary      Получить письма пользователя
@@ -25,8 +22,8 @@ func NewEmailHandler(s EmailService) *Handler {
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      401  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
-// @Security     BearerAuth
-// @Router       /emails [get]
+// @Security     CookieAuth
+// @Router       api/v1/emails [get]
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -39,11 +36,14 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := handler.EmailService.GetEmailsByReceiver(r.Context(), payload.Email)
+	result, err := handler.service.GetEmailsByReceiver(r.Context(), payload.Email)
 	if err != nil {
 		response.InternalError(w)
 		return
 	}
 
-	response.WriteJSON(w, http.StatusOK, result)
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		response.InternalError(w)
+		return
+	}
 }

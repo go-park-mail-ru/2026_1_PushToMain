@@ -9,13 +9,13 @@ import (
 )
 
 type Handler struct {
-	authService AuthService
+	service Service
 
 	ttl time.Duration
 }
 
-func NewHandler(service AuthService, ttl time.Duration) *Handler {
-	return &Handler{authService: service, ttl: ttl}
+func NewHandler(service Service, ttl time.Duration) *Handler {
+	return &Handler{service: service, ttl: ttl}
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {

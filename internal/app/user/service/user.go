@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/models"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,7 +21,7 @@ var (
 	ErrWrongPassword        = errors.New("wrong password")
 )
 
-type UserRepository interface {
+type Repository interface {
 	Save(ctx context.Context, user models.User) error
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 }
@@ -31,13 +31,13 @@ type JWTManager interface {
 	ValidateJWT(token string) (*utils.JwtPayload, error)
 }
 
-type AuthService struct {
-	repo UserRepository
+type Service struct {
+	repo Repository
 	jwt  JWTManager
 }
 
-func NewAuthService(r UserRepository, jwt JWTManager) *AuthService {
-	return &AuthService{
+func New(r Repository, jwt JWTManager) *Service {
+	return &Service{
 		repo: r,
 		jwt:  jwt}
 }
@@ -49,7 +49,7 @@ type SignUpInput struct {
 	Surname  string
 }
 
-func (s *AuthService) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
+func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
 	_, err := s.repo.FindByEmail(ctx, signUp.Email)
 	if err == nil {
 		err = ErrUserAlreadyExists
@@ -91,7 +91,7 @@ type SignInInput struct {
 	Password string
 }
 
-func (s *AuthService) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
+func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
 	user, err := s.repo.FindByEmail(ctx, signIn.Email)
 	if err != nil {
 		err = mapRepositoryError(err)
