@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )

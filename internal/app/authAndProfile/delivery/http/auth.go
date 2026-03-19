@@ -1,13 +1,15 @@
-package handler
+package http
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
@@ -25,6 +27,12 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+var (
+	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
+	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+)
+
 // @Summary      Регистрация
 // @Description  Создаёт нового пользователя и устанавливает сессионную куку
 // @Tags         auth
@@ -33,11 +41,17 @@ type SignUpRequest struct {
 // @Param        input  body      handler.SignUpRequest  true  "Данные для регистрации"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
+// @Failure      409    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if !req.Validate() {
 		response.BadRequest(w)
 		return
 	}
@@ -80,11 +94,17 @@ type SignInRequest struct {
 // @Param        input  body      handler.SignInRequest  true  "Данные для входа"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
+// @Failure      401    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if !req.Validate() {
 		response.BadRequest(w)
 		return
 	}
@@ -150,4 +170,62 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	default:
 		response.InternalError(w)
 	}
+}
+
+func (req *SignUpRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	if req.Name == "" {
+		return false
+	}
+
+	if !nameRegex.MatchString(req.Name) {
+		return false
+	}
+
+	if req.Surname == "" {
+		return false
+	}
+
+	if !surnameRegex.MatchString(req.Surname) {
+		return false
+	}
+
+	return true
+}
+
+func (req *SignInRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	return true
 }

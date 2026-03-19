@@ -1,4 +1,4 @@
-package handler
+package http
 
 import (
 	"net/http"
@@ -23,6 +23,4 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	public.HandleFunc("/signin", h.SignIn).Methods(http.MethodPost, http.MethodOptions)
 	public.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 	public.HandleFunc("/logout", h.Logout).Methods(http.MethodPost, http.MethodOptions)
-
-	private.HandleFunc("/emails", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
 }

@@ -10,18 +10,19 @@ import (
 	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/handler"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/service"
+	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/repository"
+	authService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/service"
+
+	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/authAndProfile/delivery/http"
+	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
+	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
+	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/gorilla/mux"
 )
 
-const (
-	shutdownMaxTime = 5 * time.Second
-	serverAddress   = "127.0.0.1:8087"
-)
+const shutdownMaxTime = 5 * time.Second
 
 type App struct {
 	Server  http.Server
@@ -40,9 +41,13 @@ func (app *App) Run() {
 	}
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
-	repo := repository.NewMemoryUserRepo()
-	authService := service.NewAuthService(repo, jwtManager)
-	handler := handler.NewHandler(authService, jwtManager.TTL())
+	authRepo := authRepo.NewMemoryUserRepo()
+	authService := authService.NewAuthService(authRepo, jwtManager)
+	authHandler := authHttp.NewHandler(authService, jwtManager.TTL())
+
+	emailRepo := emailRepo.NewMemoryEmailRepo()
+	emailService := emailService.NewEmailService(emailRepo)
+	emailHandler := emailHttp.NewHandler(emailService, jwtManager.TTL())
 
 	router := mux.NewRouter()
 
@@ -54,7 +59,8 @@ func (app *App) Run() {
 	private := public.PathPrefix("").Subrouter()
 	private.Use(middleware.AuthMiddleware(jwtManager))
 
-	handler.InitRoutes(public, private)
+	authHandler.InitRoutes(public, private)
+	emailHandler.InitRoutes(public, private)
 
 	app.Server = http.Server{
 		Addr:    ":" + cfg.ServerPort,
@@ -69,8 +75,6 @@ func (app *App) Run() {
 			fmt.Printf("server error: %v", err)
 		}
 	}()
-
-	fmt.Printf("listening on %s", serverAddress)
 
 	<-ctx.Done()
 
