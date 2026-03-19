@@ -70,7 +70,7 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionTokenCookie,
 		Value:    token,
-		Expires:  time.Now().Add(handler.ttl),
+		Expires:  time.Now().Add(handler.cfg.TTL),
 		HttpOnly: true,
 		Path:     "/",
 	})
@@ -121,7 +121,7 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sessionTokenCookie,
 		Value:    token,
-		Expires:  time.Now().Add(handler.ttl),
+		Expires:  time.Now().Add(handler.cfg.TTL),
 		HttpOnly: true,
 		Path:     "/",
 	})

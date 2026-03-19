@@ -8,14 +8,20 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-type Handler struct {
-	service Service
-
-	ttl time.Duration
+type Config struct {
+	TTL time.Duration
 }
 
-func NewHandler(service Service, ttl time.Duration) *Handler {
-	return &Handler{service: service, ttl: ttl}
+type Handler struct {
+	service Service
+	cfg     Config
+}
+
+func NewHandler(service Service, cfg Config) *Handler {
+	return &Handler{
+		service: service,
+		cfg:     cfg,
+	}
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {

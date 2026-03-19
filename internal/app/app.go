@@ -10,13 +10,13 @@ import (
 	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
+	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
 	authService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
-	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/gorilla/mux"
@@ -43,11 +43,11 @@ func (app *App) Run() {
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	authRepo := authRepo.NewMemoryUserRepo()
 	authService := authService.New(authRepo, jwtManager)
-	authHandler := authHttp.NewHandler(authService, jwtManager.TTL())
+	authHandler := authHttp.NewHandler(authService, authHttp.Config{TTL: jwtManager.TTL()})
 
 	emailRepo := emailRepo.NewMemoryRepo()
 	emailService := emailService.New(emailRepo)
-	emailHandler := emailHttp.NewHandler(emailService, jwtManager.TTL())
+	emailHandler := emailHttp.NewHandler(emailService, emailHttp.Config{TTL: jwtManager.TTL()})
 
 	router := mux.NewRouter()
 
