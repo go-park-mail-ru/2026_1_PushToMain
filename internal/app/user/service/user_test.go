@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 )
 
@@ -89,7 +89,7 @@ func TestAuthService_SignUp(t *testing.T) {
 				generate: tt.jwtGenerate,
 			}
 
-			service := NewAuthService(repo, jwt)
+			service := New(repo, jwt)
 
 			_, err := service.SignUp(context.Background(), SignUpInput{
 				Email:    "test@test.com",
@@ -166,7 +166,7 @@ func TestAuthService_SignIn(t *testing.T) {
 				generate: tt.jwtGenerate,
 			}
 
-			service := NewAuthService(repo, jwt)
+			service := New(repo, jwt)
 
 			_, err := service.SignIn(context.Background(), SignInInput{
 				Email:    "test@test.com",

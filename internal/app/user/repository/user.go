@@ -5,30 +5,30 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
 
 var ErrUserNotFound = errors.New("user not found")
 
-type UserRepo struct {
+type Repository struct {
 	mu    sync.Mutex
 	users map[string]models.User
 }
 
-func NewMemoryUserRepo() *UserRepo {
-	return &UserRepo{
+func New() *Repository {
+	return &Repository{
 		users: make(map[string]models.User),
 	}
 }
 
-func (repo *UserRepo) Save(ctx context.Context, user models.User) error {
+func (repo *Repository) Save(ctx context.Context, user models.User) error {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	repo.users[user.Email] = user
 	return nil
 }
 
-func (repo *UserRepo) FindByEmail(ctx context.Context, email string) (*models.User, error) {
+func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.User, error) {
 	repo.mu.Lock()
 	defer repo.mu.Unlock()
 	user, ok := repo.users[email]
