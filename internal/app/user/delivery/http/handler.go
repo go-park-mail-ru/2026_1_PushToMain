@@ -17,7 +17,7 @@ type Handler struct {
 	cfg     Config
 }
 
-func NewHandler(service Service, cfg Config) *Handler {
+func New(service Service, cfg Config) *Handler {
 	return &Handler{
 		service: service,
 		cfg:     cfg,

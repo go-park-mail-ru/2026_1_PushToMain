@@ -52,10 +52,6 @@ func NewMemoryRepo() *MemoryRepo {
 	}
 }
 
-type Repository interface {
-	GetAll(ctx context.Context) ([]models.Email, error)
-}
-
 /*func NewEmailRepo(data []models.Email) *MemoryEmailRepo {
 	return &MemoryEmailRepo{emails: data}
 }*/
