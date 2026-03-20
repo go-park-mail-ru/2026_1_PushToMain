@@ -41,11 +41,11 @@ func (app *App) Run() {
 	}
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
-	authRepo := authRepo.NewMemoryUserRepo()
+	authRepo := authRepo.New()
 	authService := authService.New(authRepo, jwtManager)
 	authHandler := authHttp.New(authService, authHttp.Config{TTL: jwtManager.TTL()})
 
-	emailRepo := emailRepo.NewMemoryRepo()
+	emailRepo := emailRepo.New()
 	emailService := emailService.New(emailRepo)
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: jwtManager.TTL()})
 

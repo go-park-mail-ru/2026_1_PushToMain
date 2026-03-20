@@ -10,7 +10,7 @@ type MemoryRepo struct {
 	emails []models.Email
 }
 
-func NewMemoryRepo() *MemoryRepo {
+func New() *MemoryRepo {
 	return &MemoryRepo{
 		emails: []models.Email{
 			{

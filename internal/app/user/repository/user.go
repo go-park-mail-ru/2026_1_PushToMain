@@ -15,7 +15,7 @@ type Repository struct {
 	users map[string]models.User
 }
 
-func NewMemoryUserRepo() *Repository {
+func New() *Repository {
 	return &Repository{
 		users: make(map[string]models.User),
 	}

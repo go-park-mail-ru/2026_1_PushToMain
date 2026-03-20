@@ -9,7 +9,7 @@ import (
 )
 
 func TestUserRepo_SaveAndFind(t *testing.T) {
-	repo := NewMemoryUserRepo()
+	repo := New()
 	ctx := context.Background()
 
 	user := models.User{
@@ -38,7 +38,7 @@ func TestUserRepo_SaveAndFind(t *testing.T) {
 }
 
 func TestUserRepo_FindUserNotFound(t *testing.T) {
-	repo := NewMemoryUserRepo()
+	repo := New()
 	ctx := context.Background()
 
 	_, err := repo.FindByEmail(ctx, "notfound@mail.com")
@@ -49,7 +49,7 @@ func TestUserRepo_FindUserNotFound(t *testing.T) {
 }
 
 func TestUserRepo_SaveOverwrite(t *testing.T) {
-	repo := NewMemoryUserRepo()
+	repo := New()
 	ctx := context.Background()
 
 	user := models.User{
