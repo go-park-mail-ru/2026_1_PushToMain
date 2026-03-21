@@ -11,8 +11,8 @@ import (
 )
 
 type JwtPayload struct {
-	Email string `json:"email"`
-	Exp   int64  `json:"exp"`
+	UserId int64 `json:"user-id"`
+	Exp    int64 `json:"exp"`
 }
 
 type JWTManager struct {
@@ -36,15 +36,14 @@ func (j *JWTManager) TTL() time.Duration {
 	return j.expire
 }
 
-func (j *JWTManager) GenerateJWT(email string) (string, error) {
+func (j *JWTManager) GenerateJWT(userId int64) (string, error) {
 	header := jwtHeader{
 		Alg: "HS256",
 		Typ: "JWT",
 	}
-
 	payload := JwtPayload{
-		Email: email,
-		Exp:   time.Now().Add(j.expire).Unix(),
+		UserId: userId,
+		Exp:    time.Now().Add(j.expire).Unix(),
 	}
 
 	headerJSON, err := json.Marshal(header)
