@@ -9,6 +9,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
@@ -39,6 +41,13 @@ func (app *App) Run() {
 		log.Fatal(err)
 		return
 	}
+
+	err = logger.Init(logger.DefaultConfig())
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer logger.Sync()
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	authRepo := authRepo.New()
@@ -72,14 +81,14 @@ func (app *App) Run() {
 
 	go func() {
 		if err := app.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("server error: %v", err)
+			logger.Logger.Errorw("server error", "error", err)
 		}
 	}()
 
 	<-ctx.Done()
 
 	if err := app.shutdownGracefully(); err != nil {
-		fmt.Printf("An error during shutdown: %v", err)
+		logger.Logger.Errorw("error during shutdown", "error", err)
 	}
 }
 
@@ -87,12 +96,12 @@ func (app *App) shutdownGracefully() error {
 	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
 	defer cancel()
 
-	fmt.Println("shutting down server")
+	logger.Logger.Info("shutting down server")
 
 	fullShutdown := make(chan struct{}, 1)
 	go func() {
 		if err := app.Server.Shutdown(shutdownContex); err != nil {
-			fmt.Printf("HTTP server Shutdown: %v", err)
+			logger.Logger.Errorw("HTTP server Shutdown", "error", err)
 		}
 		close(fullShutdown)
 	}()
@@ -100,7 +109,7 @@ func (app *App) shutdownGracefully() error {
 	case <-shutdownContex.Done():
 		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
 	case <-fullShutdown:
-		fmt.Println("Server shut down successfully")
+		logger.Logger.Info("Server shut down successfully")
 	}
 
 	return nil
