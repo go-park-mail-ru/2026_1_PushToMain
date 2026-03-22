@@ -9,7 +9,7 @@ import (
 
 type Repository struct {
 	emails     []models.Email
-	user_email []models.User_email
+	user_email []models.UserEmail
 }
 
 func New() *Repository {
@@ -48,7 +48,7 @@ func New() *Repository {
 			},
 		},
 
-		user_email: []models.User_email{
+		user_email: []models.UserEmail{
 			{
 				ID:         1,
 				EmailID:    1,

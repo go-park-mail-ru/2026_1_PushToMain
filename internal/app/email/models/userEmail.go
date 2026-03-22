@@ -1,6 +1,6 @@
 package models
 
-type User_email struct {
+type UserEmail struct {
 	ID         int64
 	EmailID    int64
 	ReceiverID int64
