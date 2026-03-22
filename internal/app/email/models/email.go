@@ -9,3 +9,10 @@ type Email struct {
 	Body      string    `json:"body"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type UserEmail struct {
+	ID         int64
+	EmailID    int64
+	ReceiverID int64
+	IsRead     bool
+}

@@ -8,8 +8,8 @@ import (
 )
 
 type Repository struct {
-	emails     []models.Email
-	user_email []models.UserEmail
+	emails    []models.Email
+	userEmail []models.UserEmail
 }
 
 func New() *Repository {
@@ -48,7 +48,7 @@ func New() *Repository {
 			},
 		},
 
-		user_email: []models.UserEmail{
+		userEmail: []models.UserEmail{
 			{
 				ID:         1,
 				EmailID:    1,
@@ -88,7 +88,7 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]m
 	result := make([]models.Email, 0)
 
 	userEmailIDs := make(map[int64]bool)
-	for _, userEmail := range r.user_email {
+	for _, userEmail := range r.userEmail {
 		if userEmail.ReceiverID == userID {
 			userEmailIDs[userEmail.EmailID] = true
 		}
