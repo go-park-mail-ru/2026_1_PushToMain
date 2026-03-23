@@ -18,7 +18,7 @@ type Config struct {
 	JWTExpire time.Duration
 
 	CORS   middleware.CORSConfig
-	Logger logger.LoggerConfig
+	Logger logger.Config
 }
 
 func Load() (*Config, error) {
@@ -44,7 +44,7 @@ func Load() (*Config, error) {
 			AllowedMethods: splitEnvList(os.Getenv("CORS_ALLOWED_METHODS")),
 			AllowedHeaders: splitEnvList(os.Getenv("CORS_ALLOWED_HEADERS")),
 		},
-		Logger: logger.LoggerConfig{ //TODO: after viper merge, rewrite using viper config
+		Logger: logger.Config{ //TODO: after viper merge, rewrite using viper config
 			Level:           os.Getenv("LOGGER_LEVEL"),
 			Environment:     os.Getenv("LOGGER_ENVIRONMENT"),
 			OutputPath:      os.Getenv("LOGGER_OUTPUT_PATH"),

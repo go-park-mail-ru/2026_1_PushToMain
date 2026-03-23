@@ -5,16 +5,14 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-var Logger *zap.SugaredLogger
-
-type LoggerConfig struct {
+type Config struct {
 	Level           string `mapstructure:"level"`
 	Environment     string `mapstructure:"environment"`
 	OutputPath      string `mapstructure:"output_path"`
 	ErrorOutputPath string `mapstructure:"error_output_path"`
 }
 
-func Init(cfg *LoggerConfig) error {
+func New(cfg *Config) (*zap.SugaredLogger, error) {
 	var zapConfig zap.Config
 
 	if cfg.Environment == "development" {
@@ -38,16 +36,16 @@ func Init(cfg *LoggerConfig) error {
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	Logger = zapLogger.Sugar()
+	Logger := zapLogger.Sugar()
 
-	return nil
+	return Logger, nil
 }
 
-func DefaultConfig() *LoggerConfig {
-	return &LoggerConfig{
+func DefaultConfig() *Config {
+	return &Config{
 		Level:           "info",
 		Environment:     "development",
 		OutputPath:      "stdout",
@@ -55,9 +53,9 @@ func DefaultConfig() *LoggerConfig {
 	}
 }
 
-func Sync() error {
-	if Logger != nil {
-		return Logger.Sync()
+func Sync(logger *zap.SugaredLogger) error {
+	if logger != nil {
+		return logger.Sync()
 	}
 	return nil
 }

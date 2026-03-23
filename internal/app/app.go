@@ -3,13 +3,13 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+	"go.uber.org/zap"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
@@ -29,25 +29,24 @@ const shutdownMaxTime = 5 * time.Second
 type App struct {
 	Server  http.Server
 	Address string
+	Logger  *zap.SugaredLogger
 }
 
 func New() *App {
 	return &App{}
 }
 
-func (app *App) Run() {
+func (app *App) Run() error {
 	cfg, err := Load()
 	if err != nil {
-		log.Fatal(err)
-		return
+		return err
 	}
 
-	err = logger.Init(logger.DefaultConfig())
+	app.Logger, err = logger.New(logger.DefaultConfig())
 	if err != nil {
-		log.Fatal(err)
-		return
+		return err
 	}
-	defer logger.Sync()
+	defer app.Logger.Sync()
 
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
 	authRepo := authRepo.New()
@@ -81,35 +80,38 @@ func (app *App) Run() {
 
 	go func() {
 		if err := app.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Logger.Errorw("server error", "error", err)
+			app.Logger.Errorf("server error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 
 	if err := app.shutdownGracefully(); err != nil {
-		logger.Logger.Errorw("error during shutdown", "error", err)
+		app.Logger.Errorf("error during shutdown: %v", err)
 	}
+
+	return nil
 }
 
 func (app *App) shutdownGracefully() error {
 	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
 	defer cancel()
 
-	logger.Logger.Info("shutting down server")
+	app.Logger.Info("shutting down server")
 
 	fullShutdown := make(chan struct{}, 1)
 	go func() {
 		if err := app.Server.Shutdown(shutdownContex); err != nil {
-			logger.Logger.Errorw("HTTP server Shutdown", "error", err)
+			app.Logger.Errorf("HTTP server Shutdown: %v", err)
 		}
 		close(fullShutdown)
 	}()
 	select {
 	case <-shutdownContex.Done():
+		app.Logger.Errorf("server shutdown: %w", shutdownContex.Err())
 		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
 	case <-fullShutdown:
-		logger.Logger.Info("Server shut down successfully")
+		app.Logger.Info("Server shut down successfully")
 	}
 
 	return nil
