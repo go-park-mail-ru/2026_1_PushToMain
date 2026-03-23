@@ -1,0 +1,25 @@
+port: 8080
+
+jwt:
+  secret: super-secret-key
+  expireHours: 24
+
+cors:
+  allowedOrigins:
+    - http://e-smail.ru
+    - https://e-smail.ru
+  allowedMethods:
+    - POST
+    - GET
+    - OPTIONS
+    - PUT
+    - DELETE
+  allowedHeaders:
+    - Content-Type
+    - Authorization
+
+logger:
+  level: debug
+  environment: development
+  outputPath: stdout
+  errorOutputPath: stderr

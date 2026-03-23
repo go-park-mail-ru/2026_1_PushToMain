@@ -33,8 +33,8 @@ func New() *App {
 	return &App{}
 }
 
-func (app *App) Run() {
-	cfg, err := Load()
+func (app *App) Run(configPath string) {
+	cfg, err := Load(configPath)
 	if err != nil {
 		log.Fatal(err)
 		return

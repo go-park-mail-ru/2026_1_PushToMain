@@ -10,43 +10,36 @@ import (
 )
 
 type Config struct {
-	ServerPort string
+	ServerPort string `mapstructure:"port"`
 
-	JWTSecret string
-	JWTExpire time.Duration
+	JWTSecret string        `mapstructure:"jwt.secret"`
+	JWTExpire time.Duration `mapstructure:"jwt.expireHours"`
 
-	CORS middleware.CORSConfig
+	CORS middleware.CORSConfig `mapstructure:"cors"`
 }
 
-func Load() (*Config, error) {
-	if err := initConfig(); err != nil {
+func Load(path string) (*Config, error) {
+	if err := initConfig(path); err != nil {
 		return nil, fmt.Errorf("Error initializing config: %v", err)
 	}
 
-	expHours := viper.GetInt("JWT_EXPIRE_HOURS")
-
-	cfg := &Config{
-		ServerPort: viper.GetString("APP_PORT"),
-
-		JWTSecret: viper.GetString("JWT_SECRET"),
-		JWTExpire: time.Duration(expHours) * time.Hour,
-
-		CORS: middleware.CORSConfig{
-			AllowedOrigins: splitEnvList(viper.GetString("CORS_ALLOWED_ORIGINS")),
-			AllowedMethods: splitEnvList(viper.GetString("CORS_ALLOWED_METHODS")),
-			AllowedHeaders: splitEnvList(viper.GetString("CORS_ALLOWED_HEADERS")),
-		},
+	cfg := &Config{}
+	if err := viper.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("Error unmarshaling config: %v", err)
 	}
+
+	fmt.Println(cfg.CORS.AllowedOrigins[0])
+
 	return cfg, nil
 }
 
-func initConfig() error {
-	viper.SetConfigName(".env")
-	viper.SetConfigType("env")
+func initConfig(path string) error {
+	viper.SetConfigType("yaml")
 
-	viper.AddConfigPath(".")
+	viper.SetConfigFile(path)
 
 	viper.AutomaticEnv()
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	if err := viper.ReadInConfig(); err != nil {
 		return fmt.Errorf("error reading config file: %w", err)
