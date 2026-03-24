@@ -16,8 +16,8 @@ type JwtPayload struct {
 }
 
 type JWTManager struct {
-	secretKey []byte
-	expire    time.Duration
+	secretKey []byte        `mapstructure:"secret"`
+	expire    time.Duration `mapstructure:"expire_hours"`
 }
 
 func NewJWTManager(secret string, expire time.Duration) *JWTManager {

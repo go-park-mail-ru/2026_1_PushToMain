@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"log"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
@@ -12,12 +13,13 @@ import (
 // @host            localhost:8087
 // @BasePath        /
 func main() {
-	configPath := flag.String("config", "", "path to config file")
+	var configPath string
+	flag.StringVar(&configPath, "config", "configs/config.yaml", "path to config file")
 	flag.Parse()
 
-	if *configPath == "" {
-		*configPath = "config.yaml"
+	application := app.New(configPath)
+	if application == nil {
+		log.Fatal("invalid config")
 	}
-	application := app.New()
-	application.Run(*configPath)
+	application.Run(configPath)
 }

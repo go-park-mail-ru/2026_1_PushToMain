@@ -1,25 +1,26 @@
+# dev config
 port: 8080
 
 jwt:
   secret: super-secret-key
-  expireHours: 24
+  expire_hours: 24
 
 cors:
-  allowedOrigins:
+  allowed_origins:
     - http://e-smail.ru
     - https://e-smail.ru
-  allowedMethods:
+  allowed_methods:
     - POST
     - GET
     - OPTIONS
     - PUT
     - DELETE
-  allowedHeaders:
+  allowed_headers:
     - Content-Type
     - Authorization
 
 logger:
   level: debug
   environment: development
-  outputPath: stdout
-  errorOutputPath: stderr
+  output_path: stdout
+  error_output_path: stderr

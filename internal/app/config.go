@@ -3,17 +3,16 @@ package app
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/spf13/viper"
 )
 
 type Config struct {
 	ServerPort string `mapstructure:"port"`
 
-	JWTSecret string        `mapstructure:"jwt.secret"`
-	JWTExpire time.Duration `mapstructure:"jwt.expireHours"`
+	JWTManager utils.JWTManager `mapstructure:"jwt"`
 
 	CORS middleware.CORSConfig `mapstructure:"cors"`
 }
@@ -27,8 +26,6 @@ func Load(path string) (*Config, error) {
 	if err := viper.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("Error unmarshaling config: %v", err)
 	}
-
-	fmt.Println(cfg.CORS.AllowedOrigins[0])
 
 	return cfg, nil
 }
@@ -48,15 +45,4 @@ func initConfig(path string) error {
 	fmt.Printf("Using config file: %s\n", viper.ConfigFileUsed())
 
 	return nil
-}
-
-func splitEnvList(env string) []string {
-	if env == "" {
-		return []string{}
-	}
-	items := strings.Split(env, ",")
-	for i := range items {
-		items[i] = strings.TrimSpace(items[i])
-	}
-	return items
 }

@@ -6,9 +6,9 @@ import (
 )
 
 type CORSConfig struct {
-	AllowedOrigins []string `mapstructure:"allowedOrigins"`
-	AllowedMethods []string `mapstructure:"allowedMethods"`
-	AllowedHeaders []string `mapstructure:"allowedHeaders"`
+	AllowedOrigins []string `mapstructure:"allowed_origins"`
+	AllowedMethods []string `mapstructure:"allowed_methods"`
+	AllowedHeaders []string `mapstructure:"allowed_headers"`
 }
 
 func CORS(cfg CORSConfig) func(http.Handler) http.Handler {
