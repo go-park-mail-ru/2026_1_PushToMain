@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/joho/godotenv"
 )
@@ -16,7 +17,8 @@ type Config struct {
 	JWTSecret string
 	JWTExpire time.Duration
 
-	CORS middleware.CORSConfig
+	CORS   middleware.CORSConfig
+	Logger logger.Config
 }
 
 func Load() (*Config, error) {
@@ -41,6 +43,12 @@ func Load() (*Config, error) {
 			AllowedOrigins: splitEnvList(os.Getenv("CORS_ALLOWED_ORIGINS")),
 			AllowedMethods: splitEnvList(os.Getenv("CORS_ALLOWED_METHODS")),
 			AllowedHeaders: splitEnvList(os.Getenv("CORS_ALLOWED_HEADERS")),
+		},
+		Logger: logger.Config{ //TODO: after viper merge, rewrite using viper config
+			Level:           os.Getenv("LOGGER_LEVEL"),
+			Environment:     os.Getenv("LOGGER_ENVIRONMENT"),
+			OutputPath:      os.Getenv("LOGGER_OUTPUT_PATH"),
+			ErrorOutputPath: os.Getenv("LOGGER_ERROR_OUTPUT_PATH"),
 		},
 	}
 	return cfg, nil
