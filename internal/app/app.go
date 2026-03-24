@@ -58,6 +58,7 @@ func (app *App) Run() error {
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: jwtManager.TTL()})
 
 	router := mux.NewRouter()
+	router.Use(middleware.Logging(app.Logger))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)
