@@ -1,8 +1,11 @@
 package main
 
 import (
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
+	"flag"
+	"log"
+
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
 )
 
 // @title           Smail API
@@ -10,6 +13,13 @@ import (
 // @host            localhost:8087
 // @BasePath        /
 func main() {
-	application := app.New()
-	application.Run()
+	var configPath string
+	flag.StringVar(&configPath, "config", "configs/config.yaml", "path to config file")
+	flag.Parse()
+
+	application := app.New(configPath)
+	if application == nil {
+		log.Fatal("invalid config")
+	}
+	application.Run(configPath)
 }
