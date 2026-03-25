@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/spf13/viper"
@@ -15,6 +16,7 @@ type Config struct {
 	JWTManager utils.JWTManager `mapstructure:"jwt"`
 
 	CORS middleware.CORSConfig `mapstructure:"cors"`
+	Logger logger.Config
 }
 
 func Load(path string) (*Config, error) {

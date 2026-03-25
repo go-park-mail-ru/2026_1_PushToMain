@@ -8,6 +8,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+	"go.uber.org/zap"
+
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
@@ -26,6 +29,7 @@ type App struct {
 	Server  http.Server
 	Address string
 	Config  *Config
+	Logger  *zap.SugaredLogger
 }
 
 func New(configPath string) *App {
@@ -35,6 +39,7 @@ func New(configPath string) *App {
 	if err != nil {
 		return nil
 	}
+	defer app.Logger.Sync()
 
 	app.Config = cfg
 	return &app
@@ -74,35 +79,38 @@ func (app *App) Run(configPath string) {
 
 	go func() {
 		if err := app.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("server error: %v", err)
+			app.Logger.Errorf("server error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 
 	if err := app.shutdownGracefully(); err != nil {
-		fmt.Printf("An error during shutdown: %v", err)
+		app.Logger.Errorf("error during shutdown: %v", err)
 	}
+
+	return nil
 }
 
 func (app *App) shutdownGracefully() error {
 	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
 	defer cancel()
 
-	fmt.Println("shutting down server")
+	app.Logger.Info("shutting down server")
 
 	fullShutdown := make(chan struct{}, 1)
 	go func() {
 		if err := app.Server.Shutdown(shutdownContex); err != nil {
-			fmt.Printf("HTTP server Shutdown: %v", err)
+			app.Logger.Errorf("HTTP server Shutdown: %v", err)
 		}
 		close(fullShutdown)
 	}()
 	select {
 	case <-shutdownContex.Done():
+		app.Logger.Errorf("server shutdown: %w", shutdownContex.Err())
 		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
 	case <-fullShutdown:
-		fmt.Println("Server shut down successfully")
+		app.Logger.Info("Server shut down successfully")
 	}
 
 	return nil
