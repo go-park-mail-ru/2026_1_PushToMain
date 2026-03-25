@@ -11,7 +11,7 @@ import (
 )
 
 type Service interface {
-	GetEmailsByReceiver(ctx context.Context, email string) ([]models.Email, error)
+	GetEmailsByReceiver(ctx context.Context, userId int64) ([]models.Email, error)
 }
 
 // @Summary      Получить письма пользователя
@@ -31,12 +31,12 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.Email == "" {
+	if payload.UserId <= 0 {
 		response.BadRequest(w)
 		return
 	}
 
-	result, err := handler.service.GetEmailsByReceiver(r.Context(), payload.Email)
+	result, err := handler.service.GetEmailsByReceiver(r.Context(), payload.UserId)
 	if err != nil {
 		response.InternalError(w)
 		return
