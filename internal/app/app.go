@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"go.uber.org/zap"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
@@ -39,6 +38,12 @@ func New(configPath string) *App {
 	if err != nil {
 		return nil
 	}
+
+	logger, err := zap.NewProduction()
+    if err != nil {
+        return nil
+    }
+    app.Logger = logger.Sugar()
 	defer app.Logger.Sync()
 
 	app.Config = cfg
@@ -88,8 +93,6 @@ func (app *App) Run(configPath string) {
 	if err := app.shutdownGracefully(); err != nil {
 		app.Logger.Errorf("error during shutdown: %v", err)
 	}
-
-	return nil
 }
 
 func (app *App) shutdownGracefully() error {
