@@ -16,5 +16,14 @@ test:
 api:
 	swag init -g main.go --output docs --dir ./cmd,./internal/app/handler,./internal/app/models,./internal/pkg/response,./internal/pkg/middleware,./internal/pkg/utils
 
+docker-build:
+	docker-compose --env-file .env build
+
+docker-up:
+	docker-compose --env-file .env up -d
+
+docker-down:
+	docker-compose down
+
 clean:
 	rm -rf $(BUILD_DIR)
