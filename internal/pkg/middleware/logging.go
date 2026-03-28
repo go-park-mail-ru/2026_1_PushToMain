@@ -51,7 +51,7 @@ func Logging(logger *zap.SugaredLogger) func(http.Handler) http.Handler {
 			next.ServeHTTP(rw, r)
 			duration := time.Since(start)
 
-			requestLogger.Infof("Request completed with status %d in %fms",
+			requestLogger.Infof("Request completed with status %d in %fms ",
 				rw.status, duration.Seconds()*1000)
 		})
 	}

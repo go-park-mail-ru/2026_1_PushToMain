@@ -42,10 +42,6 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	app.Logger, err = logger.New(logger.DefaultConfig())
-	if err != nil {
-		return nil
-	}
 	defer app.Logger.Sync()
 
 	app.Config = cfg
