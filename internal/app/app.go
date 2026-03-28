@@ -41,6 +41,11 @@ func New(configPath string) *App {
 	if err != nil {
 		return nil
 	}
+
+	app.Logger, err = logger.New(logger.DefaultConfig())
+	if err != nil {
+		return nil
+	}
 	defer app.Logger.Sync()
 
 	app.Config = cfg
