@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"go.uber.org/zap"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
@@ -19,6 +18,7 @@ import (
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
 )
@@ -36,9 +36,12 @@ func New(configPath string) *App {
 	app := App{}
 
 	cfg, err := Load(configPath)
+
+	app.Logger, err = logger.New(&cfg.Logger)
 	if err != nil {
 		return nil
 	}
+
 	defer app.Logger.Sync()
 
 	app.Config = cfg
@@ -55,6 +58,7 @@ func (app *App) Run(configPath string) {
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	router := mux.NewRouter()
+	router.Use(middleware.Logging(app.Logger))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)
@@ -88,8 +92,6 @@ func (app *App) Run(configPath string) {
 	if err := app.shutdownGracefully(); err != nil {
 		app.Logger.Errorf("error during shutdown: %v", err)
 	}
-
-	return nil
 }
 
 func (app *App) shutdownGracefully() error {
