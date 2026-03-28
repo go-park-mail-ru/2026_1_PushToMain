@@ -44,15 +44,6 @@ func New(cfg *Config) (*zap.SugaredLogger, error) {
 	return Logger, nil
 }
 
-func DefaultConfig() *Config {
-	return &Config{
-		Level:           "info",
-		Environment:     "development",
-		OutputPath:      "stdout",
-		ErrorOutputPath: "stderr",
-	}
-}
-
 func Sync(logger *zap.SugaredLogger) error {
 	if logger != nil {
 		return logger.Sync()
