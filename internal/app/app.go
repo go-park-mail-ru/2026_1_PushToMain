@@ -18,6 +18,7 @@ import (
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
 )
@@ -39,11 +40,10 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	logger, err := zap.NewProduction()
-    if err != nil {
-        return nil
-    }
-    app.Logger = logger.Sugar()
+	app.Logger, err = logger.New(logger.DefaultConfig())
+	if err != nil {
+		return nil
+	}
 	defer app.Logger.Sync()
 
 	app.Config = cfg
