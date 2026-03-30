@@ -1,3 +1,5 @@
+//go:generate mockgen -destination=../mocks/mock_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http Service
+
 package http
 
 import (
