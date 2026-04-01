@@ -11,19 +11,19 @@ import (
 )
 
 type JwtPayload struct {
-	Email string `json:"email"`
-	Exp   int64  `json:"exp"`
+	UserId int64 `json:"user_id"`
+	Exp    int64 `json:"exp"`
 }
 
 type JWTManager struct {
-	secretKey []byte
-	expire    time.Duration
+	Secret string `mapstructure:"secret"`
+	Expire int    `mapstructure:"expire_hours"`
 }
 
-func NewJWTManager(secret string, expire time.Duration) *JWTManager {
+func NewJWTManager(secret string, expire int) *JWTManager {
 	return &JWTManager{
-		secretKey: []byte(secret),
-		expire:    expire,
+		Secret: secret,
+		Expire: expire,
 	}
 }
 
@@ -33,18 +33,17 @@ type jwtHeader struct {
 }
 
 func (j *JWTManager) TTL() time.Duration {
-	return j.expire
+	return time.Duration(j.Expire) * time.Hour
 }
 
-func (j *JWTManager) GenerateJWT(email string) (string, error) {
+func (j *JWTManager) GenerateJWT(userId int64) (string, error) {
 	header := jwtHeader{
 		Alg: "HS256",
 		Typ: "JWT",
 	}
-
 	payload := JwtPayload{
-		Email: email,
-		Exp:   time.Now().Add(j.expire).Unix(),
+		UserId: userId,
+		Exp:    time.Now().Add(time.Duration(j.Expire) * time.Hour).Unix(),
 	}
 
 	headerJSON, err := json.Marshal(header)
@@ -68,7 +67,7 @@ func (j *JWTManager) GenerateJWT(email string) (string, error) {
 }
 
 func (j *JWTManager) sign(data string) string {
-	h := hmac.New(sha256.New, j.secretKey)
+	h := hmac.New(sha256.New, []byte(j.Secret))
 	h.Write([]byte(data))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }

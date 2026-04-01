@@ -22,12 +22,12 @@ var (
 )
 
 type Repository interface {
-	Save(ctx context.Context, user models.User) error
+	Save(ctx context.Context, user models.User) (int64, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 }
 
 type JWTManager interface {
-	GenerateJWT(email string) (string, error)
+	GenerateJWT(userId int64) (string, error)
 	ValidateJWT(token string) (*utils.JwtPayload, error)
 }
 
@@ -66,18 +66,18 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate hash for password: %w", err)
 	}
-
-	if err := s.repo.Save(ctx, models.User{
+	userId, err := s.repo.Save(ctx, models.User{
 		Email:    signUp.Email,
 		Password: hash,
 		Name:     signUp.Name,
 		Surname:  signUp.Surname,
-	}); err != nil {
+	})
+	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to save user: %w", err)
 	}
 
-	token, err := s.jwt.GenerateJWT(signUp.Email)
+	token, err := s.jwt.GenerateJWT(userId)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
@@ -102,7 +102,7 @@ func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("wrong password: %w", err)
 	}
-	token, err := s.jwt.GenerateJWT(user.Email)
+	token, err := s.jwt.GenerateJWT(user.ID)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate jwt: %w", err)
