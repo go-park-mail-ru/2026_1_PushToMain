@@ -2,103 +2,159 @@ package repository
 
 import (
 	"context"
-	"time"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 )
 
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
+
 type Repository struct {
-	emails    []models.Email
-	userEmail []models.UserEmail
+	db *sql.DB
 }
 
-func New() *Repository {
-	return &Repository{
-		emails: []models.Email{
-			{
-				ID:        1,
-				SenderID:  1,
-				Header:    "Встреча в пятницу",
-				Body:      "Привет! Напоминаю про встречу в пятницу в 15:00. Не забудьте взять ноутбуки.",
-				CreatedAt: time.Date(2025, time.March, 22, 15, 30, 0, 0, time.UTC),
-			},
-			{
-				ID:       2,
-				SenderID: 2,
-				Header:   "Отчёт за март",
-				Body:     "Высылаю отчёт за март. Все показатели в норме, подробности внутри.",
-			},
-			{
-				ID:       3,
-				SenderID: 2,
-				Header:   "Новый дизайн главной страницы",
-				Body:     "Команда, посмотрите новый макет. Жду фидбек до конца дня.",
-			},
-			{
-				ID:       4,
-				SenderID: 3,
-				Header:   "Re: Новый дизайн главной страницы",
-				Body:     "Выглядит хорошо, но кнопка CTA слишком маленькая на мобиле.",
-			},
-			{
-				ID:       5,
-				SenderID: 4,
-				Header:   "Баг в продакшне",
-				Body:     "Срочно! Упал сервис авторизации, пользователи не могут войти. Смотрю логи.",
-			},
-		},
-
-		userEmail: []models.UserEmail{
-			{
-				ID:         1,
-				EmailID:    1,
-				ReceiverID: 1,
-				IsRead:     false,
-			},
-			{
-				ID:         2,
-				EmailID:    2,
-				ReceiverID: 1,
-				IsRead:     false,
-			},
-			{
-				ID:         3,
-				EmailID:    2,
-				ReceiverID: 1,
-				IsRead:     false,
-			},
-			{
-				ID:         4,
-				EmailID:    3,
-				ReceiverID: 1,
-				IsRead:     false,
-			},
-			{
-				ID:         5,
-				EmailID:    4,
-				ReceiverID: 1,
-				IsRead:     false,
-			},
-		},
-	}
+func New(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]models.Email, error) {
-
-	result := make([]models.Email, 0)
-
-	userEmailIDs := make(map[int64]bool)
-	for _, userEmail := range r.userEmail {
-		if userEmail.ReceiverID == userID {
-			userEmailIDs[userEmail.EmailID] = true
-		}
+func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) (map[string]int64, error) {
+	if len(emails) == 0 {
+		return make(map[string]int64), nil
 	}
 
-	for _, email := range r.emails {
-		if userEmailIDs[email.ID] {
-			result = append(result, email)
+	placeholders := make([]string, len(emails))
+	args := make([]interface{}, len(emails))
+	for i, email := range emails {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = email
+	}
+
+	query := fmt.Sprintf(`
+		SELECT email, id 
+		FROM users 
+		WHERE email IN (%s)
+	`, strings.Join(placeholders, ", "))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query users by emails: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]int64)
+	for rows.Next() {
+		var email string
+		var userID int64
+		if err := rows.Scan(&email, &userID); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
+		result[email] = userID
 	}
 
 	return result, nil
+}
+
+func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, error) {
+	query := `
+		INSERT INTO emails (sender_id, header, body, created_at)
+		VALUES ($1, $2, $3, NOW())
+		RETURNING id
+	`
+
+	var emailID int64
+	err := r.db.QueryRowContext(
+		ctx,
+		query,
+		email.SenderID,
+		email.Header,
+		email.Body,
+	).Scan(&emailID)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to save email: %w", err)
+	}
+
+	return emailID, nil
+}
+
+func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error {
+	if len(receiverIDs) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		INSERT INTO user_emails (receiver_id, email_id, is_read, created_at, updated_at)
+		VALUES ($1, $2, false, NOW(), NOW())
+	`
+
+	for _, receiverID := range receiverIDs {
+		_, err = tx.ExecContext(ctx, query, receiverID, emailID)
+		if err != nil {
+			return fmt.Errorf("failed to add receiver %d: %w", receiverID, err)
+		}
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]models.Email, error) {
+	query := `
+		SELECT 
+			e.id,
+			e.sender_id,
+			e.header,
+			e.body,
+			e.created_at,
+			ue.is_read,
+			ue.created_at as received_at
+		FROM emails e
+		JOIN user_emails ue ON e.id = ue.email_id
+		WHERE ue.receiver_id = $1
+		ORDER BY ue.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get emails: %w", err)
+	}
+	defer rows.Close()
+
+	var emails []models.Email
+	for rows.Next() {
+		var email models.Email
+		var isRead bool
+		var receivedAt sql.NullTime
+
+		err := rows.Scan(
+			&email.ID,
+			&email.SenderID,
+			&email.Header,
+			&email.Body,
+			&email.CreatedAt,
+			&isRead,
+			&receivedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan email: %w", err)
+		}
+
+		emails = append(emails, email)
+	}
+
+	return emails, nil
 }
