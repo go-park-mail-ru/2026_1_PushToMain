@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
-	_ "github.com/jackc/pgx/v5"
+    _ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type Config struct {
@@ -22,7 +23,7 @@ func (cfg *Config) ToDSN() string {
 }
 
 func Ping(db *sql.DB) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 1 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	if err := db.PingContext(ctx); err != nil {
@@ -36,7 +37,7 @@ func New(ctx context.Context, cfg Config) (*sql.DB, error) {
 	dsn := cfg.ToDSN()
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
-		return db, err
+		return nil, err
 	}
 
 	return db, nil
