@@ -50,9 +50,6 @@ func New(configPath string) *App {
 }
 
 func (app *App) Run(configPath string) {
-	authRepo := authRepo.New()
-	authService := authService.New(authRepo, &app.Config.JWTManager)
-	authHandler := authHttp.New(authService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
 	db, err := postgres.New(app.Config.Db)
 	if err != nil {
 		app.Logger.Errorf("postgres error: %v", err)
@@ -61,8 +58,12 @@ func (app *App) Run(configPath string) {
 	if err != nil {
 		app.Logger.Errorf("migrations error: %v", err)
 	}
-	emailRepo := emailRepo.New(db)
 
+	authRepo := authRepo.New(db)
+	authService := authService.New(authRepo, &app.Config.JWTManager)
+	authHandler := authHttp.New(authService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
+
+	emailRepo := emailRepo.New(db)
 	emailService := emailService.New(emailRepo)
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
