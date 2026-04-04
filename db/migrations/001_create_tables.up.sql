@@ -9,7 +9,7 @@ CREATE TABLE users (
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT email_length_check CHECK (char_length(email) < 256),
-    CONSTRAINT password_hash_check CHECK (char_length(password_hash) = 256),
+    CONSTRAINT password_hash_check CHECK (char_length(password_hash) < 256),
     CONSTRAINT name_length_check CHECK (char_length(name) < 256),
     CONSTRAINT surname_length_check CHECK (char_length(surname) < 256),
     CONSTRAINT image_path_length_check CHECK (char_length(image_path) < 2048)
