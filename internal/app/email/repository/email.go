@@ -158,3 +158,29 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]m
 
 	return emails, nil
 }
+
+func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
+	query := `
+        SELECT id, sender_id, header, body, created_at
+        FROM emails
+        WHERE id = $1
+    `
+
+	var email models.Email
+	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
+		&email.ID,
+		&email.SenderID,
+		&email.Header,
+		&email.Body,
+		&email.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("no such email: %w", err)
+		}
+		return nil, fmt.Errorf("failed to get email: %w", err)
+	}
+
+	return &email, nil
+}

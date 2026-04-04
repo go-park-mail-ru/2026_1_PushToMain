@@ -1,23 +1,13 @@
 package response
 
 import (
-    "encoding/json"
-    "net/http"
-    "fmt"
+	"fmt"
+	"net/http"
 )
 
-type ErrorResponse struct {
-    Message string `json:"message"`
-}
-
-func WriteJSON(w http.ResponseWriter, status int, data any) {
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(status)
-    json.NewEncoder(w).Encode(data)
-}
-
 func BadRequest(w http.ResponseWriter) {
-    WriteJSON(w, http.StatusBadRequest, ErrorResponse{Message: "Bad request"})
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintf(w, `{ "error": "Bad request" }`)
 }
 
 func Unauthorized(w http.ResponseWriter) {
@@ -33,4 +23,14 @@ func InternalError(w http.ResponseWriter) {
 func StatusConflict(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusConflict)
 	fmt.Fprintf(w, `{ "error": "User already exsist" }`)
+}
+
+func Forbidden(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusForbidden)
+	fmt.Fprintf(w, `{ "error": "Don't have access" }`)
+}
+
+func NotFound(w http.ResponseWriter) {
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprintf(w, `{ "error": "Not found" }`)
 }

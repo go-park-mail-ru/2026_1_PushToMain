@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
@@ -12,16 +11,9 @@ import (
 
 var (
 	ErrUserNotFound     = errors.New("user not found")
-	ErrInvalidReceiver  = errors.New("invalid receiver email")
 	ErrNoValidReceivers = errors.New("no valid receivers found")
+	ErrAccessDenied     = errors.New("don't have access to this email")
 )
-
-type SendEmailInput struct {
-	UserId    int64
-	Header    string
-	Body      string
-	Receivers string
-}
 
 type EmailWithReceivers struct {
 	Email     *models.Email
@@ -33,6 +25,7 @@ type Repository interface {
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
 	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
 	GetUsersByEmails(ctx context.Context, emails []string) (map[string]int64, error)
+	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
 }
 
 type Service struct {
@@ -47,13 +40,15 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, userID int64) ([]mode
 	return s.repo.GetEmailsByReceiver(ctx, userID)
 }
 
-func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*models.Email, error) {
-	receiverEmails := parseReceivers(input.Receivers)
-	if len(receiverEmails) == 0 {
-		return nil, ErrInvalidReceiver
-	}
+type SendEmailInput struct {
+	UserId    int64
+	Header    string
+	Body      string
+	Receivers []string
+}
 
-	receiverIDs, err := s.repo.GetUsersByEmails(ctx, receiverEmails)
+func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*models.Email, error) {
+	receiverIDs, err := s.repo.GetUsersByEmails(ctx, input.Receivers)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return nil, fmt.Errorf("failed to get receiver IDs: %w", err)
@@ -91,6 +86,48 @@ func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*models.
 
 }
 
+type ForwardEmailInput struct {
+	UserID    int64
+	EmailID   int64
+	Receivers []string
+}
+
+func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) error {
+	receiverIDs, err := s.repo.GetUsersByEmails(ctx, input.Receivers)
+	if err != nil {
+		err = mapRepositoryError(err)
+		return fmt.Errorf("failed to get receiver IDs: %w", err)
+	}
+
+	if len(receiverIDs) == 0 {
+		return ErrNoValidReceivers
+	}
+
+	var receiverIDsSlice []int64
+	for _, id := range receiverIDs {
+		receiverIDsSlice = append(receiverIDsSlice, id)
+	}
+
+	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
+	if err != nil {
+		err = mapRepositoryError(err)
+		return fmt.Errorf("failed to find email: %w", err)
+	}
+
+	if email.SenderID != input.UserID {
+		return ErrAccessDenied
+	}
+
+	err = s.repo.AddEmailReceivers(ctx, input.EmailID, receiverIDsSlice)
+	if err != nil {
+		err = mapRepositoryError(err)
+		return fmt.Errorf("failed to add email receivers: %w", err)
+	}
+
+	return nil
+
+}
+
 func mapRepositoryError(err error) error {
 	switch {
 	case errors.Is(err, repository.ErrUserNotFound):
@@ -98,23 +135,4 @@ func mapRepositoryError(err error) error {
 	default:
 		return err
 	}
-}
-
-func parseReceivers(receivers string) []string {
-	if receivers == "" {
-		return nil
-	}
-
-	// Разделяем по запятой
-	parts := strings.Split(receivers, ",")
-	emails := make([]string, 0, len(parts))
-
-	for _, part := range parts {
-		email := strings.TrimSpace(part)
-		if email != "" {
-			emails = append(emails, email)
-		}
-	}
-
-	return emails
 }
