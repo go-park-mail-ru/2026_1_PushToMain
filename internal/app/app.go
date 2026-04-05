@@ -3,11 +3,12 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"go.uber.org/zap"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
@@ -17,8 +18,8 @@ import (
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/gorilla/mux"
 )
 
@@ -27,59 +28,69 @@ const shutdownMaxTime = 5 * time.Second
 type App struct {
 	Server  http.Server
 	Address string
+	Config  *Config
+	Logger  *zap.SugaredLogger
 }
 
-func New() *App {
-	return &App{}
-}
+func New(configPath string) *App {
+	app := App{}
 
-func (app *App) Run() {
-	cfg, err := Load()
+	cfg, err := Load(configPath)
+
+	app.Logger, err = logger.New(&cfg.Logger)
 	if err != nil {
-		log.Fatal(err)
-		return
+		return nil
 	}
 
-	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpire)
+	defer app.Logger.Sync()
+
+	app.Config = cfg
+	return &app
+}
+
+func (app *App) Run(configPath string) {
 	authRepo := authRepo.New()
-	authService := authService.New(authRepo, jwtManager)
-	authHandler := authHttp.New(authService, authHttp.Config{TTL: jwtManager.TTL()})
+	authService := authService.New(authRepo, &app.Config.JWTManager)
+	authHandler := authHttp.New(authService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	emailRepo := emailRepo.New()
 	emailService := emailService.New(emailRepo)
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: jwtManager.TTL()})
+	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	router := mux.NewRouter()
+	router.Use(middleware.Logging(app.Logger))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)
-	public.Use(middleware.CORS(cfg.CORS))
+	public.Use(middleware.CORS(app.Config.CORS))
 	public.Use(middleware.JSON)
 
 	private := public.PathPrefix("").Subrouter()
-	private.Use(middleware.AuthMiddleware(jwtManager))
+	private.Use(middleware.AuthMiddleware(&app.Config.JWTManager))
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)
 
 	app.Server = http.Server{
-		Addr:    ":" + cfg.ServerPort,
+		Addr:    ":" + app.Config.ServerPort,
 		Handler: router,
 	}
+
+	fmt.Printf("Starting server at port %s\n", app.Config.ServerPort)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
 		if err := app.Server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("server error: %v", err)
+			app.Logger.Errorf("server error: %v", err)
 		}
 	}()
 
 	<-ctx.Done()
 
 	if err := app.shutdownGracefully(); err != nil {
-		fmt.Printf("An error during shutdown: %v", err)
+		app.Logger.Errorf("error during shutdown: %v", err)
 	}
 }
 
@@ -87,20 +98,21 @@ func (app *App) shutdownGracefully() error {
 	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
 	defer cancel()
 
-	fmt.Println("shutting down server")
+	app.Logger.Info("shutting down server")
 
 	fullShutdown := make(chan struct{}, 1)
 	go func() {
 		if err := app.Server.Shutdown(shutdownContex); err != nil {
-			fmt.Printf("HTTP server Shutdown: %v", err)
+			app.Logger.Errorf("HTTP server Shutdown: %v", err)
 		}
 		close(fullShutdown)
 	}()
 	select {
 	case <-shutdownContex.Done():
+		app.Logger.Errorf("server shutdown: %w", shutdownContex.Err())
 		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
 	case <-fullShutdown:
-		fmt.Println("Server shut down successfully")
+		app.Logger.Info("Server shut down successfully")
 	}
 
 	return nil
