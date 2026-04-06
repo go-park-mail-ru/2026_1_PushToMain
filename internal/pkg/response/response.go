@@ -5,6 +5,10 @@ import (
 	"net/http"
 )
 
+type ErrorResponse struct {
+	Message string `json:"message"`
+}
+
 func BadRequest(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusBadRequest)
 	fmt.Fprintf(w, `{ "error": "Bad request" }`)

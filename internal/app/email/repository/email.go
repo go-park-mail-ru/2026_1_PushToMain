@@ -11,7 +11,13 @@ import (
 )
 
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrUserQueryFail     = errors.New("failed to find users")
+	ErrMailQueryFail     = errors.New("failed to find mails")
+	ErrMailNotFound      = errors.New("emails not found")
+	ErrTransactionFailed = errors.New("transaction failed")
+	ErrSaveEmail         = errors.New("failed to save email")
+	ErrReceiverAdd       = errors.New("failed to add receivers")
 )
 
 type Repository struct {
@@ -22,9 +28,9 @@ func New(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) (map[string]int64, error) {
+func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error) {
 	if len(emails) == 0 {
-		return make(map[string]int64), nil
+		return []*models.User{}, nil
 	}
 
 	placeholders := make([]string, len(emails))
@@ -35,34 +41,37 @@ func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) (map
 	}
 
 	query := fmt.Sprintf(`
-		SELECT email, id 
+		SELECT id, email, name, surname
 		FROM users 
 		WHERE email IN (%s)
 	`, strings.Join(placeholders, ", "))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query users by emails: %w", err)
+		return nil, ErrUserQueryFail
 	}
 	defer rows.Close()
 
-	result := make(map[string]int64)
+	var users []*models.User
 	for rows.Next() {
-		var email string
-		var userID int64
-		if err := rows.Scan(&email, &userID); err != nil {
-			return nil, fmt.Errorf("failed to scan user: %w", err)
+		var user models.User
+		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.Surname); err != nil {
+			return nil, ErrUserQueryFail
 		}
-		result[email] = userID
+		users = append(users, &user)
 	}
 
-	return result, nil
+	if err := rows.Err(); err != nil {
+		return nil, ErrUserQueryFail
+	}
+
+	return users, nil
 }
 
 func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, error) {
 	query := `
-		INSERT INTO emails (sender_id, header, body, created_at)
-		VALUES ($1, $2, $3, NOW())
+		INSERT INTO emails (sender_id, header, body)
+		VALUES ($1, $2, $3)
 		RETURNING id
 	`
 
@@ -76,7 +85,7 @@ func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, 
 	).Scan(&emailID)
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to save email: %w", err)
+		return 0, ErrSaveEmail
 	}
 
 	return emailID, nil
@@ -89,7 +98,7 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return ErrTransactionFailed
 	}
 	defer tx.Rollback()
 
@@ -101,44 +110,50 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 	for _, receiverID := range receiverIDs {
 		_, err = tx.ExecContext(ctx, query, receiverID, emailID)
 		if err != nil {
-			return fmt.Errorf("failed to add receiver %d: %w", receiverID, err)
+			return ErrReceiverAdd
 		}
 	}
 
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return ErrTransactionFailed
 	}
 
 	return nil
 }
 
-func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]models.Email, error) {
-	query := `
-		SELECT 
-			e.id,
-			e.sender_id,
-			e.header,
-			e.body,
-			e.created_at,
-			ue.is_read,
-			ue.created_at as received_at
-		FROM emails e
-		JOIN user_emails ue ON e.id = ue.email_id
-		WHERE ue.receiver_id = $1
-		ORDER BY ue.created_at DESC
-	`
+func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+	query := `
+        SELECT 
+            e.id,
+            e.sender_id,
+            e.header,
+            e.body,
+            e.created_at,
+            ue.is_read,
+            ue.created_at as received_at
+        FROM emails e
+        JOIN user_emails ue ON e.id = ue.email_id
+        WHERE ue.receiver_id = $1
+        ORDER BY ue.created_at DESC
+        LIMIT $2 OFFSET $3
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get emails: %w", err)
+		return nil, ErrMailQueryFail
 	}
 	defer rows.Close()
 
-	var emails []models.Email
+	emails := make([]models.EmailWithMetadata, 0)
 	for rows.Next() {
-		var email models.Email
-		var isRead bool
-		var receivedAt sql.NullTime
+		var email models.EmailWithMetadata
 
 		err := rows.Scan(
 			&email.ID,
@@ -146,14 +161,17 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64) ([]m
 			&email.Header,
 			&email.Body,
 			&email.CreatedAt,
-			&isRead,
-			&receivedAt,
+			&email.IsRead,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan email: %w", err)
+			return nil, ErrMailQueryFail
 		}
 
 		emails = append(emails, email)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrMailQueryFail
 	}
 
 	return emails, nil
@@ -177,10 +195,35 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("no such email: %w", err)
+			return nil, ErrMailNotFound
 		}
-		return nil, fmt.Errorf("failed to get email: %w", err)
+		return nil, ErrMailQueryFail
 	}
 
 	return &email, nil
+}
+
+func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64) error {
+	var exists bool
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`
+	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
+	if err != nil {
+		return ErrMailQueryFail
+	}
+	if !exists {
+		return ErrMailNotFound
+	}
+
+	query := `
+		UPDATE user_emails
+		SET is_read = true, updated_at = NOW()
+		WHERE email_id = $1 AND receiver_id = $2 AND is_read = false
+	`
+
+	_, err = r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return ErrMailQueryFail
+	}
+
+	return nil
 }

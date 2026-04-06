@@ -31,4 +31,5 @@ postgres:
   password: postgres
   dbname: pushtomain
   sslmode: disable
+  migrations_path: "file://db/migrations"
 

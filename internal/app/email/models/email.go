@@ -10,9 +10,22 @@ type Email struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type EmailWithMetadata struct {
+	Email
+	IsRead bool `json:"is_read"`
+}
+
 type UserEmail struct {
 	ID         int64
 	EmailID    int64
 	ReceiverID int64
 	IsRead     bool
+}
+
+type User struct {
+	ID       int64
+	Email    string
+	Password string
+	Name     string
+	Surname  string
 }

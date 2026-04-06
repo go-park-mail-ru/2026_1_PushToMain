@@ -1,37 +1,32 @@
 basePath: /
 definitions:
-  handler.SignInRequest:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    type: object
-  handler.SignUpRequest:
-    properties:
-      email:
-        type: string
-      name:
-        type: string
-      password:
-        type: string
-      surname:
-        type: string
-    type: object
-  models.Email:
+  handler.EmailResponse:
     properties:
       body:
         type: string
-      email-id:
-        type: string
-      from:
+      created_at:
         type: string
       header:
         type: string
-      to:
-        items:
-          type: string
-        type: array
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      sender_id:
+        type: integer
+    type: object
+  handler.GetEmailResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      header:
+        type: string
+      id:
+        type: integer
+      sender_id:
+        type: integer
     type: object
   response.ErrorResponse:
     properties:
@@ -44,98 +39,7 @@ info:
   title: Smail API
   version: "1.0"
 paths:
-  /auth/logout:
-    post:
-      description: Завершает сессию пользователя, сбрасывает сессионную куку
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Выход
-      tags:
-      - auth
-  /auth/signin:
-    post:
-      consumes:
-      - application/json
-      description: Аутентифицирует пользователя и устанавливает сессионную куку
-      parameters:
-      - description: Данные для входа
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/handler.SignInRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Вход
-      tags:
-      - auth
-  /auth/signup:
-    post:
-      consumes:
-      - application/json
-      description: Создаёт нового пользователя и устанавливает сессионную куку
-      parameters:
-      - description: Данные для регистрации
-        in: body
-        name: input
-        required: true
-        schema:
-          $ref: '#/definitions/handler.SignUpRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      summary: Регистрация
-      tags:
-      - auth
-  /emails:
+  /api/v1/emails:
     get:
       description: Возвращает список писем, в которых авторизованный пользователь
         указан получателем
@@ -146,8 +50,146 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Email'
+              $ref: '#/definitions/handler.EmailResponse'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить письма пользователя
+      tags:
+      - emails
+  /api/v1/emails/{id}:
+    get:
+      description: Возвращает детальную информацию о письме
+      parameters:
+      - description: ID письма
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetEmailResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить письмо по ID
+      tags:
+      - emails
+  /api/v1/emails/{id}/read:
+    put:
+      consumes:
+      - application/json
+      description: Помечает указанное письмо как прочитанное.
+      parameters:
+      - description: ID письма
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Отметить письмо как прочитанное
+      tags:
+      - emails
+  /api/v1/forward:
+    post:
+      description: Пересылает письмо получаетлям, которых указал пользователь
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Переслать письмо
+      tags:
+      - emails
+  /api/v1/send:
+    post:
+      description: Отправляет письмо получаетлям, которых указал пользователь
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.EmailResponse'
         "400":
           description: Bad Request
           schema:
@@ -161,8 +203,8 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - BearerAuth: []
-      summary: Получить письма пользователя
+      - CookieAuth: []
+      summary: Отправить письмо
       tags:
       - emails
 swagger: "2.0"

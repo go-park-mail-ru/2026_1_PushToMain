@@ -36,8 +36,6 @@ CREATE TABLE user_emails (
     is_read BOOL NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT unique_receiver_email UNIQUE (receiver_id, email_id)
 );
 
 CREATE INDEX idx_user_emails_receiver_id ON user_emails(receiver_id);
