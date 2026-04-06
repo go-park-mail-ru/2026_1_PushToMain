@@ -254,7 +254,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	emailIDStr := pathParts[3]
+	emailIDStr := pathParts[4]
 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
@@ -309,7 +309,7 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	emailIDStr := pathParts[3]
+	emailIDStr := pathParts[4]
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
 		response.BadRequest(w)
