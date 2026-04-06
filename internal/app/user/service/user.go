@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -56,7 +56,7 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 		return "", fmt.Errorf("faild to signUp bcz user already exist: %w", err)
 	}
 
-	if !errors.Is(err, repository.ErrUserNotFound) {
+	if !errors.Is(err, db.ErrUserNotFound) {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to find user: %w", err)
 	}
@@ -113,7 +113,7 @@ func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error
 
 func mapRepositoryError(err error) error {
 	switch {
-	case errors.Is(err, repository.ErrUserNotFound):
+	case errors.Is(err, db.ErrUserNotFound):
 		return ErrUserNotFound
 	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
 		return ErrWrongPassword
