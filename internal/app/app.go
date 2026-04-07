@@ -64,7 +64,9 @@ func (app *App) Run(configPath string) {
 	emailRepo := emailRepo.New(db)
 
 	emailService := emailService.New(emailRepo)
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	emailHandler := emailHttp.New(emailService, emailHttp.Config{
+		TTL:    app.Config.JWTManager.TTL(),
+		Logger: app.Logger})
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))

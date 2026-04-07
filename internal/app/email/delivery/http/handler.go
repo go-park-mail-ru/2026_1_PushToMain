@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type Config struct {
-	TTL time.Duration
+	TTL    time.Duration
+	Logger *zap.SugaredLogger
 }
 
 type Handler struct {

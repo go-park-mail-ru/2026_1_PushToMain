@@ -203,6 +203,22 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	return &email, nil
 }
 
+func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM user_emails
+		WHERE receiver_id = $1
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, ErrMailQueryFail
+	}
+
+	return count, nil
+}
+
 func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64) error {
 	var exists bool
 	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`

@@ -28,6 +28,19 @@ definitions:
       sender_id:
         type: integer
     type: object
+  handler.GetEmailsResponse:
+    properties:
+      emails:
+        items:
+          $ref: '#/definitions/handler.EmailResponse'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
   response.ErrorResponse:
     properties:
       message:
@@ -43,15 +56,22 @@ paths:
     get:
       description: Возвращает список писем, в которых авторизованный пользователь
         указан получателем
+      parameters:
+      - description: 'Количество записей на странице (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Смещение для пагинации (default: 0)'
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/handler.EmailResponse'
-            type: array
+            $ref: '#/definitions/handler.GetEmailsResponse'
         "400":
           description: Bad Request
           schema:

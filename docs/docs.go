@@ -30,14 +30,25 @@ const docTemplate = `{
                     "emails"
                 ],
                 "summary": "Получить письма пользователя",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Количество записей на странице (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение для пагинации (default: 0)",
+                        "name": "offset",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/handler.EmailResponse"
-                            }
+                            "$ref": "#/definitions/handler.GetEmailsResponse"
                         }
                     },
                     "400": {
@@ -319,6 +330,26 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "sender_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.GetEmailsResponse": {
+            "type": "object",
+            "properties": {
+                "emails": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.EmailResponse"
+                    }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
