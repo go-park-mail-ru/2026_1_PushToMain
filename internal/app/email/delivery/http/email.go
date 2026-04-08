@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -106,7 +105,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 			"user_id", payload.UserId,
 			"error", err,
 		)
-		parseCommonErrors(err, w)
+		handler.parseCommonErrors(err, w)
 		return
 	}
 	resp := SendEmailResponse{
@@ -194,7 +193,7 @@ func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 			"email_id", req.EmailID,
 			"error", err,
 		)
-		parseCommonErrors(err, w)
+		handler.parseCommonErrors(err, w)
 		return
 	}
 	handler.cfg.Logger.Infow("Email forwarded successfully",
@@ -295,7 +294,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 			"user_id", payload.UserId,
 			"error", err,
 		)
-		parseCommonErrors(err, w)
+		handler.parseCommonErrors(err, w)
 		return
 	}
 
@@ -422,7 +421,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 			"email_id", emailID,
 			"error", err,
 		)
-		parseCommonErrors(err, w)
+		handler.parseCommonErrors(err, w)
 		return
 	}
 	resp := GetEmailResponse{
@@ -516,7 +515,7 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 			"email_id", emailID,
 			"error", err,
 		)
-		parseCommonErrors(err, w)
+		handler.parseCommonErrors(err, w)
 		return
 	}
 	handler.cfg.Logger.Infow("Email marked as read successfully",
@@ -525,26 +524,6 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 		"email_id", emailID,
 	)
 	w.WriteHeader(http.StatusOK)
-}
-
-func parseCommonErrors(err error, w http.ResponseWriter) {
-	switch {
-
-	case errors.Is(err, service.ErrUserNotFound):
-		response.NotFound(w)
-
-	case errors.Is(err, service.ErrEmailNotFound):
-		response.NotFound(w)
-
-	case errors.Is(err, service.ErrNoValidReceivers):
-		response.NotFound(w)
-
-	case errors.Is(err, service.ErrAccessDenied):
-		response.Forbidden(w)
-
-	default:
-		response.InternalError(w)
-	}
 }
 
 func (req *SendEmailRequest) Validate() bool {

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )
@@ -32,4 +35,24 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
+}
+
+func (h *Handler) parseCommonErrors(err error, w http.ResponseWriter) {
+	switch {
+
+	case errors.Is(err, service.ErrUserNotFound):
+		response.NotFound(w)
+
+	case errors.Is(err, service.ErrEmailNotFound):
+		response.NotFound(w)
+
+	case errors.Is(err, service.ErrNoValidReceivers):
+		response.NotFound(w)
+
+	case errors.Is(err, service.ErrAccessDenied):
+		response.Forbidden(w)
+
+	default:
+		response.InternalError(w)
+	}
 }
