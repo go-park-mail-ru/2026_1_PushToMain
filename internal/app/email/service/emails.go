@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -14,9 +15,14 @@ var (
 	ErrEmailNotFound    = errors.New("email not found")
 	ErrNoValidReceivers = errors.New("no valid receivers found")
 	ErrAccessDenied     = errors.New("don't have access to this email")
+	ErrTransaction      = errors.New("transaction fail")
 )
 
 type Repository interface {
+	SaveEmailWithTx(ctx context.Context, db repository.ExecDB, email models.Email) (int64, error)
+	AddEmailReceiversWithTx(ctx context.Context, db repository.ExecDB, emailID int64, receiverIDs []int64) error
+	BeginTx(ctx context.Context) (*sql.Tx, error)
+
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
 	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
@@ -24,6 +30,8 @@ type Repository interface {
 	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
+
+	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
 }
 
 type Service struct {
@@ -108,22 +116,39 @@ func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*SendEma
 		return nil, mapRepositoryError(err)
 	}
 
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return nil, ErrTransaction
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				err = ErrTransaction
+			}
+		}
+	}()
+
 	email := models.Email{
 		SenderID: input.UserId,
 		Header:   input.Header,
 		Body:     input.Body,
 	}
 
-	emailID, err := s.repo.SaveEmail(ctx, email)
+	emailID, err := s.repo.SaveEmailWithTx(ctx, tx, email)
 	if err != nil {
 		return nil, mapRepositoryError(err)
 	}
 	email.ID = emailID
 
-	err = s.repo.AddEmailReceivers(ctx, emailID, receiverIDs)
+	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
 	if err != nil {
 		return nil, mapRepositoryError(err)
 	}
+
+	if err = tx.Commit(); err != nil {
+		return nil, ErrTransaction
+	}
+
 	emailResult := SendEmailResult{
 		ID:        email.ID,
 		SenderID:  email.SenderID,
@@ -142,17 +167,18 @@ type ForwardEmailInput struct {
 }
 
 func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) error {
+
+	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+	if !hasAccess {
+		return ErrAccessDenied
+	}
+
 	receiverIDs, err := s.resolveReceivers(ctx, input.Receivers)
 	if err != nil {
 		return mapRepositoryError(err)
-	}
-	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
-	if err != nil {
-		return mapRepositoryError(err)
-	}
-
-	if email.SenderID != input.UserID {
-		return ErrAccessDenied
 	}
 
 	err = s.repo.AddEmailReceivers(ctx, input.EmailID, receiverIDs)
@@ -178,15 +204,19 @@ type GetEmailResult struct {
 }
 
 func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEmailResult, error) {
+
+	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+	if !hasAccess {
+		return nil, ErrAccessDenied
+	}
+
 	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
 	if err != nil {
 		return nil, mapRepositoryError(err)
 	}
-
-	if email.SenderID != input.UserID {
-		return nil, ErrAccessDenied
-	}
-
 	return &GetEmailResult{
 		ID:        email.ID,
 		SenderID:  email.SenderID,

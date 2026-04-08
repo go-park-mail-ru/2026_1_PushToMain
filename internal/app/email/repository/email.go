@@ -12,13 +12,17 @@ import (
 
 var (
 	ErrUserNotFound      = errors.New("user not found")
-	ErrUserQueryFail     = errors.New("failed to find users")
-	ErrMailQueryFail     = errors.New("failed to find mails")
+	ErrQueryFail         = errors.New("failed to find mails")
 	ErrMailNotFound      = errors.New("emails not found")
 	ErrTransactionFailed = errors.New("transaction failed")
 	ErrSaveEmail         = errors.New("failed to save email")
 	ErrReceiverAdd       = errors.New("failed to add receivers")
 )
+
+type ExecDB interface {
+	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
 
 type Repository struct {
 	db *sql.DB
@@ -48,7 +52,7 @@ func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) ([]*
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, ErrUserQueryFail
+		return nil, ErrQueryFail
 	}
 	defer rows.Close()
 
@@ -56,13 +60,13 @@ func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) ([]*
 	for rows.Next() {
 		var user models.User
 		if err := rows.Scan(&user.ID, &user.Email, &user.Name, &user.Surname); err != nil {
-			return nil, ErrUserQueryFail
+			return nil, ErrQueryFail
 		}
 		users = append(users, &user)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, ErrUserQueryFail
+		return nil, ErrQueryFail
 	}
 
 	return users, nil
@@ -96,26 +100,71 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 		return nil
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ErrTransactionFailed
-	}
-	defer tx.Rollback()
+	placeholders := make([]string, len(receiverIDs))
+	args := make([]interface{}, 0, len(receiverIDs)*2)
 
+	for i, receiverID := range receiverIDs {
+		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		args = append(args, receiverID, emailID)
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO user_emails (receiver_id, email_id)
+		VALUES %s
+	`, strings.Join(placeholders, ", "))
+
+	_, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ErrReceiverAdd
+	}
+
+	return nil
+}
+
+func (r *Repository) SaveEmailWithTx(ctx context.Context, db ExecDB, email models.Email) (int64, error) {
 	query := `
-		INSERT INTO user_emails (receiver_id, email_id, is_read, created_at, updated_at)
-		VALUES ($1, $2, false, NOW(), NOW())
+		INSERT INTO emails (sender_id, header, body)
+		VALUES ($1, $2, $3)
+		RETURNING id
 	`
 
-	for _, receiverID := range receiverIDs {
-		_, err = tx.ExecContext(ctx, query, receiverID, emailID)
-		if err != nil {
-			return ErrReceiverAdd
-		}
+	var emailID int64
+	err := db.QueryRowContext(
+		ctx,
+		query,
+		email.SenderID,
+		email.Header,
+		email.Body,
+	).Scan(&emailID)
+
+	if err != nil {
+		return 0, ErrSaveEmail
 	}
 
-	if err = tx.Commit(); err != nil {
-		return ErrTransactionFailed
+	return emailID, nil
+}
+
+func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, db ExecDB, emailID int64, receiverIDs []int64) error {
+	if len(receiverIDs) == 0 {
+		return nil
+	}
+
+	placeholders := make([]string, len(receiverIDs))
+	args := make([]interface{}, 0, len(receiverIDs)*2)
+
+	for i, receiverID := range receiverIDs {
+		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
+		args = append(args, receiverID, emailID)
+	}
+
+	query := fmt.Sprintf(`
+		INSERT INTO user_emails (receiver_id, email_id)
+		VALUES %s
+	`, strings.Join(placeholders, ", "))
+
+	_, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return ErrReceiverAdd
 	}
 
 	return nil
@@ -147,7 +196,7 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, ErrMailQueryFail
+		return nil, checkError(err)
 	}
 	defer rows.Close()
 
@@ -164,14 +213,14 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 			&email.IsRead,
 		)
 		if err != nil {
-			return nil, ErrMailQueryFail
+			return nil, ErrQueryFail
 		}
 
 		emails = append(emails, email)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, ErrMailQueryFail
+		return nil, ErrQueryFail
 	}
 
 	return emails, nil
@@ -194,10 +243,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	)
 
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrMailNotFound
-		}
-		return nil, ErrMailQueryFail
+		return nil, checkError(err)
 	}
 
 	return &email, nil
@@ -213,7 +259,7 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 	var count int
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
 	if err != nil {
-		return 0, ErrMailQueryFail
+		return 0, checkError(err)
 	}
 
 	return count, nil
@@ -224,7 +270,7 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`
 	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
 	if err != nil {
-		return ErrMailQueryFail
+		return ErrQueryFail
 	}
 	if !exists {
 		return ErrMailNotFound
@@ -238,8 +284,39 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 
 	_, err = r.db.ExecContext(ctx, query, emailID, userID)
 	if err != nil {
-		return ErrMailQueryFail
+		return checkError(err)
 	}
 
 	return nil
+}
+
+func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 
+			FROM emails e
+			LEFT JOIN user_emails ue ON e.id = ue.email_id
+			WHERE e.id = $1 
+			AND (e.sender_id = $2 OR ue.receiver_id = $2)
+		)
+	`
+
+	var hasAccess bool
+	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&hasAccess)
+	if err != nil {
+		return false, fmt.Errorf("failed to check email access: %w", err)
+	}
+
+	return hasAccess, nil
+}
+
+func checkError(err error) error {
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrMailNotFound
+	}
+	return ErrQueryFail
+}
+
+func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
+	return r.db.BeginTx(ctx, nil)
 }
