@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
@@ -19,11 +20,17 @@ var (
 	ErrFailedToSaveUser     = errors.New("failed to save user")
 	ErrToGenerateJWT        = errors.New("failed to generate jwt")
 	ErrWrongPassword        = errors.New("wrong password")
+	ErrUploadAvatar         = errors.New("failed to upload avatar")
 )
 
-type Repository interface {
+type DbRepository interface {
 	Save(ctx context.Context, user models.User) (int64, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
+	UpdateAvatar(ctx context.Context, userID int64, imagePath string) error
+}
+
+type S3Repository interface {
+	UploadAvatar(ctx context.Context, userID int64, file io.Reader, size int64) (string, error)
 }
 
 type JWTManager interface {
@@ -32,14 +39,17 @@ type JWTManager interface {
 }
 
 type Service struct {
-	repo Repository
-	jwt  JWTManager
+	userDB    DbRepository
+	s3Storage S3Repository
+	jwt       JWTManager
 }
 
-func New(r Repository, jwt JWTManager) *Service {
+func New(r DbRepository, s3 S3Repository, jwt JWTManager) *Service {
 	return &Service{
-		repo: r,
-		jwt:  jwt}
+		userDB:    r,
+		s3Storage: s3,
+		jwt:       jwt,
+	}
 }
 
 type SignUpInput struct {
@@ -49,8 +59,28 @@ type SignUpInput struct {
 	Surname  string
 }
 
+type UploadAvatarInput struct {
+	File   io.Reader
+	Size   int64
+	UserID int64
+}
+
+func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInput) (string, error) {
+	imagePath, err := s.s3Storage.UploadAvatar(ctx, uploadAvatar.UserID, uploadAvatar.File, uploadAvatar.Size)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrUploadAvatar, err)
+	}
+
+	err = s.userDB.UpdateAvatar(ctx, uploadAvatar.UserID, imagePath)
+	if err != nil {
+		return "", err
+	}
+
+	return imagePath, nil
+}
+
 func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
-	_, err := s.repo.FindByEmail(ctx, signUp.Email)
+	_, err := s.userDB.FindByEmail(ctx, signUp.Email)
 	if err == nil {
 		err = ErrUserAlreadyExists
 		return "", fmt.Errorf("faild to signUp bcz user already exist: %w", err)
@@ -66,7 +96,7 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to generate hash for password: %w", err)
 	}
-	userId, err := s.repo.Save(ctx, models.User{
+	userId, err := s.userDB.Save(ctx, models.User{
 		Email:    signUp.Email,
 		Password: hash,
 		Name:     signUp.Name,
@@ -92,7 +122,7 @@ type SignInInput struct {
 }
 
 func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
-	user, err := s.repo.FindByEmail(ctx, signIn.Email)
+	user, err := s.userDB.FindByEmail(ctx, signIn.Email)
 	if err != nil {
 		err = mapRepositoryError(err)
 		return "", fmt.Errorf("failed to find user: %w", err)

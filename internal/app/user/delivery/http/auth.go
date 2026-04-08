@@ -18,6 +18,7 @@ const sessionTokenCookie = "session_token"
 type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
+	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 }
 
 type SignUpRequest struct {

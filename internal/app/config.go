@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 	"github.com/spf13/viper"
 )
@@ -19,6 +20,7 @@ type Config struct {
 	CORS   middleware.CORSConfig `mapstructure:"cors"`
 	Logger logger.Config         `mapstructure:"logger"`
 	Db     postgres.Config       `mapstructure:"postgres"`
+	S3     minio.Config          `mapstructure:"minio"`
 }
 
 func Load(path string) (*Config, error) {

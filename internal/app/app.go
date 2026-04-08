@@ -12,8 +12,10 @@ import (
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
-	userRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
+	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
+	profileS3Repo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/storage"
 	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
@@ -59,8 +61,14 @@ func (app *App) Run(configPath string) {
 		app.Logger.Errorf("migrations error: %v", err)
 	}
 
-	userRepo := userRepo.New(db)
-	userService := userService.New(userRepo, &app.Config.JWTManager)
+	s3Client, err := minio.New(app.Config.S3)
+	if err != nil {
+		app.Logger.Errorf("minio error: %v", err)
+	}
+
+	profileDbRepo := profileDbRepo.New(db)
+	profileS3Repo := profileS3Repo.New(s3Client)
+	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	authHandler := authHttp.New(userService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	emailRepo := emailRepo.New(db)
