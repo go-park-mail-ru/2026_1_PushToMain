@@ -37,9 +37,8 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
 }
 
-func (h *Handler) parseCommonErrors(err error, w http.ResponseWriter) {
+func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
-
 	case errors.Is(err, service.ErrUserNotFound):
 		response.NotFound(w)
 

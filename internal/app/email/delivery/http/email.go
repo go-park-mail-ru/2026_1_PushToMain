@@ -105,7 +105,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 			"user_id", payload.UserId,
 			"error", err,
 		)
-		handler.parseCommonErrors(err, w)
+		parseCommonErrors(err, w)
 		return
 	}
 	resp := SendEmailResponse{
@@ -193,7 +193,7 @@ func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 			"email_id", req.EmailID,
 			"error", err,
 		)
-		handler.parseCommonErrors(err, w)
+		parseCommonErrors(err, w)
 		return
 	}
 	handler.cfg.Logger.Infow("Email forwarded successfully",
@@ -294,7 +294,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 			"user_id", payload.UserId,
 			"error", err,
 		)
-		handler.parseCommonErrors(err, w)
+		parseCommonErrors(err, w)
 		return
 	}
 
@@ -421,7 +421,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 			"email_id", emailID,
 			"error", err,
 		)
-		handler.parseCommonErrors(err, w)
+		parseCommonErrors(err, w)
 		return
 	}
 	resp := GetEmailResponse{
@@ -515,7 +515,7 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 			"email_id", emailID,
 			"error", err,
 		)
-		handler.parseCommonErrors(err, w)
+		parseCommonErrors(err, w)
 		return
 	}
 	handler.cfg.Logger.Infow("Email marked as read successfully",
