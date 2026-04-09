@@ -8,6 +8,13 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
+	"github.com/lib/pq"
+)
+
+// Коды ошибок PostgreSQL
+const (
+	UniqueViolation     = "23505"
+	ForeignKeyViolation = "23503"
 )
 
 var (
@@ -17,12 +24,9 @@ var (
 	ErrTransactionFailed = errors.New("transaction failed")
 	ErrSaveEmail         = errors.New("failed to save email")
 	ErrReceiverAdd       = errors.New("failed to add receivers")
+	ErrDuplicate         = errors.New("record already exists")
+	ErrForeignKey        = errors.New("related record not found")
 )
-
-type ExecDB interface {
-	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
-	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
-}
 
 type Repository struct {
 	db *sql.DB
@@ -66,7 +70,7 @@ func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) ([]*
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, ErrQueryFail
+		return nil, err
 	}
 
 	return users, nil
@@ -89,6 +93,15 @@ func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, 
 	).Scan(&emailID)
 
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			if pqErr.Code == UniqueViolation {
+				return 0, ErrDuplicate
+			}
+			if pqErr.Code == ForeignKeyViolation {
+				return 0, ErrForeignKey
+			}
+		}
 		return 0, ErrSaveEmail
 	}
 
@@ -115,13 +128,22 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 
 	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			if pqErr.Code == UniqueViolation {
+				return ErrDuplicate
+			}
+			if pqErr.Code == ForeignKeyViolation {
+				return ErrForeignKey
+			}
+		}
 		return ErrReceiverAdd
 	}
 
 	return nil
 }
 
-func (r *Repository) SaveEmailWithTx(ctx context.Context, db ExecDB, email models.Email) (int64, error) {
+func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error) {
 	query := `
 		INSERT INTO emails (sender_id, header, body)
 		VALUES ($1, $2, $3)
@@ -129,7 +151,7 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, db ExecDB, email model
 	`
 
 	var emailID int64
-	err := db.QueryRowContext(
+	err := tx.QueryRowContext(
 		ctx,
 		query,
 		email.SenderID,
@@ -138,13 +160,22 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, db ExecDB, email model
 	).Scan(&emailID)
 
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			if pqErr.Code == UniqueViolation {
+				return 0, ErrDuplicate
+			}
+			if pqErr.Code == ForeignKeyViolation {
+				return 0, ErrForeignKey
+			}
+		}
 		return 0, ErrSaveEmail
 	}
 
 	return emailID, nil
 }
 
-func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, db ExecDB, emailID int64, receiverIDs []int64) error {
+func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error {
 	if len(receiverIDs) == 0 {
 		return nil
 	}
@@ -162,8 +193,17 @@ func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, db ExecDB, ema
 		VALUES %s
 	`, strings.Join(placeholders, ", "))
 
-	_, err := db.ExecContext(ctx, query, args...)
+	_, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) {
+			if pqErr.Code == UniqueViolation {
+				return ErrDuplicate
+			}
+			if pqErr.Code == ForeignKeyViolation {
+				return ErrForeignKey
+			}
+		}
 		return ErrReceiverAdd
 	}
 
@@ -220,7 +260,7 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, ErrQueryFail
+		return nil, err
 	}
 
 	return emails, nil

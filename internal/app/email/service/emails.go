@@ -16,11 +16,13 @@ var (
 	ErrNoValidReceivers = errors.New("no valid receivers found")
 	ErrAccessDenied     = errors.New("don't have access to this email")
 	ErrTransaction      = errors.New("transaction fail")
+	ErrConflict         = errors.New("conflict")
+	ErrBadRequest       = errors.New("bad request")
 )
 
 type Repository interface {
-	SaveEmailWithTx(ctx context.Context, db repository.ExecDB, email models.Email) (int64, error)
-	AddEmailReceiversWithTx(ctx context.Context, db repository.ExecDB, emailID int64, receiverIDs []int64) error
+	SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
+	AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
@@ -273,6 +275,10 @@ func (s *Service) resolveReceivers(ctx context.Context, receiverEmails []string)
 
 func mapRepositoryError(err error) error {
 	switch {
+	case errors.Is(err, repository.ErrDuplicate):
+		return ErrConflict
+	case errors.Is(err, repository.ErrForeignKey):
+		return ErrBadRequest
 	case errors.Is(err, repository.ErrUserNotFound):
 		return ErrUserNotFound
 	case errors.Is(err, repository.ErrReceiverAdd):

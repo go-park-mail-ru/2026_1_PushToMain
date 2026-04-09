@@ -12,19 +12,20 @@ import (
 )
 
 type Config struct {
-	TTL    time.Duration
-	Logger *zap.SugaredLogger
+	TTL time.Duration
 }
 
 type Handler struct {
 	service Service
 	cfg     Config
+	Logger  *zap.SugaredLogger
 }
 
-func New(service Service, cfg Config) *Handler {
+func New(service Service, cfg Config, logger *zap.SugaredLogger) *Handler {
 	return &Handler{
 		service: service,
 		cfg:     cfg,
+		Logger:  logger,
 	}
 }
 
@@ -39,6 +40,12 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
+	case errors.Is(err, service.ErrConflict):
+		response.StatusConflict(w)
+
+	case errors.Is(err, service.ErrBadRequest):
+		response.BadRequest(w)
+
 	case errors.Is(err, service.ErrUserNotFound):
 		response.NotFound(w)
 
