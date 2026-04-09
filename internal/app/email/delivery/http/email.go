@@ -235,12 +235,7 @@ type GetEmailsResponse struct {
 // @Router       /api/v1/emails [get]
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 
-	requestID := r.Header.Get("X-Request-ID")
-	handler.Logger.Infof("Send email request received",
-		"request_id", requestID,
-		"method", r.Method,
-		"path", r.URL.Path,
-	)
+	handler.Logger.Infof("Send email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -251,7 +246,6 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 
 	if payload.UserId <= 0 {
 		handler.Logger.Warnw("Invalid user ID",
-			"request_id", requestID,
 			"user_id", payload.UserId,
 		)
 		response.BadRequest(w)
@@ -273,7 +267,6 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler.Logger.Debugw("Getting emails with pagination",
-		"request_id", requestID,
 		"user_id", payload.UserId,
 		"limit", limit,
 		"offset", offset,
@@ -341,12 +334,7 @@ type GetEmailResponse struct {
 // @Security     CookieAuth
 // @Router       /api/v1/emails/{id} [get]
 func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
-	requestID := r.Header.Get("X-Request-ID")
-	handler.Logger.Infof("Get email by ID request received",
-		"request_id", requestID,
-		"method", r.Method,
-		"path", r.URL.Path,
-	)
+	handler.Logger.Infof("Get email by ID request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -357,7 +345,6 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 
 	if payload.UserId <= 0 {
 		handler.Logger.Warnw("Invalid user ID",
-			"request_id", requestID,
 			"user_id", payload.UserId,
 		)
 		response.BadRequest(w)
@@ -366,10 +353,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
-		handler.Logger.Warnw("Invalid url",
-			"request_id", requestID,
-			"error", err,
-		)
+		handler.Logger.Warnw("Invalid url %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -379,7 +363,6 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
 		handler.Logger.Warnw("Invalid email ID",
-			"request_id", requestID,
 			"email_id", emailIDStr,
 			"error", err,
 		)
@@ -388,7 +371,6 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	handler.Logger.Debugw("Getting email by ID",
-		"request_id", requestID,
 		"user_id", payload.UserId,
 		"email_id", emailID,
 	)
@@ -434,12 +416,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 // @Security     CookieAuth
 // @Router       /api/v1/emails/{id}/read [put]
 func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) {
-	requestID := r.Header.Get("X-Request-ID")
-	handler.Logger.Infof("Mark email as read request received",
-		"request_id", requestID,
-		"method", r.Method,
-		"path", r.URL.Path,
-	)
+	handler.Logger.Infof("Mark email as read request received")
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		handler.Logger.Errorf("Failed to get claims: %v", err)
@@ -448,10 +425,8 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	}
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
-		handler.Logger.Warnw("Invalid url",
-			"request_id", requestID,
-			"error", err,
-		)
+		handler.Logger.Warnf("Invalid url %v", err)
+
 		response.BadRequest(w)
 		return
 	}
@@ -460,7 +435,6 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
 		handler.Logger.Warnw("Invalid email ID",
-			"request_id", requestID,
 			"email_id", emailIDStr,
 			"error", err,
 		)
@@ -469,7 +443,6 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	}
 
 	handler.Logger.Debugw("Marking email as read",
-		"request_id", requestID,
 		"user_id", payload.UserId,
 		"email_id", emailID,
 	)
