@@ -15,67 +15,40 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/logout": {
-            "post": {
-                "description": "Завершает сессию пользователя, сбрасывает сессионную куку",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Выход",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/response.ErrorResponse"
-                        }
+        "/api/v1/emails": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
                     }
-                }
-            }
-        },
-        "/auth/signin": {
-            "post": {
-                "description": "Аутентифицирует пользователя и устанавливает сессионную куку",
-                "consumes": [
-                    "application/json"
                 ],
+                "description": "Возвращает список писем, в которых авторизованный пользователь указан получателем",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "emails"
                 ],
-                "summary": "Вход",
+                "summary": "Получить письма пользователя",
                 "parameters": [
                     {
-                        "description": "Данные для входа",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.SignInRequest"
-                        }
+                        "type": "integer",
+                        "description": "Количество записей на странице (default: 20, max: 100)",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Смещение для пагинации (default: 0)",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handler.GetEmailsResponse"
                         }
                     },
                     "400": {
@@ -90,6 +63,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -99,38 +78,35 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/signup": {
-            "post": {
-                "description": "Создаёт нового пользователя и устанавливает сессионную куку",
-                "consumes": [
-                    "application/json"
+        "/api/v1/emails/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
                 ],
+                "description": "Возвращает детальную информацию о письме",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "auth"
+                    "emails"
                 ],
-                "summary": "Регистрация",
+                "summary": "Получить письмо по ID",
                 "parameters": [
                     {
-                        "description": "Данные для регистрации",
-                        "name": "input",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.SignUpRequest"
-                        }
+                        "type": "integer",
+                        "description": "ID письма",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "$ref": "#/definitions/handler.GetEmailResponse"
                         }
                     },
                     "400": {
@@ -139,8 +115,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
                     },
-                    "409": {
-                        "description": "Conflict",
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/response.ErrorResponse"
                         }
@@ -154,29 +142,130 @@ const docTemplate = `{
                 }
             }
         },
-        "/emails": {
-            "get": {
+        "/api/v1/emails/{id}/read": {
+            "put": {
                 "security": [
                     {
-                        "BearerAuth": []
+                        "CookieAuth": []
                     }
                 ],
-                "description": "Возвращает список писем, в которых авторизованный пользователь указан получателем",
+                "description": "Помечает указанное письмо как прочитанное.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "emails"
                 ],
-                "summary": "Получить письма пользователя",
+                "summary": "Отметить письмо как прочитанное",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID письма",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/forward": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Пересылает письмо получаетлям, которых указал пользователь",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emails"
+                ],
+                "summary": "Переслать письмо",
+                "responses": {
+                    "200": {
+                        "description": "Success"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/response.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/send": {
+            "post": {
+                "security": [
+                    {
+                        "CookieAuth": []
+                    }
+                ],
+                "description": "Отправляет письмо получаетлям, которых указал пользователь",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "emails"
+                ],
+                "summary": "Отправить письмо",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/models.Email"
-                            }
+                            "$ref": "#/definitions/handler.EmailResponse"
                         }
                     },
                     "400": {
@@ -202,54 +291,66 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "handler.SignInRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "handler.SignUpRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "surname": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Email": {
+        "handler.EmailResponse": {
             "type": "object",
             "properties": {
                 "body": {
                     "type": "string"
                 },
-                "email-id": {
-                    "type": "string"
-                },
-                "from": {
+                "created_at": {
                     "type": "string"
                 },
                 "header": {
                     "type": "string"
                 },
-                "to": {
+                "id": {
+                    "type": "integer"
+                },
+                "is_read": {
+                    "type": "boolean"
+                },
+                "sender_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.GetEmailResponse": {
+            "type": "object",
+            "properties": {
+                "body": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "header": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "sender_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.GetEmailsResponse": {
+            "type": "object",
+            "properties": {
+                "emails": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/handler.EmailResponse"
                     }
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },

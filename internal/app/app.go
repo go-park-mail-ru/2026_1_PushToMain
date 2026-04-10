@@ -14,6 +14,7 @@ import (
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
 	authService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
@@ -52,10 +53,19 @@ func (app *App) Run(configPath string) {
 	authRepo := authRepo.New()
 	authService := authService.New(authRepo, &app.Config.JWTManager)
 	authHandler := authHttp.New(authService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	db, err := postgres.New(app.Config.Db)
+	if err != nil {
+		app.Logger.Errorf("postgres error: %v", err)
+	}
+	err = postgres.RunMigrations(app.Config.Db)
+	if err != nil {
+		app.Logger.Errorf("migrations error: %v", err)
+	}
+	emailRepo := emailRepo.New(db)
 
-	emailRepo := emailRepo.New()
 	emailService := emailService.New(emailRepo)
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	emailHandler := emailHttp.New(emailService, emailHttp.Config{
+		TTL: app.Config.JWTManager.TTL()})
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))

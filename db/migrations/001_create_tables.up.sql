@@ -4,12 +4,12 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
     surname TEXT NOT NULL,
-    image_path TEXT NOT NULL,
+    image_path TEXT,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT email_length_check CHECK (char_length(email) < 256),
-    CONSTRAINT password_hash_check CHECK (char_length(password_hash) = 256),
+    CONSTRAINT password_hash_check CHECK (char_length(password_hash) <= 256),
     CONSTRAINT name_length_check CHECK (char_length(name) < 256),
     CONSTRAINT surname_length_check CHECK (char_length(surname) < 256),
     CONSTRAINT image_path_length_check CHECK (char_length(image_path) < 2048)
@@ -35,9 +35,7 @@ CREATE TABLE user_emails (
     email_id INT NOT NULL REFERENCES emails(id) ON DELETE RESTRICT,
     is_read BOOL NOT NULL DEFAULT false,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT unique_receiver_email UNIQUE (receiver_id, email_id)
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_user_emails_receiver_id ON user_emails(receiver_id);

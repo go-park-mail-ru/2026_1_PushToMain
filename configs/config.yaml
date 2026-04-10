@@ -24,3 +24,12 @@ logger:
   environment: development
   output_path: stdout
   error_output_path: stderr
+postgres:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: pushtomain
+  sslmode: disable
+  migrations_path: "file://db/migrations"
+
