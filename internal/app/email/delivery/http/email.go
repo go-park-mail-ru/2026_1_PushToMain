@@ -47,44 +47,30 @@ type SendEmailResponse struct {
 // @Security     CookieAuth
 // @Router       /api/v1/send [post]
 func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
-
-	requestID := r.Header.Get("X-Request-ID")
-	handler.Logger.Infof("Send email request received")
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Send email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		handler.Logger.Errorf("Failed to get claims: %v", err)
+		logger.Errorf("Failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 
 	var req SendEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		handler.Logger.Warnw("Invalid request body",
-			"request_id", requestID,
-			"user_id", payload.UserId,
-			"error", err,
-		)
+		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
 
 	if !req.Validate() {
-		handler.Logger.Warnw("Validation failed",
-			"request_id", requestID,
-			"user_id", payload.UserId,
-			"receivers", req.Receivers,
-		)
+		logger.Warnf("Validation failed, user_id=%d: %v", payload.UserId, req.Receivers)
 		response.BadRequest(w)
 		return
 	}
 
-	handler.Logger.Debugw("Sending email",
-		"request_id", requestID,
-		"user_id", payload.UserId,
-		"receivers_count", len(req.Receivers),
-		"header", req.Header,
-	)
+	logger.Warnf("Validation failed, user_id=%d: invalid receivers format", payload.UserId)
 
 	result, err := handler.service.SendEmail(r.Context(), service.SendEmailInput{
 		UserId:    payload.UserId,
@@ -93,7 +79,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		Receivers: req.Receivers,
 	})
 	if err != nil {
-		handler.Logger.Errorf("Failed to send email: %v", err)
+		logger.Errorf("Failed to send email: %v", err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -105,11 +91,11 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: result.CreatedAt,
 	}
 
-	handler.Logger.Debugf("Email sent successfully: user_id=%d, email_id=%d",
+	logger.Debugf("Email sent successfully: user_id=%d, email_id=%d",
 		payload.UserId, result.ID)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		handler.Logger.Errorf("Failed to encode response: %v", err)
+		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -146,46 +132,35 @@ type ForwardEmailRequest struct {
 // @Security     CookieAuth
 // @Router       /api/v1/forward [post]
 func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
-	requestID := r.Header.Get("X-Request-ID")
-	handler.Logger.Infof("Forward email request received",
-		"request_id", requestID,
-		"method", r.Method,
-		"path", r.URL.Path,
-	)
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Forward email request received")
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		handler.Logger.Errorf("Failed to get claims: %v", err)
+		logger.Errorf("Failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 
 	var req ForwardEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		handler.Logger.Warnw("Invalid request body",
-			"request_id", requestID,
-			"user_id", payload.UserId,
-			"error", err,
-		)
+		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
-	handler.Logger.Debugw("Forwarding email",
-		"request_id", requestID,
-		"user_id", payload.UserId,
-		"email_id", req.EmailID,
-		"receivers_count", len(req.Receivers),
-	)
+	logger.Debugf("Forwarding email, user_id=%d, email_id=%d, receivers_count=%d",
+		payload.UserId, req.EmailID, len(req.Receivers))
+
 	err = handler.service.ForwardEmail(r.Context(), service.ForwardEmailInput{
 		UserID:    payload.UserId,
 		EmailID:   req.EmailID,
 		Receivers: req.Receivers,
 	})
 	if err != nil {
-		handler.Logger.Errorf("Failed to forward email: %v", err)
+		logger.Errorf("Failed to forward email: %v", err)
 		parseCommonErrors(err, w)
 		return
 	}
-	handler.Logger.Debugf("Email forwarded successfully: user_id=%d, email_id=%d",
+	logger.Debugf("Email forwarded successfully: user_id=%d, email_id=%d",
 		payload.UserId, req.EmailID)
 
 	w.WriteHeader(http.StatusOK)
@@ -234,20 +209,19 @@ type GetEmailsResponse struct {
 // @Security     CookieAuth
 // @Router       /api/v1/emails [get]
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
 
-	handler.Logger.Infof("Send email request received")
+	logger.Infof("Send email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		handler.Logger.Errorf("Failed to get claims: %v", err)
+		logger.Errorf("Failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 
 	if payload.UserId <= 0 {
-		handler.Logger.Warnw("Invalid user ID",
-			"user_id", payload.UserId,
-		)
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -266,11 +240,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	handler.Logger.Debugw("Getting emails with pagination",
-		"user_id", payload.UserId,
-		"limit", limit,
-		"offset", offset,
-	)
+	logger.Debugf("Getting emails, user_id=%d, limit=%d, offset=%d", payload.UserId, limit, offset)
 
 	result, err := handler.service.GetEmailsByReceiver(r.Context(), service.GetEmailsInput{
 		UserID: payload.UserId,
@@ -278,7 +248,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		Offset: offset,
 	})
 	if err != nil {
-		handler.Logger.Errorf("Failed to get emails: %v", err)
+		logger.Errorf("Failed to get emails: %v", err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -302,11 +272,11 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		Total:  result.Total,
 	}
 
-	handler.Logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d",
+	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d",
 		payload.UserId, len(emails), result.Total)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		handler.Logger.Errorf("Failed to encode response: %v", err)
+		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -334,26 +304,25 @@ type GetEmailResponse struct {
 // @Security     CookieAuth
 // @Router       /api/v1/emails/{id} [get]
 func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
-	handler.Logger.Infof("Get email by ID request received")
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get email by ID request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		handler.Logger.Errorf("Failed to get claims: %v", err)
+		logger.Errorf("Failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 
 	if payload.UserId <= 0 {
-		handler.Logger.Warnw("Invalid user ID",
-			"user_id", payload.UserId,
-		)
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
-		handler.Logger.Warnw("Invalid url %v", err)
+		logger.Warnf("Invalid url %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -362,25 +331,19 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
-		handler.Logger.Warnw("Invalid email ID",
-			"email_id", emailIDStr,
-			"error", err,
-		)
+		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
-	handler.Logger.Debugw("Getting email by ID",
-		"user_id", payload.UserId,
-		"email_id", emailID,
-	)
+	logger.Debugf("Getting email, user_id=%d, email_id=%d", payload.UserId, emailID)
 
 	result, err := handler.service.GetEmailByID(r.Context(), service.GetEmailInput{
 		UserID:  payload.UserId,
 		EmailID: emailID,
 	})
 	if err != nil {
-		handler.Logger.Errorf("Failed to get email: %v", err)
+		logger.Errorf("Failed to get email: %v", err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -392,11 +355,11 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: result.CreatedAt,
 	}
 
-	handler.Logger.Debugf("Email retrieved successfully: user_id=%d, email_id=%d",
+	logger.Debugf("Email retrieved successfully: user_id=%d, email_id=%d",
 		payload.UserId, emailID)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		handler.Logger.Errorf("Failed to encode response: %v", err)
+		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -416,16 +379,17 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 // @Security     CookieAuth
 // @Router       /api/v1/emails/{id}/read [put]
 func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) {
-	handler.Logger.Infof("Mark email as read request received")
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Mark email as read request received")
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		handler.Logger.Errorf("Failed to get claims: %v", err)
+		logger.Errorf("Failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
-		handler.Logger.Warnf("Invalid url %v", err)
+		logger.Warnf("Invalid url %v", err)
 
 		response.BadRequest(w)
 		return
@@ -434,29 +398,23 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	emailIDStr := pathParts[4]
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
-		handler.Logger.Warnw("Invalid email ID",
-			"email_id", emailIDStr,
-			"error", err,
-		)
+		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
-	handler.Logger.Debugw("Marking email as read",
-		"user_id", payload.UserId,
-		"email_id", emailID,
-	)
+	logger.Debugf("Marking email as read, user_id=%d, email_id=%d", payload.UserId, emailID)
 
 	if err := handler.service.MarkEmailAsRead(r.Context(), service.MarkAsReadInput{
 		UserID:  payload.UserId,
 		EmailID: emailID,
 	}); err != nil {
-		handler.Logger.Errorf("Failed to mark email as read: %v", err)
+		logger.Errorf("Failed to mark email as read: %v", err)
 		parseCommonErrors(err, w)
 		return
 	}
 
-	handler.Logger.Debugf("Email marked as read successfully: user_id=%d, email_id=%d",
+	logger.Debugf("Email marked as read successfully: user_id=%d, email_id=%d",
 		payload.UserId, emailID)
 
 	w.WriteHeader(http.StatusOK)

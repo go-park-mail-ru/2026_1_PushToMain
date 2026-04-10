@@ -8,7 +8,6 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -18,14 +17,12 @@ type Config struct {
 type Handler struct {
 	service Service
 	cfg     Config
-	Logger  *zap.SugaredLogger
 }
 
-func New(service Service, cfg Config, logger *zap.SugaredLogger) *Handler {
+func New(service Service, cfg Config) *Handler {
 	return &Handler{
 		service: service,
 		cfg:     cfg,
-		Logger:  logger,
 	}
 }
 

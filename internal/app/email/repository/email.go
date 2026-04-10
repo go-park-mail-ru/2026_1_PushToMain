@@ -236,13 +236,15 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
-		return nil, checkError(err)
+		//return nil, checkError(err)
+		return nil, err
 	}
 	defer rows.Close()
 
 	emails := make([]models.EmailWithMetadata, 0)
 	for rows.Next() {
 		var email models.EmailWithMetadata
+		var receivedAt sql.NullTime
 
 		err := rows.Scan(
 			&email.ID,
@@ -251,9 +253,10 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 			&email.Body,
 			&email.CreatedAt,
 			&email.IsRead,
+			&receivedAt,
 		)
 		if err != nil {
-			return nil, ErrQueryFail
+			return nil, err
 		}
 
 		emails = append(emails, email)

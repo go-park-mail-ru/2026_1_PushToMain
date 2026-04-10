@@ -12,7 +12,8 @@ type Email struct {
 
 type EmailWithMetadata struct {
 	Email
-	IsRead bool `json:"is_read"`
+	IsRead     bool      `json:"is_read"`
+	ReceivedAt time.Time `json:"received_at"`
 }
 
 type UserEmail struct {
