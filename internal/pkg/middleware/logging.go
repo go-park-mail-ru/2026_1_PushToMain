@@ -56,3 +56,12 @@ func Logging(logger *zap.SugaredLogger) func(http.Handler) http.Handler {
 		})
 	}
 }
+
+func LoggerFromContext(ctx context.Context) *zap.SugaredLogger {
+	logger, ok := ctx.Value(LoggerKey).(*zap.SugaredLogger)
+	if !ok {
+		return nil
+	}
+
+	return logger
+}
