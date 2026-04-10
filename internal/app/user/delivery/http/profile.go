@@ -17,7 +17,7 @@ var (
 func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	claims, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
-		response.Unauthorized(w)
+		response.InternalError(w)
 		return
 	}
 	if err = r.ParseMultipartForm(1 * Megabyte); err != nil {
