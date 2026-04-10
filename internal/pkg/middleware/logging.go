@@ -48,7 +48,6 @@ func Logging(logger *zap.SugaredLogger) func(http.Handler) http.Handler {
 			requestLogger.Infof("Request started: %s %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
 
 			start := time.Now()
-			//next.ServeHTTP(rw, r)
 			next.ServeHTTP(rw, r.WithContext(ctx))
 			duration := time.Since(start)
 
