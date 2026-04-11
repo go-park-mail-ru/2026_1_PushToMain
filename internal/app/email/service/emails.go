@@ -26,12 +26,14 @@ type Repository interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
+	GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
 	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
+	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
 
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
 }
@@ -90,6 +92,59 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 	}
 
 	return &GetEmailsResult{
+		Emails: resultEmails,
+		Limit:  input.Limit,
+		Offset: input.Offset,
+		Total:  total,
+	}, nil
+}
+
+type GetMyEmailsInput struct {
+	UserID int64
+	Limit  int
+	Offset int
+}
+
+type GetMyEmailsResult struct {
+	Emails []MyEmailResult
+	Limit  int
+	Offset int
+	Total  int
+}
+
+type MyEmailResult struct {
+	ID        int64
+	SenderID  int64
+	Header    string
+	Body      string
+	CreatedAt time.Time
+	IsRead    bool
+}
+
+func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput) (*GetMyEmailsResult, error) {
+	emails, err := s.repo.GetEmailsBySender(ctx, input.UserID, input.Limit, input.Offset)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
+	total, err := s.repo.GetUserEmailsCount(ctx, input.UserID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
+	resultEmails := make([]MyEmailResult, len(emails))
+	for i, email := range emails {
+		resultEmails[i] = MyEmailResult{
+			ID:        email.ID,
+			SenderID:  email.SenderID,
+			Header:    email.Header,
+			Body:      email.Body,
+			CreatedAt: email.CreatedAt,
+			IsRead:    email.IsRead,
+		}
+	}
+
+	return &GetMyEmailsResult{
 		Emails: resultEmails,
 		Limit:  input.Limit,
 		Offset: input.Offset,

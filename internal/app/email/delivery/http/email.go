@@ -16,6 +16,7 @@ import (
 
 type Service interface {
 	GetEmailsByReceiver(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetEmailsBySender(ctx context.Context, input service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
 	GetEmailByID(ctx context.Context, cmd service.GetEmailInput) (*service.GetEmailResult, error)
 	SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error)
 	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
@@ -266,6 +267,109 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GetEmailsResponse{
+		Emails: emails,
+		Limit:  result.Limit,
+		Offset: result.Offset,
+		Total:  result.Total,
+	}
+
+	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d",
+		payload.UserId, len(emails), result.Total)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
+}
+
+type MyEmailResponse struct {
+	ID        int64     `json:"id"`
+	SenderID  int64     `json:"sender_id"`
+	Header    string    `json:"header"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	IsRead    bool      `json:"is_read"`
+}
+
+type GetMyEmailsResponse struct {
+	Emails []MyEmailResponse `json:"emails"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int               `json:"total"`
+}
+
+// @Summary      Получить письма отправленные пользователем
+// @Description  Возвращает список писем, в которых авторизованный пользователь указан отправителем
+// @Tags         emails
+// @Produce      json
+// @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
+// @Param        offset  query     int  false  "Смещение для пагинации (default: 0)"
+// @Success      200  {object}  GetEmailsResponse
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/myemails [get]
+func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+
+	logger.Infof("Send email request received")
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	logger.Debugf("Getting emails, user_id=%d, limit=%d, offset=%d", payload.UserId, limit, offset)
+
+	result, err := handler.service.GetEmailsBySender(r.Context(), service.GetMyEmailsInput{
+		UserID: payload.UserId,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("Failed to get emails: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	emails := make([]MyEmailResponse, len(result.Emails))
+	for i, email := range result.Emails {
+		emails[i] = MyEmailResponse{
+			ID:        email.ID,
+			SenderID:  email.SenderID,
+			Header:    email.Header,
+			Body:      email.Body,
+			CreatedAt: email.CreatedAt,
+			IsRead:    email.IsRead,
+		}
+	}
+
+	resp := GetMyEmailsResponse{
 		Emails: emails,
 		Limit:  result.Limit,
 		Offset: result.Offset,

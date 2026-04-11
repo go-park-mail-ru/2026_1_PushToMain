@@ -8,13 +8,12 @@ import (
 	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
 	authService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
+	"go.uber.org/zap"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"

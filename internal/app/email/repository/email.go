@@ -267,6 +267,62 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	return emails, nil
 }
 
+func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `
+        SELECT 
+            e.id,
+            e.sender_id,
+            e.header,
+            e.body,
+            e.created_at,
+            ue.is_read,
+            ue.created_at as received_at
+        FROM emails e
+        WHERE e.sender_id = $1
+        ORDER BY ue.created_at DESC
+        LIMIT $2 OFFSET $3
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	emails := make([]models.EmailWithMetadata, 0)
+	for rows.Next() {
+		var email models.EmailWithMetadata
+
+		err := rows.Scan(
+			&email.ID,
+			&email.SenderID,
+			&email.Header,
+			&email.Body,
+			&email.CreatedAt,
+			&email.IsRead,
+			&email.ReceivedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		emails = append(emails, email)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return emails, nil
+}
+
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
 	query := `
         SELECT id, sender_id, header, body, created_at
@@ -295,6 +351,22 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 		SELECT COUNT(*)
 		FROM user_emails
 		WHERE receiver_id = $1
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, checkError(err)
+	}
+
+	return count, nil
+}
+
+func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM emails
+		WHERE sender_id = $1
 	`
 
 	var count int
