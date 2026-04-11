@@ -63,3 +63,15 @@ func (r *Repository) UploadAvatar(ctx context.Context, userID int64, file io.Rea
 func makeAvatarPath(userID int64) string {
 	return fmt.Sprintf("users/%d/avatar", userID)
 }
+
+func (r *Repository) DeleteAvatar(ctx context.Context, userID int64) error {
+    key := makeAvatarPath(userID)
+    _, err := r.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
+        Bucket: aws.String(bucketName),
+        Key:    aws.String(key),
+    })
+    if err != nil {
+        return fmt.Errorf("delete avatar for user %d: %w", userID, err)
+    }
+    return nil
+}

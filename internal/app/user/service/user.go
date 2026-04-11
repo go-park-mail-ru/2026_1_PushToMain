@@ -31,6 +31,7 @@ type DbRepository interface {
 
 type S3Repository interface {
 	UploadAvatar(ctx context.Context, userID int64, file io.Reader, size int64) (string, error)
+	DeleteAvatar(ctx context.Context, userID int64) error
 }
 
 type JWTManager interface {
@@ -73,7 +74,10 @@ func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInp
 
 	err = s.userDB.UpdateAvatar(ctx, uploadAvatar.UserID, imagePath)
 	if err != nil {
-		return "", err
+		if deleteErr := s.s3Storage.DeleteAvatar(ctx, uploadAvatar.UserID); deleteErr != nil {
+			return "", fmt.Errorf("update avatar in db: %w; also failed to rollback s3: %v", err, deleteErr)
+		}
+        return "", fmt.Errorf("update avatar in db: %w", err)
 	}
 
 	return imagePath, nil
