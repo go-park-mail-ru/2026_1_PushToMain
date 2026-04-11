@@ -61,7 +61,7 @@ func (app *App) Run(configPath string) {
 		app.Logger.Errorf("migrations error: %v", err)
 	}
 
-	s3Client, err := minio.New(app.Config.S3)
+	s3Client, err := minio.New(context.TODO(), app.Config.S3)
 	if err != nil {
 		app.Logger.Errorf("minio error: %v", err)
 	}
@@ -69,7 +69,11 @@ func (app *App) Run(configPath string) {
 	profileDbRepo := profileDbRepo.New(db)
 	profileS3Repo := profileS3Repo.New(s3Client)
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
-	authHandler := authHttp.New(userService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	authHandler := authHttp.New(userService, authHttp.Config{
+		TTL: app.Config.JWTManager.TTL(),
+		MaxAvatarSize: app.Config.Avatar.MaxSizeMB * 1024 * 1024,
+		AllowedTypes:  app.Config.Avatar.AllowedTypes,
+	})
 
 	emailRepo := emailRepo.New(db)
 	emailService := emailService.New(emailRepo)
