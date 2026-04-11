@@ -15,7 +15,7 @@ var (
 )
 
 func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.LoggerFromContext(r.Context())
+	logger := middleware.GetLogger(r.Context())
 	claims, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("failed to get claims from context: %v", err)
