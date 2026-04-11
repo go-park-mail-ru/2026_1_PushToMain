@@ -19,13 +19,13 @@ type Config struct {
 	SSLMode   bool   `mapstructure:"sslmode"`
 }
 
-func New(c Config) (*s3.Client, error) {
+func New(ctx context.Context, c Config) (*s3.Client, error) {
 	region := c.Region
 	if c.Region == "" {
 		region = "us-east-1"
 	}
 	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
+		ctx,
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(c.AccessKey, c.SecretKey, ""),
 		),
