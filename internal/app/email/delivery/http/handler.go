@@ -34,6 +34,8 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
+
+	private.HandleFunc("/emails/delete", h.DeleteEmailForReceiver).Methods(http.MethodDelete, http.MethodOptions)
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {

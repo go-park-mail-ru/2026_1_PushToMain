@@ -24,6 +24,7 @@ type Repository interface {
 	SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
 	AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
+	CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error)
 
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
@@ -35,6 +36,8 @@ type Repository interface {
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
+
+	DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error
 
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) error
 }
@@ -316,6 +319,29 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 		Body:      email.Body,
 		CreatedAt: email.CreatedAt,
 	}, nil
+}
+
+type DeleteEmailInput struct {
+	UserID  int64
+	EmailID int64
+}
+
+func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailInput) error {
+	exists, err := s.repo.CheckUserEmailExists(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	if !exists {
+		return ErrEmailNotFound
+	}
+
+	err = s.repo.DeleteEmailForReceiver(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	return nil
 }
 
 type MarkAsReadInput struct {

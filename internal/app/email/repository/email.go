@@ -421,6 +421,46 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 	return nil
 }
 
+func (r *Repository) CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error) {
+	query := `
+        SELECT EXISTS(
+            SELECT 1 FROM user_emails 
+            WHERE email_id = $1 AND receiver_id = $2
+        )
+    `
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&exists)
+	if err != nil {
+		return false, ErrQueryFail
+	}
+
+	return exists, nil
+}
+
+func (r *Repository) DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error {
+	query := `
+        DELETE FROM user_emails
+        WHERE email_id = $1 AND receiver_id = $2
+    `
+
+	result, err := r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrMailNotFound
+	}
+
+	return nil
+}
+
 func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) error {
 	query := `
 		SELECT EXISTS(
