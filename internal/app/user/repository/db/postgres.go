@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
@@ -14,7 +13,6 @@ var ErrUserNotFound = errors.New("user not found")
 var ErrUserDbNotInited = errors.New("user database is not inited")
 
 type Repository struct {
-	mu     sync.Mutex
 	userDb *sql.DB
 }
 
@@ -34,9 +32,6 @@ func (r *Repository) UpdateAvatar(ctx context.Context, userID int64, imagePath s
 	if r.userDb == nil {
 		return ErrUserDbNotInited
 	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	result, err := r.userDb.ExecContext(ctx, query, imagePath, userID)
 	if err != nil {
@@ -64,9 +59,6 @@ func (repo *Repository) Save(ctx context.Context, user models.User) (int64, erro
 	if repo.userDb == nil {
 		return 0, ErrUserDbNotInited
 	}
-
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
 
 	var userId int64
 	err := repo.userDb.QueryRowContext(
@@ -96,9 +88,6 @@ func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.
 	if repo.userDb == nil {
 		return nil, ErrUserDbNotInited
 	}
-
-	repo.mu.Lock()
-	defer repo.mu.Unlock()
 
 	user := models.User{Email: email}
 
