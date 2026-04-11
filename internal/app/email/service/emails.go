@@ -36,7 +36,7 @@ type Repository interface {
 	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
 
-	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
+	CheckEmailAccess(ctx context.Context, emailID, userID int64) error
 }
 
 type Service struct {
@@ -233,22 +233,52 @@ type ForwardEmailInput struct {
 
 func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) error {
 
-	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return ErrTransaction
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				err = ErrTransaction
+			}
+		}
+	}()
+
+	getEmail := GetEmailInput{
+		UserID:  input.UserID,
+		EmailID: input.EmailID,
+	}
+
+	forwardEmail, err := s.GetEmailByID(ctx, getEmail)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
-	if !hasAccess {
-		return ErrAccessDenied
+
+	email := models.Email{
+		SenderID: input.UserID,
+		Header:   forwardEmail.Header,
+		Body:     forwardEmail.Body,
 	}
+
+	emailID, err := s.repo.SaveEmailWithTx(ctx, tx, email)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+	email.ID = emailID
 
 	receiverIDs, err := s.resolveReceivers(ctx, input.Receivers)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
 
-	err = s.repo.AddEmailReceivers(ctx, input.EmailID, receiverIDs)
+	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
 	if err != nil {
 		return mapRepositoryError(err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return ErrTransaction
 	}
 
 	return nil
@@ -270,12 +300,9 @@ type GetEmailResult struct {
 
 func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEmailResult, error) {
 
-	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return nil, mapRepositoryError(err)
-	}
-	if !hasAccess {
-		return nil, ErrAccessDenied
 	}
 
 	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
@@ -348,6 +375,8 @@ func mapRepositoryError(err error) error {
 		return ErrNoValidReceivers
 	case errors.Is(err, repository.ErrMailNotFound):
 		return ErrEmailNotFound
+	case errors.Is(err, repository.ErrAccessDenied):
+		return ErrAccessDenied
 	default:
 		return err
 	}

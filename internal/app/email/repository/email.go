@@ -26,6 +26,7 @@ var (
 	ErrReceiverAdd       = errors.New("failed to add receivers")
 	ErrDuplicate         = errors.New("record already exists")
 	ErrForeignKey        = errors.New("related record not found")
+	ErrAccessDenied      = errors.New("have no access")
 )
 
 type Repository struct {
@@ -420,7 +421,7 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 	return nil
 }
 
-func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error) {
+func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) error {
 	query := `
 		SELECT EXISTS(
 			SELECT 1 
@@ -434,10 +435,9 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	var hasAccess bool
 	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&hasAccess)
 	if err != nil {
-		return false, fmt.Errorf("failed to check email access: %w", err)
+		return ErrAccessDenied
 	}
-
-	return hasAccess, nil
+	return nil
 }
 
 func checkError(err error) error {
