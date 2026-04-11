@@ -76,6 +76,7 @@ func (app *App) Run(configPath string) {
 
 	private := public.PathPrefix("").Subrouter()
 	private.Use(middleware.AuthMiddleware(&app.Config.JWTManager))
+	private.Use(middleware.CSRFMiddleware)
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)

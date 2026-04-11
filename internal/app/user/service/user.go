@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 
@@ -109,6 +111,17 @@ func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error
 	}
 
 	return token, nil
+}
+
+func (s *Service) GenerateToken() (string, error) {
+	b := make([]byte, 32)
+
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b), nil
 }
 
 func mapRepositoryError(err error) error {

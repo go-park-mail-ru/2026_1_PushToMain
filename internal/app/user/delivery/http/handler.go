@@ -29,4 +29,5 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	public.HandleFunc("/signin", h.SignIn).Methods(http.MethodPost, http.MethodOptions)
 	public.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 	public.HandleFunc("/logout", h.Logout).Methods(http.MethodPost, http.MethodOptions)
+	public.HandleFunc("/csrf", h.GetCSRF).Methods(http.MethodGet, http.MethodOptions)
 }

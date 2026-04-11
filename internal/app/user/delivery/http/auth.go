@@ -18,6 +18,7 @@ const sessionTokenCookie = "session_token"
 type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
+	GenerateToken() (string, error)
 }
 
 type SignUpRequest struct {
@@ -170,6 +171,34 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	default:
 		response.InternalError(w)
 	}
+}
+
+type csrfResponse struct {
+	Token string `json:"csrf_token"`
+}
+
+func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
+	token, err := h.service.GenerateToken()
+	if err != nil {
+		http.Error(w, "failed to generate csrf", http.StatusInternalServerError)
+		return
+	}
+
+	// кладем в cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "csrf_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false, // фронт должен читать
+		Secure:   false, // true в проде (https)
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// возвращаем в JSON
+	resp := csrfResponse{
+		Token: token,
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (req *SignUpRequest) Validate() bool {
