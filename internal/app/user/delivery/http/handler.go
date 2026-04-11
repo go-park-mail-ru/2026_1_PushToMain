@@ -10,6 +10,8 @@ import (
 
 type Config struct {
 	TTL time.Duration
+	MaxAvatarSize int64
+	AllowedTypes  []string
 }
 
 type Handler struct {

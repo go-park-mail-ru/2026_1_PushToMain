@@ -40,3 +40,10 @@ minio:
   sslmode: false
   access_key: ""
   secret_key: ""
+
+avatar:
+  max_size_mb: 5
+  allowed_types:
+    - image/jpeg
+    - image/png
+    - image/webp

@@ -9,11 +9,6 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
-var (
-	Kilobyte int64 = 1024
-	Megabyte int64 = 1024 * Kilobyte
-)
-
 func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	claims, err := middleware.ClaimsFromContext(r.Context())
@@ -22,7 +17,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-	if err = r.ParseMultipartForm(1 * Megabyte); err != nil {
+	if err = r.ParseMultipartForm(handler.cfg.MaxAvatarSize); err != nil {
 		logger.Errorf("failed to parse multipart form: %v", err)
 		response.BadRequest(w)
 		return
@@ -35,7 +30,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	if !isValidImageType(header.Header.Get("Content-Type")) {
+	if !isValidImageType(header.Header.Get("Content-Type"), handler.cfg.AllowedTypes) {
 		logger.Infof("invalid image type: %s", header.Header.Get("Content-Type"))
 		response.BadRequest(w)
 		return
@@ -64,10 +59,11 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func isValidImageType(contentType string) bool {
-	switch contentType {
-	case "image/jpeg":
-		return true
-	}
-	return false
+func isValidImageType(contentType string, allowed []string) bool {
+    for _, t := range allowed {
+        if t == contentType {
+            return true
+        }
+    }
+    return false
 }
