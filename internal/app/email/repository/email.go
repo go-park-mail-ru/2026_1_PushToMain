@@ -285,6 +285,7 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
             ue.is_read,
             ue.created_at as received_at
         FROM emails e
+        JOIN user_emails ue ON e.id = ue.email_id
         WHERE e.sender_id = $1
         ORDER BY ue.created_at DESC
         LIMIT $2 OFFSET $3
@@ -344,6 +345,22 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	}
 
 	return &email, nil
+}
+
+func (r *Repository) GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM user_emails
+		WHERE receiver_id = $1 AND is_read = false
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, checkError(err)
+	}
+
+	return count, nil
 }
 
 func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, error) {

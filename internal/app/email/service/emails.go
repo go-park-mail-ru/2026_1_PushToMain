@@ -34,6 +34,7 @@ type Repository interface {
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
+	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
 
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
 }
@@ -53,10 +54,11 @@ type GetEmailsInput struct {
 }
 
 type GetEmailsResult struct {
-	Emails []EmailResult
-	Limit  int
-	Offset int
-	Total  int
+	Emails      []EmailResult
+	Limit       int
+	Offset      int
+	Total       int
+	UnreadCount int
 }
 
 type EmailResult struct {
@@ -79,6 +81,11 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 		return nil, mapRepositoryError(err)
 	}
 
+	unreadCount, err := s.repo.GetUnreadEmailsCount(ctx, input.UserID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
 	resultEmails := make([]EmailResult, len(emails))
 	for i, email := range emails {
 		resultEmails[i] = EmailResult{
@@ -92,10 +99,11 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 	}
 
 	return &GetEmailsResult{
-		Emails: resultEmails,
-		Limit:  input.Limit,
-		Offset: input.Offset,
-		Total:  total,
+		Emails:      resultEmails,
+		Limit:       input.Limit,
+		Offset:      input.Offset,
+		Total:       total,
+		UnreadCount: unreadCount,
 	}, nil
 }
 

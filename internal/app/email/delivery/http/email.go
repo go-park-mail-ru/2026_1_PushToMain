@@ -190,10 +190,11 @@ type EmailResponse struct {
 }
 
 type GetEmailsResponse struct {
-	Emails []EmailResponse `json:"emails"`
-	Limit  int             `json:"limit"`
-	Offset int             `json:"offset"`
-	Total  int             `json:"total"`
+	Emails      []EmailResponse `json:"emails"`
+	Limit       int             `json:"limit"`
+	Offset      int             `json:"offset"`
+	Total       int             `json:"total"`
+	UnreadCount int             `json:"unread_count"`
 }
 
 // @Summary      Получить письма пользователя
@@ -212,7 +213,7 @@ type GetEmailsResponse struct {
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
-	logger.Infof("Send email request received")
+	logger.Infof("get email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -267,14 +268,15 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GetEmailsResponse{
-		Emails: emails,
-		Limit:  result.Limit,
-		Offset: result.Offset,
-		Total:  result.Total,
+		Emails:      emails,
+		Limit:       result.Limit,
+		Offset:      result.Offset,
+		Total:       result.Total,
+		UnreadCount: result.UnreadCount,
 	}
 
-	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d",
-		payload.UserId, len(emails), result.Total)
+	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d, unread=%d",
+		payload.UserId, len(emails), result.Total, result.UnreadCount)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
@@ -315,7 +317,7 @@ type GetMyEmailsResponse struct {
 func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
-	logger.Infof("Send email request received")
+	logger.Infof("get email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
