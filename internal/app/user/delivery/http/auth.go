@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
@@ -19,6 +20,7 @@ type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
+	GetMe(ctx context.Context, userID int64) (*models.User, error)
 }
 
 type SignUpRequest struct {

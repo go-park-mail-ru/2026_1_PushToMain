@@ -113,3 +113,25 @@ func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.
 
 	return &user, nil
 }
+
+func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, error) {
+    query := `
+        SELECT id, email, name, surname, image_path
+        FROM users
+        WHERE id = $1
+    `
+    if r.userDb == nil {
+        return nil, ErrUserDbNotInited
+    }
+
+    user := &models.User{}
+    err := r.userDb.QueryRowContext(ctx, query, userID).
+        Scan(&user.ID, &user.Email, &user.Name, &user.Surname, &user.ImagePath)
+    if errors.Is(err, sql.ErrNoRows) {
+        return nil, ErrUserNotFound
+    }
+    if err != nil {
+        return nil, fmt.Errorf("failed to find user by id: %w", err)
+    }
+    return user, nil
+}

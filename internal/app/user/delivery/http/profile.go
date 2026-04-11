@@ -9,6 +9,44 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
+type MeResponse struct {
+    ID        int64  `json:"id"`
+    Email     string `json:"email"`
+    Name      string `json:"name"`
+    Surname   string `json:"surname"`
+    ImagePath string `json:"image_path"`
+}
+
+func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
+    logger := middleware.GetLogger(r.Context())
+
+    claims, err := middleware.ClaimsFromContext(r.Context())
+    if err != nil {
+        logger.Errorf("failed to get claims from context: %v", err)
+        response.InternalError(w)
+        return
+    }
+
+    user, err := handler.service.GetMe(r.Context(), claims.UserId)
+    if err != nil {
+        logger.Errorf("failed to get user %d: %v", claims.UserId, err)
+        response.InternalError(w)
+        return
+    }
+
+    if err := json.NewEncoder(w).Encode(MeResponse{
+        ID:        user.ID,
+        Email:     user.Email,
+        Name:      user.Name,
+        Surname:   user.Surname,
+        ImagePath: user.ImagePath,
+    }); err != nil {
+        logger.Errorf("failed to encode response: %v", err)
+        response.InternalError(w)
+        return
+    }
+}
+
 func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	claims, err := middleware.ClaimsFromContext(r.Context())

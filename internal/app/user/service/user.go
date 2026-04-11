@@ -27,6 +27,7 @@ type DbRepository interface {
 	Save(ctx context.Context, user models.User) (int64, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateAvatar(ctx context.Context, userID int64, imagePath string) error
+	FindByID(ctx context.Context, userID int64) (*models.User, error)
 }
 
 type S3Repository interface {
@@ -64,6 +65,14 @@ type UploadAvatarInput struct {
 	File   io.Reader
 	Size   int64
 	UserID int64
+}
+
+func (s *Service) GetMe(ctx context.Context, userID int64) (*models.User, error) {
+    user, err := s.userDB.FindByID(ctx, userID)
+    if err != nil {
+        return nil, mapRepositoryError(err)
+    }
+    return user, nil
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInput) (string, error) {

@@ -35,4 +35,5 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	// Private routes
 	private.HandleFunc("/profile/avatar", h.UploadAvatar).Methods(http.MethodPost, http.MethodOptions)
+	private.HandleFunc("/profile/me", h.GetMe).Methods(http.MethodGet, http.MethodOptions)
 }
