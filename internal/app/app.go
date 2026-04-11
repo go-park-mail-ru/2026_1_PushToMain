@@ -67,7 +67,10 @@ func (app *App) Run(configPath string) {
 	}
 
 	profileDbRepo := profileDbRepo.New(db)
-	profileS3Repo := profileS3Repo.New(s3Client)
+	profileS3Repo, err := profileS3Repo.New(s3Client)
+	if err != nil {
+	    app.Logger.Fatalf("s3 storage init error: %v", err)
+	}
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	authHandler := authHttp.New(userService, authHttp.Config{
 		TTL: app.Config.JWTManager.TTL(),

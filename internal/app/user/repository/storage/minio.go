@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrS3ClientNotInited = errors.New("s3 client not inited")
+	ErrS3CreateBucket = errors.New("failed to create bucket")
 )
 
 const (
@@ -27,23 +28,23 @@ type Repository struct {
 	presignClient *s3.PresignClient
 }
 
-func New(client *s3.Client) *Repository {
+func New(client *s3.Client) (*Repository, error) {
+	if client == nil {
+		return nil, ErrS3ClientNotInited
+	}
+
 	err := minio.CreateBucket(client, "avatars")
 	if err != nil {
-		return nil
+		return nil, ErrS3CreateBucket
 	}
 
 	return &Repository{
 		s3:            client,
 		presignClient: s3.NewPresignClient(client),
-	}
+	}, nil
 }
 
 func (r *Repository) UploadAvatar(ctx context.Context, userID int64, file io.Reader, size int64) (string, error) {
-	if r.s3 == nil {
-		return "", ErrS3ClientNotInited
-	}
-
 	key := makeAvatarPath(userID)
 
 	_, err := r.s3.PutObject(ctx, &s3.PutObjectInput{
