@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,20 +11,17 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file" // Этот импорт критически важен!
-)
-
-const (
-	migrationsPath = "file://db/migrations"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 type Config struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"password"`
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
+	Host           string `mapstructure:"host"`
+	Port           int    `mapstructure:"port"`
+	User           string `mapstructure:"user"`
+	Password       string `mapstructure:"password"`
+	DBName         string `mapstructure:"dbname"`
+	SSLMode        string `mapstructure:"sslmode"`
+	MigrationsPath string `mapstructure:"migrations_path"`
 }
 
 func (cfg *Config) ToDSN() string {
@@ -54,20 +52,21 @@ func New(cfg Config) (*sql.DB, error) {
 func RunMigrations(cfg Config) error {
 	dsn := cfg.ToDSN()
 
-	m, err := migrate.New(migrationsPath, dsn)
+	m, err := migrate.New(cfg.MigrationsPath, dsn)
 	if err != nil {
 		return fmt.Errorf("cannot create migrate instance: %w", err)
 	}
 	defer m.Close()
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("cannot apply migrations: %v", err)
+	errUp := m.Up()
+	if errUp != nil && !errors.Is(errUp, migrate.ErrNoChange) {
+		return fmt.Errorf("cannot apply migrations: %w", errUp)
 	}
 
-	if err == migrate.ErrNoChange {
-		return fmt.Errorf("✅ No new migrations to apply")
+	if errors.Is(errUp, migrate.ErrNoChange) {
+		fmt.Println("No new migrations to apply")
 	} else {
-		fmt.Println("Migrations applied successfully")
+		fmt.Printf("Migrations applied successfully from")
 	}
 
 	return nil
