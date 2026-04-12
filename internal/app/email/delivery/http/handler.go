@@ -28,11 +28,15 @@ func New(service Service, cfg Config) *Handler {
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/myemails", h.GetMyEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/forward", h.ForwardEmail).Methods(http.MethodPost, http.MethodOptions)
 
 	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
+
+	private.HandleFunc("/emails/delete", h.DeleteEmailForReceiver).Methods(http.MethodDelete, http.MethodOptions)
+	private.HandleFunc("/myemails/delete", h.DeleteEmailForSender).Methods(http.MethodDelete, http.MethodOptions)
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {

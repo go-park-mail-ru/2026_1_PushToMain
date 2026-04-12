@@ -16,10 +16,13 @@ import (
 
 type Service interface {
 	GetEmailsByReceiver(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetEmailsBySender(ctx context.Context, cmd service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
 	GetEmailByID(ctx context.Context, cmd service.GetEmailInput) (*service.GetEmailResult, error)
 	SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error)
 	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
 	MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error
+	DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error
+	DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error
 }
 
 type SendEmailRequest struct {
@@ -189,10 +192,11 @@ type EmailResponse struct {
 }
 
 type GetEmailsResponse struct {
-	Emails []EmailResponse `json:"emails"`
-	Limit  int             `json:"limit"`
-	Offset int             `json:"offset"`
-	Total  int             `json:"total"`
+	Emails      []EmailResponse `json:"emails"`
+	Limit       int             `json:"limit"`
+	Offset      int             `json:"offset"`
+	Total       int             `json:"total"`
+	UnreadCount int             `json:"unread_count"`
 }
 
 // @Summary      Получить письма пользователя
@@ -211,7 +215,7 @@ type GetEmailsResponse struct {
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
-	logger.Infof("Send email request received")
+	logger.Infof("get email request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -266,6 +270,112 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := GetEmailsResponse{
+		Emails:      emails,
+		Limit:       result.Limit,
+		Offset:      result.Offset,
+		Total:       result.Total,
+		UnreadCount: result.UnreadCount,
+	}
+
+	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d, unread=%d",
+		payload.UserId, len(emails), result.Total, result.UnreadCount)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
+}
+
+type MyEmailResponse struct {
+	ID              int64     `json:"id"`
+	SenderID        int64     `json:"sender_id"`
+	Header          string    `json:"header"`
+	Body            string    `json:"body"`
+	CreatedAt       time.Time `json:"created_at"`
+	IsRead          bool      `json:"is_read"`
+	ReceiversEmails []string  `json:"receivers_emails"`
+}
+
+type GetMyEmailsResponse struct {
+	Emails []MyEmailResponse `json:"emails"`
+	Limit  int               `json:"limit"`
+	Offset int               `json:"offset"`
+	Total  int               `json:"total"`
+}
+
+// @Summary      Получить письма отправленные пользователем
+// @Description  Возвращает список писем, в которых авторизованный пользователь указан отправителем
+// @Tags         emails
+// @Produce      json
+// @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
+// @Param        offset  query     int  false  "Смещение для пагинации (default: 0)"
+// @Success      200  {object}  GetEmailsResponse
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/myemails [get]
+func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+
+	logger.Infof("get email request received")
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	limit := 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	logger.Debugf("Getting emails, user_id=%d, limit=%d, offset=%d", payload.UserId, limit, offset)
+
+	result, err := handler.service.GetEmailsBySender(r.Context(), service.GetMyEmailsInput{
+		UserID: payload.UserId,
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("Failed to get emails: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	emails := make([]MyEmailResponse, len(result.Emails))
+	for i, email := range result.Emails {
+		emails[i] = MyEmailResponse{
+			ID:              email.ID,
+			SenderID:        email.SenderID,
+			Header:          email.Header,
+			Body:            email.Body,
+			CreatedAt:       email.CreatedAt,
+			IsRead:          email.IsRead,
+			ReceiversEmails: email.ReceiversEmails,
+		}
+	}
+
+	resp := GetMyEmailsResponse{
 		Emails: emails,
 		Limit:  result.Limit,
 		Offset: result.Offset,
@@ -363,6 +473,128 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
+}
+
+type DeleteEmailRequest struct {
+	EmailID int64 `json:"email_id"`
+}
+
+// @Summary      Удалить письмо (для получателя)
+// @Description  Удаляет письмо из почтового ящика получателя (не удаляет само письмо)
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        request body DeleteEmailRequest true "ID письма"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/delete [delete]
+func (handler *Handler) DeleteEmailForReceiver(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Delete email request received")
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	var req DeleteEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if req.EmailID <= 0 {
+		logger.Warnf("Invalid email ID: %d", req.EmailID)
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Deleting email for receiver, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	err = handler.service.DeleteEmailForReceiver(r.Context(), service.DeleteEmailInput{
+		UserID:  payload.UserId,
+		EmailID: req.EmailID,
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete email: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email deleted successfully, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type DeleteMyEmailRequest struct {
+	EmailID int64 `json:"email_id"`
+}
+
+// @Summary      Удалить письмо (для отправителя)
+// @Description  Удаляет письмо из почтового ящика отправителя (не удаляет само письмо)
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        request body DeleteEmailRequest true "ID письма"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/myemails/delete [delete]
+func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Delete email request received")
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	var req DeleteMyEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if req.EmailID <= 0 {
+		logger.Warnf("Invalid email ID: %d", req.EmailID)
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Deleting email for sender, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	err = handler.service.DeleteEmailForSender(r.Context(), service.DeleteEmailInput{
+		UserID:  payload.UserId,
+		EmailID: req.EmailID,
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete email: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email deleted successfully, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // @Summary      Отметить письмо как прочитанное

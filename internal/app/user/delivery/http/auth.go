@@ -19,6 +19,7 @@ const sessionTokenCookie = "session_token"
 type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
+	GenerateToken() (string, error)
 	UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
@@ -33,7 +34,7 @@ type SignUpRequest struct {
 
 type UpdatePasswordRequest struct {
 	OldPassword string `json:"old_password"`
-    NewPassword string `json:"new_password"`
+	NewPassword string `json:"new_password"`
 }
 
 var (
@@ -43,43 +44,43 @@ var (
 )
 
 func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
-    logger := middleware.GetLogger(r.Context())
+	logger := middleware.GetLogger(r.Context())
 
-    claims, err := middleware.ClaimsFromContext(r.Context())
-    if err != nil {
-        logger.Errorf("failed to get claims from context: %v", err)
-        response.InternalError(w)
-        return
-    }
+	claims, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("failed to get claims from context: %v", err)
+		response.InternalError(w)
+		return
+	}
 
-    var req UpdatePasswordRequest
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        logger.Errorf("failed to decode request: %v", err)
-        response.BadRequest(w)
-        return
-    }
+	var req UpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Errorf("failed to decode request: %v", err)
+		response.BadRequest(w)
+		return
+	}
 
-    if len(req.NewPassword) < 8 {
-        response.BadRequest(w)
-        return
-    }
+	if len(req.NewPassword) < 8 {
+		response.BadRequest(w)
+		return
+	}
 
-    err = handler.service.UpdatePassword(r.Context(), service.UpdatePasswordInput{
-        UserID:      claims.UserId,
-        OldPassword: req.OldPassword,
-        NewPassword: req.NewPassword,
-    })
-    if err != nil {
-        logger.Errorf("failed to update password for user %d: %v", claims.UserId, err)
-        parseCommonErrors(err, w)
-        return
-    }
+	err = handler.service.UpdatePassword(r.Context(), service.UpdatePasswordInput{
+		UserID:      claims.UserId,
+		OldPassword: req.OldPassword,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		logger.Errorf("failed to update password for user %d: %v", claims.UserId, err)
+		parseCommonErrors(err, w)
+		return
+	}
 
-    logger.Infof("password updated for user %d", claims.UserId)
+	logger.Infof("password updated for user %d", claims.UserId)
 
-    if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
-        response.InternalError(w)
-    }
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+	}
 }
 
 // @Summary      Регистрация
@@ -219,6 +220,34 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	default:
 		response.InternalError(w)
 	}
+}
+
+type csrfResponse struct {
+	Token string `json:"csrf_token"`
+}
+
+func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
+	token, err := h.service.GenerateToken()
+	if err != nil {
+		http.Error(w, "failed to generate csrf", http.StatusInternalServerError)
+		return
+	}
+
+	// кладем в cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "csrf_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false, // фронт должен читать
+		Secure:   false, // true в проде (https)
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// возвращаем в JSON
+	resp := csrfResponse{
+		Token: token,
+	}
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (req *SignUpRequest) Validate() bool {

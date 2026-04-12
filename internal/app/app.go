@@ -8,8 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
 	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
@@ -17,6 +15,7 @@ import (
 	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
+	"go.uber.org/zap"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
@@ -93,6 +92,7 @@ func (app *App) Run(configPath string) {
 
 	private := public.PathPrefix("").Subrouter()
 	private.Use(middleware.AuthMiddleware(&app.Config.JWTManager))
+	private.Use(middleware.CSRFMiddleware)
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)

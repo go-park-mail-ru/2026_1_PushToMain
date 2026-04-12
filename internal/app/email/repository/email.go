@@ -3,12 +3,13 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Коды ошибок PostgreSQL
@@ -26,6 +27,7 @@ var (
 	ErrReceiverAdd       = errors.New("failed to add receivers")
 	ErrDuplicate         = errors.New("record already exists")
 	ErrForeignKey        = errors.New("related record not found")
+	ErrAccessDenied      = errors.New("have no access")
 )
 
 type Repository struct {
@@ -93,12 +95,12 @@ func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, 
 	).Scan(&emailID)
 
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return 0, ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return 0, ErrForeignKey
 			}
 		}
@@ -128,12 +130,12 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 
 	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return ErrForeignKey
 			}
 		}
@@ -160,12 +162,12 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email mode
 	).Scan(&emailID)
 
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return 0, ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return 0, ErrForeignKey
 			}
 		}
@@ -195,12 +197,12 @@ func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, em
 
 	_, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return ErrForeignKey
 			}
 		}
@@ -267,6 +269,73 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	return emails, nil
 }
 
+func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	if limit <= 0 || limit > 1000 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := `
+    SELECT 
+        e.id,
+        e.sender_id,
+        e.header,
+        e.body,
+        e.created_at,
+        false as is_read,
+        COALESCE(
+            (SELECT json_agg(u.email)
+             FROM user_emails ue
+             JOIN users u ON ue.receiver_id = u.id
+             WHERE ue.email_id = e.id),
+            '[]'::json
+        ) as receivers_emails
+    FROM emails e
+    WHERE e.sender_id = $1 AND is_deleted = false
+    ORDER BY e.created_at DESC
+    LIMIT $2 OFFSET $3
+`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	emails := make([]models.EmailWithMetadata, 0)
+	for rows.Next() {
+		var email models.EmailWithMetadata
+		var receiversEmailsJSON []byte
+
+		err := rows.Scan(
+			&email.ID,
+			&email.SenderID,
+			&email.Header,
+			&email.Body,
+			&email.CreatedAt,
+			&email.IsRead,
+			&receiversEmailsJSON,
+		)
+		if err != nil {
+			return nil, ErrQueryFail
+		}
+
+		if err := json.Unmarshal(receiversEmailsJSON, &email.ReceiversEmails); err != nil {
+			email.ReceiversEmails = []string{}
+		}
+
+		emails = append(emails, email)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return emails, nil
+}
+
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
 	query := `
         SELECT id, sender_id, header, body, created_at
@@ -290,11 +359,43 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	return &email, nil
 }
 
+func (r *Repository) GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM user_emails
+		WHERE receiver_id = $1 AND is_read = false
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, checkError(err)
+	}
+
+	return count, nil
+}
+
 func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM user_emails
 		WHERE receiver_id = $1
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	if err != nil {
+		return 0, checkError(err)
+	}
+
+	return count, nil
+}
+
+func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM emails
+		WHERE sender_id = $1 and is_deleted = false
 	`
 
 	var count int
@@ -331,7 +432,71 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 	return nil
 }
 
-func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error) {
+func (r *Repository) CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error) {
+	query := `
+        SELECT EXISTS(
+            SELECT 1 FROM user_emails 
+            WHERE email_id = $1 AND receiver_id = $2
+        )
+    `
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&exists)
+	if err != nil {
+		return false, ErrQueryFail
+	}
+
+	return exists, nil
+}
+
+func (r *Repository) DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error {
+	query := `
+        DELETE FROM user_emails
+        WHERE email_id = $1 AND receiver_id = $2
+    `
+
+	result, err := r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrMailNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) DeleteEmailForSender(ctx context.Context, emailID, userID int64) error {
+	query := `
+        UPDATE emails
+		SET is_deleted = true
+		WHERE id = $1 AND sender_id = $2 AND is_deleted = false
+    `
+
+	result, err := r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrMailNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) error {
 	query := `
 		SELECT EXISTS(
 			SELECT 1 
@@ -345,10 +510,9 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	var hasAccess bool
 	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&hasAccess)
 	if err != nil {
-		return false, fmt.Errorf("failed to check email access: %w", err)
+		return ErrAccessDenied
 	}
-
-	return hasAccess, nil
+	return nil
 }
 
 func checkError(err error) error {

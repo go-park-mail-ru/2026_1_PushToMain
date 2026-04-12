@@ -24,16 +24,23 @@ type Repository interface {
 	SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
 	AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
+	CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error)
 
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
+	GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
 	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
+	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
+	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
 
-	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
+	DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error
+	DeleteEmailForSender(ctx context.Context, emailID, userID int64) error
+
+	CheckEmailAccess(ctx context.Context, emailID, userID int64) error
 }
 
 type Service struct {
@@ -51,10 +58,11 @@ type GetEmailsInput struct {
 }
 
 type GetEmailsResult struct {
-	Emails []EmailResult
-	Limit  int
-	Offset int
-	Total  int
+	Emails      []EmailResult
+	Limit       int
+	Offset      int
+	Total       int
+	UnreadCount int
 }
 
 type EmailResult struct {
@@ -77,6 +85,11 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 		return nil, mapRepositoryError(err)
 	}
 
+	unreadCount, err := s.repo.GetUnreadEmailsCount(ctx, input.UserID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
 	resultEmails := make([]EmailResult, len(emails))
 	for i, email := range emails {
 		resultEmails[i] = EmailResult{
@@ -90,6 +103,62 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 	}
 
 	return &GetEmailsResult{
+		Emails:      resultEmails,
+		Limit:       input.Limit,
+		Offset:      input.Offset,
+		Total:       total,
+		UnreadCount: unreadCount,
+	}, nil
+}
+
+type GetMyEmailsInput struct {
+	UserID int64
+	Limit  int
+	Offset int
+}
+
+type GetMyEmailsResult struct {
+	Emails []MyEmailResult
+	Limit  int
+	Offset int
+	Total  int
+}
+
+type MyEmailResult struct {
+	ID              int64
+	SenderID        int64
+	Header          string
+	Body            string
+	CreatedAt       time.Time
+	IsRead          bool
+	ReceiversEmails []string
+}
+
+func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput) (*GetMyEmailsResult, error) {
+	emails, err := s.repo.GetEmailsBySender(ctx, input.UserID, input.Limit, input.Offset)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
+	total, err := s.repo.GetUserEmailsCount(ctx, input.UserID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+
+	resultEmails := make([]MyEmailResult, len(emails))
+	for i, email := range emails {
+		resultEmails[i] = MyEmailResult{
+			ID:              email.ID,
+			SenderID:        email.SenderID,
+			Header:          email.Header,
+			Body:            email.Body,
+			CreatedAt:       email.CreatedAt,
+			IsRead:          email.IsRead,
+			ReceiversEmails: email.ReceiversEmails,
+		}
+	}
+
+	return &GetMyEmailsResult{
 		Emails: resultEmails,
 		Limit:  input.Limit,
 		Offset: input.Offset,
@@ -170,22 +239,52 @@ type ForwardEmailInput struct {
 
 func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) error {
 
-	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return ErrTransaction
+	}
+	defer func() {
+		if err != nil {
+			if rbErr := tx.Rollback(); rbErr != nil {
+				err = ErrTransaction
+			}
+		}
+	}()
+
+	getEmail := GetEmailInput{
+		UserID:  input.UserID,
+		EmailID: input.EmailID,
+	}
+
+	forwardEmail, err := s.GetEmailByID(ctx, getEmail)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
-	if !hasAccess {
-		return ErrAccessDenied
+
+	email := models.Email{
+		SenderID: input.UserID,
+		Header:   forwardEmail.Header,
+		Body:     forwardEmail.Body,
 	}
+
+	emailID, err := s.repo.SaveEmailWithTx(ctx, tx, email)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+	email.ID = emailID
 
 	receiverIDs, err := s.resolveReceivers(ctx, input.Receivers)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
 
-	err = s.repo.AddEmailReceivers(ctx, input.EmailID, receiverIDs)
+	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
 	if err != nil {
 		return mapRepositoryError(err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return ErrTransaction
 	}
 
 	return nil
@@ -207,12 +306,9 @@ type GetEmailResult struct {
 
 func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEmailResult, error) {
 
-	hasAccess, err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
+	err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return nil, mapRepositoryError(err)
-	}
-	if !hasAccess {
-		return nil, ErrAccessDenied
 	}
 
 	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
@@ -226,6 +322,38 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 		Body:      email.Body,
 		CreatedAt: email.CreatedAt,
 	}, nil
+}
+
+type DeleteEmailInput struct {
+	UserID  int64
+	EmailID int64
+}
+
+func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailInput) error {
+	exists, err := s.repo.CheckUserEmailExists(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	if !exists {
+		return ErrEmailNotFound
+	}
+
+	err = s.repo.DeleteEmailForReceiver(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	return nil
+}
+
+func (s *Service) DeleteEmailForSender(ctx context.Context, input DeleteEmailInput) error {
+	err := s.repo.DeleteEmailForSender(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	return nil
 }
 
 type MarkAsReadInput struct {
@@ -285,6 +413,8 @@ func mapRepositoryError(err error) error {
 		return ErrNoValidReceivers
 	case errors.Is(err, repository.ErrMailNotFound):
 		return ErrEmailNotFound
+	case errors.Is(err, repository.ErrAccessDenied):
+		return ErrAccessDenied
 	default:
 		return err
 	}
