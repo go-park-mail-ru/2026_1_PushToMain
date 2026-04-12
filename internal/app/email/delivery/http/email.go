@@ -553,7 +553,7 @@ type DeleteMyEmailRequest struct {
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/delete [delete]
+// @Router       /api/v1/myemails/delete [delete]
 func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Delete email request received")
