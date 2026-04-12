@@ -124,3 +124,24 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
     }
     return user, nil
 }
+
+func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordHash string) error {
+    query := `UPDATE users SET password_hash = $1 WHERE id = $2`
+
+    if r.userDb == nil {
+        return ErrUserDbNotInited
+    }
+
+    result, err := r.userDb.ExecContext(ctx, query, passwordHash, userID)
+    if err != nil {
+        return fmt.Errorf("failed to update password: %w", err)
+    }
+    rows, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("failed to get rows affected: %w", err)
+    }
+    if rows == 0 {
+        return ErrUserNotFound
+    }
+    return nil
+}

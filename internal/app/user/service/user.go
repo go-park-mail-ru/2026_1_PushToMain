@@ -21,6 +21,7 @@ var (
 	ErrToGenerateJWT        = errors.New("failed to generate jwt")
 	ErrWrongPassword        = errors.New("wrong password")
 	ErrUploadAvatar         = errors.New("failed to upload avatar")
+	ErrUpdatePassword = errors.New("failed to update password")
 )
 
 type DbRepository interface {
@@ -28,6 +29,7 @@ type DbRepository interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	UpdateAvatar(ctx context.Context, userID int64, imagePath string) error
 	FindByID(ctx context.Context, userID int64) (*models.User, error)
+	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
 }
 
 type S3Repository interface {
@@ -67,12 +69,31 @@ type UploadAvatarInput struct {
 	UserID int64
 }
 
+type UpdatePasswordInput struct {
+    UserID      int64
+    NewPassword string
+}
+
 func (s *Service) GetMe(ctx context.Context, userID int64) (*models.User, error) {
     user, err := s.userDB.FindByID(ctx, userID)
     if err != nil {
         return nil, mapRepositoryError(err)
     }
     return user, nil
+}
+
+func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
+    _, err := s.userDB.FindByID(ctx, input.UserID)
+    if err != nil {
+        return mapRepositoryError(err)
+    }
+
+    hash, err := utils.Hash(input.NewPassword)
+    if err != nil {
+        return ErrFailedToGenerateHash
+    }
+
+    return s.userDB.UpdatePassword(ctx, input.UserID, hash)
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInput) (string, error) {
