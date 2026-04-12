@@ -2,7 +2,11 @@ package http
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"slices"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -28,7 +32,11 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
     }
 
     result, err := handler.service.GetMe(r.Context(), claims.UserId)
-    if err != nil {
+    if errors.Is(err, service.ErrUserNotFound) {
+    	logger.Errorf("user (id: %d) not found: %v", claims.UserId, err)
+     	response.NotFound(w)
+      	return
+    } else if err != nil {
         logger.Errorf("failed to get user %d: %v", claims.UserId, err)
         response.InternalError(w)
         return
@@ -68,7 +76,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	if !isValidImageType(header.Header.Get("Content-Type"), handler.cfg.AllowedTypes) {
+	if !isValidFileType(file, handler.cfg.AllowedTypes) {
 		logger.Infof("invalid image type: %s", header.Header.Get("Content-Type"))
 		response.BadRequest(w)
 		return
@@ -97,11 +105,15 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func isValidImageType(contentType string, allowed []string) bool {
-    for _, t := range allowed {
-        if t == contentType {
-            return true
-        }
-    }
-    return false
+func isValidFileType(file multipart.File, allowed []string) bool {
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil {
+		return false
+	}
+
+	_, _ = file.Seek(0, io.SeekStart)
+
+	contentType := http.DetectContentType(buf[:n])
+	return slices.Contains(allowed, contentType)
 }
