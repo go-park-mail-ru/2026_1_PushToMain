@@ -22,6 +22,7 @@ var (
 	ErrWrongPassword        = errors.New("wrong password")
 	ErrUploadAvatar         = errors.New("failed to upload avatar")
 	ErrUpdatePassword = errors.New("failed to update password")
+	ErrTheSamePassword = errors.New("the new and old password are the same")
 )
 
 type DbRepository interface {
@@ -103,8 +104,12 @@ func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput)
         return mapRepositoryError(err)
     }
 
+    if err := utils.ComparePasswordAndHash(user.Password, input.NewPassword); err != nil {
+    	return ErrTheSamePassword
+    }
+
     if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
-        return fmt.Errorf("wrong password: %s. expected: %s", input.OldPassword, user.Password)
+        return ErrWrongPassword
     }
 
     hash, err := utils.Hash(input.NewPassword)
