@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Коды ошибок PostgreSQL
@@ -94,12 +94,12 @@ func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, 
 	).Scan(&emailID)
 
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return 0, ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return 0, ErrForeignKey
 			}
 		}
@@ -129,12 +129,12 @@ func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, recei
 
 	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return ErrForeignKey
 			}
 		}
@@ -161,12 +161,12 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email mode
 	).Scan(&emailID)
 
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return 0, ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return 0, ErrForeignKey
 			}
 		}
@@ -196,12 +196,12 @@ func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, em
 
 	_, err := tx.ExecContext(ctx, query, args...)
 	if err != nil {
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			if pqErr.Code == UniqueViolation {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
 				return ErrDuplicate
 			}
-			if pqErr.Code == ForeignKeyViolation {
+			if pgErr.Code == ForeignKeyViolation {
 				return ErrForeignKey
 			}
 		}
