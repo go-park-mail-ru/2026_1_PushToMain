@@ -10,6 +10,8 @@ import (
 
 type Config struct {
 	TTL time.Duration
+	MaxAvatarSize int64
+	AllowedTypes  []string
 }
 
 type Handler struct {
@@ -25,8 +27,14 @@ func New(service Service, cfg Config) *Handler {
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {
+	// Public routes
 	public.HandleFunc("/signup", h.SignUp).Methods(http.MethodPost, http.MethodOptions)
 	public.HandleFunc("/signin", h.SignIn).Methods(http.MethodPost, http.MethodOptions)
 	public.PathPrefix("/docs").Handler(httpSwagger.WrapHandler)
 	public.HandleFunc("/logout", h.Logout).Methods(http.MethodPost, http.MethodOptions)
+
+	// Private routes
+	private.HandleFunc("/profile/avatar", h.UploadAvatar).Methods(http.MethodPost, http.MethodOptions)
+	private.HandleFunc("/profile/me", h.GetMe).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/password", h.UpdatePassword).Methods(http.MethodPut, http.MethodOptions)
 }

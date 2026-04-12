@@ -24,8 +24,9 @@ logger:
   environment: development
   output_path: stdout
   error_output_path: stderr
+
 postgres:
-  host: localhost
+  host: postgres
   port: 5432
   user: postgres
   password: postgres
@@ -33,3 +34,16 @@ postgres:
   sslmode: disable
   migrations_path: "file://db/migrations"
 
+minio:
+  endpoint: "http://minio:9000"
+  region: "us-east-1"
+  sslmode: false
+  access_key: ""
+  secret_key: ""
+
+avatar:
+  max_size_mb: 5
+  allowed_types:
+    - image/jpeg
+    - image/png
+    - image/webp
