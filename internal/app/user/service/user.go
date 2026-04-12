@@ -74,12 +74,26 @@ type UpdatePasswordInput struct {
     NewPassword string
 }
 
-func (s *Service) GetMe(ctx context.Context, userID int64) (*models.User, error) {
+type GetMeResult struct {
+	UserID		int64
+	Email   	string
+	Name     	string
+	Surname  	string
+	ImagePath 	string
+}
+
+func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
     user, err := s.userDB.FindByID(ctx, userID)
     if err != nil {
         return nil, mapRepositoryError(err)
     }
-    return user, nil
+    return &GetMeResult{
+    	UserID: user.ID,
+     	Email: user.Email,
+      	Name: user.Name,
+        Surname: user.Surname,
+        ImagePath: user.ImagePath,
+    }, nil
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {

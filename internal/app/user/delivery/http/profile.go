@@ -9,7 +9,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
-type MeResponse struct {
+type GetMeResponse struct {
     ID        int64  `json:"id"`
     Email     string `json:"email"`
     Name      string `json:"name"`
@@ -27,19 +27,19 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    user, err := handler.service.GetMe(r.Context(), claims.UserId)
+    result, err := handler.service.GetMe(r.Context(), claims.UserId)
     if err != nil {
         logger.Errorf("failed to get user %d: %v", claims.UserId, err)
         response.InternalError(w)
         return
     }
 
-    if err := json.NewEncoder(w).Encode(MeResponse{
-        ID:        user.ID,
-        Email:     user.Email,
-        Name:      user.Name,
-        Surname:   user.Surname,
-        ImagePath: user.ImagePath,
+    if err := json.NewEncoder(w).Encode(GetMeResponse{
+        ID:        result.UserID,
+        Email:     result.Email,
+        Name:      result.Name,
+        Surname:   result.Surname,
+        ImagePath: result.ImagePath,
     }); err != nil {
         logger.Errorf("failed to encode response: %v", err)
         response.InternalError(w)
