@@ -124,12 +124,13 @@ type GetMyEmailsResult struct {
 }
 
 type MyEmailResult struct {
-	ID        int64
-	SenderID  int64
-	Header    string
-	Body      string
-	CreatedAt time.Time
-	IsRead    bool
+	ID              int64
+	SenderID        int64
+	Header          string
+	Body            string
+	CreatedAt       time.Time
+	IsRead          bool
+	ReceiversEmails []string
 }
 
 func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput) (*GetMyEmailsResult, error) {
@@ -146,12 +147,13 @@ func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput)
 	resultEmails := make([]MyEmailResult, len(emails))
 	for i, email := range emails {
 		resultEmails[i] = MyEmailResult{
-			ID:        email.ID,
-			SenderID:  email.SenderID,
-			Header:    email.Header,
-			Body:      email.Body,
-			CreatedAt: email.CreatedAt,
-			IsRead:    email.IsRead,
+			ID:              email.ID,
+			SenderID:        email.SenderID,
+			Header:          email.Header,
+			Body:            email.Body,
+			CreatedAt:       email.CreatedAt,
+			IsRead:          email.IsRead,
+			ReceiversEmails: email.ReceiversEmails,
 		}
 	}
 

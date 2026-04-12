@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -277,20 +278,25 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	}
 
 	query := `
-        SELECT 
-            e.id,
-            e.sender_id,
-            e.header,
-            e.body,
-            e.created_at,
-            ue.is_read,
-            ue.created_at as received_at
-        FROM emails e
-        JOIN user_emails ue ON e.id = ue.email_id
-        WHERE e.sender_id = $1
-        ORDER BY ue.created_at DESC
-        LIMIT $2 OFFSET $3
-    `
+    SELECT 
+        e.id,
+        e.sender_id,
+        e.header,
+        e.body,
+        e.created_at,
+        false as is_read,
+        COALESCE(
+            (SELECT json_agg(u.email)
+             FROM user_emails ue
+             JOIN users u ON ue.receiver_id = u.id
+             WHERE ue.email_id = e.id),
+            '[]'::json
+        ) as receivers_emails
+    FROM emails e
+    WHERE e.sender_id = $1
+    ORDER BY e.created_at DESC
+    LIMIT $2 OFFSET $3
+`
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
@@ -301,6 +307,7 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	emails := make([]models.EmailWithMetadata, 0)
 	for rows.Next() {
 		var email models.EmailWithMetadata
+		var receiversEmailsJSON []byte
 
 		err := rows.Scan(
 			&email.ID,
@@ -309,10 +316,14 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 			&email.Body,
 			&email.CreatedAt,
 			&email.IsRead,
-			&email.ReceivedAt,
+			&receiversEmailsJSON,
 		)
 		if err != nil {
-			return nil, err
+			return nil, ErrQueryFail
+		}
+
+		if err := json.Unmarshal(receiversEmailsJSON, &email.ReceiversEmails); err != nil {
+			email.ReceiversEmails = []string{}
 		}
 
 		emails = append(emails, email)

@@ -3,17 +3,18 @@ package models
 import "time"
 
 type Email struct {
-	ID        int64     `json:"email_id"`
-	SenderID  int64     `json:"from"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int64
+	SenderID  int64
+	Header    string
+	Body      string
+	CreatedAt time.Time
 }
 
 type EmailWithMetadata struct {
 	Email
-	IsRead     bool      `json:"is_read"`
-	ReceivedAt time.Time `json:"received_at"`
+	IsRead          bool
+	ReceivedAt      time.Time
+	ReceiversEmails []string
 }
 
 type UserEmail struct {

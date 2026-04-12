@@ -287,12 +287,13 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 }
 
 type MyEmailResponse struct {
-	ID        int64     `json:"id"`
-	SenderID  int64     `json:"sender_id"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-	IsRead    bool      `json:"is_read"`
+	ID              int64     `json:"id"`
+	SenderID        int64     `json:"sender_id"`
+	Header          string    `json:"header"`
+	Body            string    `json:"body"`
+	CreatedAt       time.Time `json:"created_at"`
+	IsRead          bool      `json:"is_read"`
+	ReceiversEmails []string  `json:"receivers_emails"`
 }
 
 type GetMyEmailsResponse struct {
@@ -363,12 +364,13 @@ func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 	emails := make([]MyEmailResponse, len(result.Emails))
 	for i, email := range result.Emails {
 		emails[i] = MyEmailResponse{
-			ID:        email.ID,
-			SenderID:  email.SenderID,
-			Header:    email.Header,
-			Body:      email.Body,
-			CreatedAt: email.CreatedAt,
-			IsRead:    email.IsRead,
+			ID:              email.ID,
+			SenderID:        email.SenderID,
+			Header:          email.Header,
+			Body:            email.Body,
+			CreatedAt:       email.CreatedAt,
+			IsRead:          email.IsRead,
+			ReceiversEmails: email.ReceiversEmails,
 		}
 	}
 
