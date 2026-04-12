@@ -7,9 +7,15 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 	"github.com/spf13/viper"
 )
+
+type AvatarConfig struct {
+    MaxSizeMB    int64    `mapstructure:"max_size_mb"`
+    AllowedTypes []string `mapstructure:"allowed_types"`
+}
 
 type Config struct {
 	ServerPort string `mapstructure:"port"`
@@ -19,6 +25,8 @@ type Config struct {
 	CORS   middleware.CORSConfig `mapstructure:"cors"`
 	Logger logger.Config         `mapstructure:"logger"`
 	Db     postgres.Config       `mapstructure:"postgres"`
+	S3     minio.Config          `mapstructure:"minio"`
+	Avatar AvatarConfig          `mapstructure:"avatar"`
 }
 
 func Load(path string) (*Config, error) {

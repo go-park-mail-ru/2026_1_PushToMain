@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
@@ -19,6 +20,9 @@ type Service interface {
 	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
 	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
 	GenerateToken() (string, error)
+	UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error
+	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
+	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
 }
 
 type SignUpRequest struct {
@@ -28,11 +32,56 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+type UpdatePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
 var (
 	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
 	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 )
+
+func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+
+	claims, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("failed to get claims from context: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	var req UpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Errorf("failed to decode request: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if len(req.NewPassword) < 8 {
+		response.BadRequest(w)
+		return
+	}
+
+	err = handler.service.UpdatePassword(r.Context(), service.UpdatePasswordInput{
+		UserID:      claims.UserId,
+		OldPassword: req.OldPassword,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		logger.Errorf("failed to update password for user %d: %v", claims.UserId, err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Infof("password updated for user %d", claims.UserId)
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+	}
+}
 
 // @Summary      Регистрация
 // @Description  Создаёт нового пользователя и устанавливает сессионную куку
