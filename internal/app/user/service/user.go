@@ -71,6 +71,7 @@ type UploadAvatarInput struct {
 
 type UpdatePasswordInput struct {
     UserID      int64
+    OldPassword string
     NewPassword string
 }
 
@@ -97,9 +98,13 @@ func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error)
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
-    _, err := s.userDB.FindByID(ctx, input.UserID)
+    user, err := s.userDB.FindByID(ctx, input.UserID)
     if err != nil {
         return mapRepositoryError(err)
+    }
+
+    if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
+        return fmt.Errorf("wrong password: %s. expected: %s", input.OldPassword, user.Password)
     }
 
     hash, err := utils.Hash(input.NewPassword)

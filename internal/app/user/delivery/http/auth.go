@@ -32,6 +32,7 @@ type SignUpRequest struct {
 }
 
 type UpdatePasswordRequest struct {
+	OldPassword string `json:"old_password"`
     NewPassword string `json:"new_password"`
 }
 
@@ -65,6 +66,7 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 
     err = handler.service.UpdatePassword(r.Context(), service.UpdatePasswordInput{
         UserID:      claims.UserId,
+        OldPassword: req.OldPassword,
         NewPassword: req.NewPassword,
     })
     if err != nil {
