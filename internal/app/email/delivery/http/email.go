@@ -22,6 +22,7 @@ type Service interface {
 	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
 	MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error
 	DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error
+	DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error
 }
 
 type SendEmailRequest struct {
@@ -520,6 +521,67 @@ func (handler *Handler) DeleteEmailForReceiver(w http.ResponseWriter, r *http.Re
 		payload.UserId, req.EmailID)
 
 	err = handler.service.DeleteEmailForReceiver(r.Context(), service.DeleteEmailInput{
+		UserID:  payload.UserId,
+		EmailID: req.EmailID,
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete email: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email deleted successfully, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type DeleteMyEmailRequest struct {
+	EmailID int64 `json:"email_id"`
+}
+
+// @Summary      Удалить письмо (для отправителя)
+// @Description  Удаляет письмо из почтового ящика отправителя (не удаляет само письмо)
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        request body DeleteEmailRequest true "ID письма"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/delete [delete]
+func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Delete email request received")
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	var req DeleteMyEmailRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if req.EmailID <= 0 {
+		logger.Warnf("Invalid email ID: %d", req.EmailID)
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Deleting email for sender, user_id=%d, email_id=%d",
+		payload.UserId, req.EmailID)
+
+	err = handler.service.DeleteEmailForSender(r.Context(), service.DeleteEmailInput{
 		UserID:  payload.UserId,
 		EmailID: req.EmailID,
 	})

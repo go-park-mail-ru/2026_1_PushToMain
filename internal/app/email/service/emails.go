@@ -38,6 +38,7 @@ type Repository interface {
 	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
 
 	DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error
+	DeleteEmailForSender(ctx context.Context, emailID, userID int64) error
 
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) error
 }
@@ -339,6 +340,15 @@ func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailI
 	}
 
 	err = s.repo.DeleteEmailForReceiver(ctx, input.EmailID, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	return nil
+}
+
+func (s *Service) DeleteEmailForSender(ctx context.Context, input DeleteEmailInput) error {
+	err := s.repo.DeleteEmailForSender(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return mapRepositoryError(err)
 	}

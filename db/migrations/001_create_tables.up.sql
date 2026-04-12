@@ -21,6 +21,7 @@ CREATE TABLE emails (
     header TEXT,
     body TEXT,
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOL NOT NULL DEFAULT false
 
     CONSTRAINT header_length_check CHECK (char_length(header) < 255)
 );

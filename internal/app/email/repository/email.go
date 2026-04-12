@@ -293,7 +293,7 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
             '[]'::json
         ) as receivers_emails
     FROM emails e
-    WHERE e.sender_id = $1
+    WHERE e.sender_id = $1 AND is_deleted = false
     ORDER BY e.created_at DESC
     LIMIT $2 OFFSET $3
 `
@@ -395,7 +395,7 @@ func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int,
 	query := `
 		SELECT COUNT(*)
 		FROM emails
-		WHERE sender_id = $1
+		WHERE sender_id = $1 and is_deleted = false
 	`
 
 	var count int
@@ -453,6 +453,30 @@ func (r *Repository) DeleteEmailForReceiver(ctx context.Context, emailID, userID
 	query := `
         DELETE FROM user_emails
         WHERE email_id = $1 AND receiver_id = $2
+    `
+
+	result, err := r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrMailNotFound
+	}
+
+	return nil
+}
+
+func (r *Repository) DeleteEmailForSender(ctx context.Context, emailID, userID int64) error {
+	query := `
+        UPDATE emails
+		SET is_deleted = true
+		WHERE id = $1 AND sender_id = $2 AND is_deleted = false
     `
 
 	result, err := r.db.ExecContext(ctx, query, emailID, userID)

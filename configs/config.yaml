@@ -7,7 +7,6 @@ jwt:
 
 cors:
   allowed_origins:
-    - http://e-smail.ru
     - https://e-smail.ru
   allowed_methods:
     - POST
@@ -18,6 +17,7 @@ cors:
   allowed_headers:
     - Content-Type
     - Authorization
+    - X-CSRF-Token
 
 logger:
   level: debug
