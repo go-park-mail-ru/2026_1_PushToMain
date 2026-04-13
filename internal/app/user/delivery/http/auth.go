@@ -204,7 +204,6 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Update profile request received")
 
-	// Получаем user_id из контекста
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("Failed to get claims: %v", err)
@@ -218,7 +217,6 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Парсим тело запроса
 	var req UpdateProfileRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warnf("Invalid request body: %v", err)
@@ -226,14 +224,12 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Валидация
 	if req.Name == "" && req.Surname == "" {
 		logger.Warnf("Name and surname are empty")
 		response.BadRequest(w)
 		return
 	}
 
-	// Вызываем сервис
 	err = h.service.UpdateProfile(r.Context(), service.UpdateProfileInput{
 		UserID:  payload.UserId,
 		Name:    req.Name,
