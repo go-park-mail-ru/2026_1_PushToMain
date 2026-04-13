@@ -362,16 +362,7 @@ type MarkAsReadInput struct {
 }
 
 func (s *Service) MarkEmailAsRead(ctx context.Context, input MarkAsReadInput) error {
-	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
-	if err != nil {
-		return mapRepositoryError(err)
-	}
-
-	if email.SenderID != input.UserID {
-		return ErrAccessDenied
-	}
-
-	err = s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
+	err := s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
