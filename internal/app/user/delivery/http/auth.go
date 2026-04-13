@@ -23,6 +23,7 @@ type Service interface {
 	UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
+	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
 }
 
 type SignUpRequest struct {
@@ -180,6 +181,77 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
+}
+
+type UpdateProfileRequest struct {
+	Name    string `json:"name"`
+	Surname string `json:"surname"`
+}
+
+// @Summary      Обновить профиль пользователя
+// @Description  Обновляет имя и фамилию авторизованного пользователя
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        request body UpdateProfileRequest true "Новые имя и фамилия"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/profile [put]
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Update profile request received")
+
+	// Получаем user_id из контекста
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.Unauthorized(w)
+		return
+	}
+
+	// Парсим тело запроса
+	var req UpdateProfileRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	// Валидация
+	if req.Name == "" && req.Surname == "" {
+		logger.Warnf("Name and surname are empty")
+		response.BadRequest(w)
+		return
+	}
+
+	// Вызываем сервис
+	err = h.service.UpdateProfile(r.Context(), service.UpdateProfileInput{
+		UserID:  payload.UserId,
+		Name:    req.Name,
+		Surname: req.Surname,
+	})
+	if err != nil {
+		logger.Errorf("Failed to update profile: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Infof("Profile updated successfully, user_id=%d", payload.UserId)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "profile updated successfully",
+	})
 }
 
 // @Summary      Выход
