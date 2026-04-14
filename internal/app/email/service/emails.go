@@ -33,6 +33,7 @@ type Repository interface {
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
+	MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
@@ -362,16 +363,16 @@ type MarkAsReadInput struct {
 }
 
 func (s *Service) MarkEmailAsRead(ctx context.Context, input MarkAsReadInput) error {
-	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
+	err := s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return mapRepositoryError(err)
 	}
 
-	if email.SenderID != input.UserID {
-		return ErrAccessDenied
-	}
+	return nil
+}
 
-	err = s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
+func (s *Service) MarkEmailAsUnRead(ctx context.Context, input MarkAsReadInput) error {
+	err := s.repo.MarkEmailAsUnRead(ctx, input.EmailID, input.UserID)
 	if err != nil {
 		return mapRepositoryError(err)
 	}

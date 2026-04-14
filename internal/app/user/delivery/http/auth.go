@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -23,6 +22,7 @@ type Service interface {
 	UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
+	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
 }
 
 type SignUpRequest struct {
@@ -131,6 +131,43 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (req *SignUpRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	if req.Name == "" {
+		return false
+	}
+
+	if !nameRegex.MatchString(req.Name) {
+		return false
+	}
+
+	if req.Surname == "" {
+		return false
+	}
+
+	if !surnameRegex.MatchString(req.Surname) {
+		return false
+	}
+
+	return true
+}
+
 type SignInRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -182,6 +219,32 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (req *SignInRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	return true
+}
+
+type UpdateProfileRequest struct {
+	Name    string `json:"name"`
+	Surname string `json:"surname"`
+}
+
 // @Summary      Выход
 // @Description  Завершает сессию пользователя, сбрасывает сессионную куку
 // @Tags         auth
@@ -202,23 +265,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		response.InternalError(w)
 		return
-	}
-}
-
-func parseCommonErrors(err error, w http.ResponseWriter) {
-	switch {
-
-	case errors.Is(err, service.ErrUserNotFound):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrWrongPassword):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrUserAlreadyExists):
-		response.StatusConflict(w)
-
-	default:
-		response.InternalError(w)
 	}
 }
 
@@ -248,62 +294,4 @@ func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	}
 	json.NewEncoder(w).Encode(resp)
-}
-
-func (req *SignUpRequest) Validate() bool {
-
-	if req.Email == "" {
-		return false
-	}
-
-	if !emailRegex.MatchString(req.Email) {
-		return false
-	}
-
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
-		return false
-	}
-
-	if len(req.Password) < 8 {
-		return false
-	}
-
-	if req.Name == "" {
-		return false
-	}
-
-	if !nameRegex.MatchString(req.Name) {
-		return false
-	}
-
-	if req.Surname == "" {
-		return false
-	}
-
-	if !surnameRegex.MatchString(req.Surname) {
-		return false
-	}
-
-	return true
-}
-
-func (req *SignInRequest) Validate() bool {
-
-	if req.Email == "" {
-		return false
-	}
-
-	if !emailRegex.MatchString(req.Email) {
-		return false
-	}
-
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
-		return false
-	}
-
-	if len(req.Password) < 8 {
-		return false
-	}
-
-	return true
 }

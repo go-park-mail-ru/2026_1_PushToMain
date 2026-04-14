@@ -14,7 +14,8 @@ import (
 
 var (
 	ErrS3ClientNotInited = errors.New("s3 client not inited")
-	ErrS3CreateBucket = errors.New("failed to create bucket")
+	ErrS3CreateBucket    = errors.New("failed to create bucket")
+	ErrS3Err             = errors.New("failed to exec ")
 )
 
 const (
@@ -55,7 +56,7 @@ func (r *Repository) UploadAvatar(ctx context.Context, userID int64, file io.Rea
 		ContentType:   aws.String(avatarFileType),
 	})
 	if err != nil {
-		return "", fmt.Errorf("save avatar for user %d: %w", userID, err)
+		return "", ErrS3Err
 	}
 	return key, nil
 }
@@ -65,13 +66,13 @@ func makeAvatarPath(userID int64) string {
 }
 
 func (r *Repository) DeleteAvatar(ctx context.Context, userID int64) error {
-    key := makeAvatarPath(userID)
-    _, err := r.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
-        Bucket: aws.String(bucketName),
-        Key:    aws.String(key),
-    })
-    if err != nil {
-        return fmt.Errorf("delete avatar for user %d: %w", userID, err)
-    }
-    return nil
+	key := makeAvatarPath(userID)
+	_, err := r.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return ErrS3Err
+	}
+	return nil
 }

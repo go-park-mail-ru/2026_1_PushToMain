@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
@@ -23,7 +22,8 @@ var (
 	ErrToGenerateJWT        = errors.New("failed to generate jwt")
 	ErrWrongPassword        = errors.New("wrong password")
 	ErrUploadAvatar         = errors.New("failed to upload avatar")
-	ErrUpdatePassword = errors.New("failed to update password")
+	ErrUpdateAvatar         = errors.New("failed to update avatar")
+	ErrUpdatePassword       = errors.New("failed to update password")
 )
 
 type DbRepository interface {
@@ -32,6 +32,7 @@ type DbRepository interface {
 	UpdateAvatar(ctx context.Context, userID int64, imagePath string) error
 	FindByID(ctx context.Context, userID int64) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
+	UpdateProfile(ctx context.Context, userID int64, name, surname string) error
 }
 
 type S3Repository interface {
@@ -72,63 +73,78 @@ type UploadAvatarInput struct {
 }
 
 type UpdatePasswordInput struct {
-    UserID      int64
-    OldPassword string
-    NewPassword string
+	UserID      int64
+	OldPassword string
+	NewPassword string
 }
 
 type GetMeResult struct {
-	UserID		int64
-	Email   	string
-	Name     	string
-	Surname  	string
-	ImagePath 	string
+	UserID    int64
+	Email     string
+	Name      string
+	Surname   string
+	ImagePath string
 }
 
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
-    user, err := s.userDB.FindByID(ctx, userID)
-    if err != nil {
-        return nil, mapRepositoryError(err)
-    }
-    return &GetMeResult{
-    	UserID: user.ID,
-     	Email: user.Email,
-      	Name: user.Name,
-        Surname: user.Surname,
-        ImagePath: user.ImagePath,
-    }, nil
+	user, err := s.userDB.FindByID(ctx, userID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+	return &GetMeResult{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		Surname:   user.Surname,
+		ImagePath: user.ImagePath,
+	}, nil
+}
+
+type UpdateProfileInput struct {
+	UserID  int64
+	Name    string
+	Surname string
+}
+
+func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) error {
+	err := s.userDB.UpdateProfile(ctx, input.UserID, input.Name, input.Surname)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
+
+	return nil
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
-    user, err := s.userDB.FindByID(ctx, input.UserID)
-    if err != nil {
-        return mapRepositoryError(err)
-    }
+	user, err := s.userDB.FindByID(ctx, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
 
-    if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
-        return fmt.Errorf("wrong password: %s. expected: %s", input.OldPassword, user.Password)
-    }
+	if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
+		return ErrWrongPassword
+	}
 
-    hash, err := utils.Hash(input.NewPassword)
-    if err != nil {
-        return ErrFailedToGenerateHash
-    }
+	hash, err := utils.Hash(input.NewPassword)
+	if err != nil {
+		return ErrFailedToGenerateHash
+	}
 
-    return s.userDB.UpdatePassword(ctx, input.UserID, hash)
+	return s.userDB.UpdatePassword(ctx, input.UserID, hash)
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInput) (string, error) {
 	imagePath, err := s.s3Storage.UploadAvatar(ctx, uploadAvatar.UserID, uploadAvatar.File, uploadAvatar.Size)
 	if err != nil {
-		return "", fmt.Errorf("%w: %w", ErrUploadAvatar, err)
+		return "", ErrUploadAvatar
 	}
 
 	err = s.userDB.UpdateAvatar(ctx, uploadAvatar.UserID, imagePath)
 	if err != nil {
 		if deleteErr := s.s3Storage.DeleteAvatar(ctx, uploadAvatar.UserID); deleteErr != nil {
-			return "", fmt.Errorf("update avatar in db: %w; also failed to rollback s3: %v", err, deleteErr)
+			return "", deleteErr
 		}
-        return "", fmt.Errorf("update avatar in db: %w", err)
+		return "", ErrUpdateAvatar
 	}
 
 	return imagePath, nil
@@ -137,19 +153,16 @@ func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInp
 func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
 	_, err := s.userDB.FindByEmail(ctx, signUp.Email)
 	if err == nil {
-		err = ErrUserAlreadyExists
-		return "", fmt.Errorf("faild to signUp bcz user already exist: %w", err)
+		return "", ErrUserAlreadyExists
 	}
 
 	if !errors.Is(err, db.ErrUserNotFound) {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to find user: %w", err)
+		return "", mapRepositoryError(err)
 	}
 
 	hash, err := utils.Hash(signUp.Password)
 	if err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to generate hash for password: %w", err)
+		return "", mapRepositoryError(err)
 	}
 	userId, err := s.userDB.Save(ctx, models.User{
 		Email:    signUp.Email,
@@ -158,14 +171,12 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 		Surname:  signUp.Surname,
 	})
 	if err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to save user: %w", err)
+		return "", mapRepositoryError(err)
 	}
 
 	token, err := s.jwt.GenerateJWT(userId)
 	if err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to generate jwt: %w", err)
+		return "", mapRepositoryError(err)
 	}
 
 	return token, nil
@@ -179,18 +190,15 @@ type SignInInput struct {
 func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
 	user, err := s.userDB.FindByEmail(ctx, signIn.Email)
 	if err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to find user: %w", err)
+		return "", mapRepositoryError(err)
 	}
 
 	if err := utils.ComparePasswordAndHash(user.Password, signIn.Password); err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("wrong password: %w", err)
+		return "", mapRepositoryError(err)
 	}
 	token, err := s.jwt.GenerateJWT(user.ID)
 	if err != nil {
-		err = mapRepositoryError(err)
-		return "", fmt.Errorf("failed to generate jwt: %w", err)
+		return "", mapRepositoryError(err)
 	}
 
 	return token, nil

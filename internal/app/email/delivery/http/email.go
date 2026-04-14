@@ -21,6 +21,7 @@ type Service interface {
 	SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error)
 	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
 	MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error
+	MarkEmailAsUnRead(ctx context.Context, cmd service.MarkAsReadInput) error
 	DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error
 	DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error
 }
@@ -647,6 +648,61 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	}
 
 	logger.Debugf("Email marked as read successfully: user_id=%d, email_id=%d",
+		payload.UserId, emailID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// @Summary      Отметить письмо как непрочитанное
+// @Description  Помечает указанное письмо как непрочитанное.
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param         id   path      int  true  "ID письма"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/{id}/read [put]
+func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Mark email as unread request received")
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 5 {
+		logger.Warnf("Invalid url %v", err)
+
+		response.BadRequest(w)
+		return
+	}
+
+	emailIDStr := pathParts[4]
+	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
+	if err != nil {
+		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Marking email as unread, user_id=%d, email_id=%d", payload.UserId, emailID)
+
+	if err := handler.service.MarkEmailAsUnRead(r.Context(), service.MarkAsReadInput{
+		UserID:  payload.UserId,
+		EmailID: emailID,
+	}); err != nil {
+		logger.Errorf("Failed to mark email as unread: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email marked as unread successfully: user_id=%d, email_id=%d",
 		payload.UserId, emailID)
 
 	w.WriteHeader(http.StatusOK)
