@@ -145,13 +145,29 @@ func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-
 	var req ForwardEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
+
+	if req.EmailID <= 0 {
+		logger.Warn("invalid email_id")
+		response.BadRequest(w)
+		return
+	}
+	if payload.UserId <= 0 {
+		logger.Warn("invalid user_id")
+		response.BadRequest(w)
+		return
+	}
+	if len(req.Receivers) == 0 {
+		logger.Warn("empty receivers list")
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Forwarding email, user_id=%d, email_id=%d, receivers_count=%d",
 		payload.UserId, req.EmailID, len(req.Receivers))
 
@@ -519,6 +535,12 @@ func (handler *Handler) DeleteEmailForReceiver(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Deleting email for receiver, user_id=%d, email_id=%d",
 		payload.UserId, req.EmailID)
 
@@ -580,6 +602,12 @@ func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Deleting email for sender, user_id=%d, email_id=%d",
 		payload.UserId, req.EmailID)
 
@@ -621,6 +649,13 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 		response.InternalError(w)
 		return
 	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)

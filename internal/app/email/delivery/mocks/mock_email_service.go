@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	models "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
+	service "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,17 +41,118 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
-// GetEmailsByReceiver mocks base method.
-func (m *MockService) GetEmailsByReceiver(ctx context.Context, userId int64) ([]models.Email, error) {
+// DeleteEmailForReceiver mocks base method.
+func (m *MockService) DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEmailsByReceiver", ctx, userId)
-	ret0, _ := ret[0].([]models.Email)
+	ret := m.ctrl.Call(m, "DeleteEmailForReceiver", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteEmailForReceiver indicates an expected call of DeleteEmailForReceiver.
+func (mr *MockServiceMockRecorder) DeleteEmailForReceiver(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEmailForReceiver", reflect.TypeOf((*MockService)(nil).DeleteEmailForReceiver), ctx, cmd)
+}
+
+// DeleteEmailForSender mocks base method.
+func (m *MockService) DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteEmailForSender", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteEmailForSender indicates an expected call of DeleteEmailForSender.
+func (mr *MockServiceMockRecorder) DeleteEmailForSender(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEmailForSender", reflect.TypeOf((*MockService)(nil).DeleteEmailForSender), ctx, cmd)
+}
+
+// ForwardEmail mocks base method.
+func (m *MockService) ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ForwardEmail", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ForwardEmail indicates an expected call of ForwardEmail.
+func (mr *MockServiceMockRecorder) ForwardEmail(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForwardEmail", reflect.TypeOf((*MockService)(nil).ForwardEmail), ctx, cmd)
+}
+
+// GetEmailByID mocks base method.
+func (m *MockService) GetEmailByID(ctx context.Context, cmd service.GetEmailInput) (*service.GetEmailResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmailByID", ctx, cmd)
+	ret0, _ := ret[0].(*service.GetEmailResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEmailByID indicates an expected call of GetEmailByID.
+func (mr *MockServiceMockRecorder) GetEmailByID(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailByID", reflect.TypeOf((*MockService)(nil).GetEmailByID), ctx, cmd)
+}
+
+// GetEmailsByReceiver mocks base method.
+func (m *MockService) GetEmailsByReceiver(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmailsByReceiver", ctx, cmd)
+	ret0, _ := ret[0].(*service.GetEmailsResult)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetEmailsByReceiver indicates an expected call of GetEmailsByReceiver.
-func (mr *MockServiceMockRecorder) GetEmailsByReceiver(ctx, userId any) *gomock.Call {
+func (mr *MockServiceMockRecorder) GetEmailsByReceiver(ctx, cmd any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailsByReceiver", reflect.TypeOf((*MockService)(nil).GetEmailsByReceiver), ctx, userId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailsByReceiver", reflect.TypeOf((*MockService)(nil).GetEmailsByReceiver), ctx, cmd)
+}
+
+// GetEmailsBySender mocks base method.
+func (m *MockService) GetEmailsBySender(ctx context.Context, cmd service.GetMyEmailsInput) (*service.GetMyEmailsResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEmailsBySender", ctx, cmd)
+	ret0, _ := ret[0].(*service.GetMyEmailsResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEmailsBySender indicates an expected call of GetEmailsBySender.
+func (mr *MockServiceMockRecorder) GetEmailsBySender(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailsBySender", reflect.TypeOf((*MockService)(nil).GetEmailsBySender), ctx, cmd)
+}
+
+// MarkEmailAsRead mocks base method.
+func (m *MockService) MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkEmailAsRead", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkEmailAsRead indicates an expected call of MarkEmailAsRead.
+func (mr *MockServiceMockRecorder) MarkEmailAsRead(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsRead", reflect.TypeOf((*MockService)(nil).MarkEmailAsRead), ctx, cmd)
+}
+
+// SendEmail mocks base method.
+func (m *MockService) SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendEmail", ctx, cmd)
+	ret0, _ := ret[0].(*service.SendEmailResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SendEmail indicates an expected call of SendEmail.
+func (mr *MockServiceMockRecorder) SendEmail(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendEmail", reflect.TypeOf((*MockService)(nil).SendEmail), ctx, cmd)
 }

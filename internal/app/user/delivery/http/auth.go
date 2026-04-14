@@ -55,6 +55,12 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if claims.UserId <= 0 {
+		logger.Warnf("Invalid user ID in claims: %d", claims.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	var req UpdatePasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Errorf("failed to decode request: %v", err)
@@ -211,13 +217,16 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
 
 	case errors.Is(err, service.ErrUserNotFound):
-		response.Unauthorized(w)
+		response.NotFound(w)
 
 	case errors.Is(err, service.ErrWrongPassword):
 		response.Unauthorized(w)
 
 	case errors.Is(err, service.ErrUserAlreadyExists):
 		response.StatusConflict(w)
+
+	case errors.Is(err, service.ErrWrongPassword):
+		response.Unauthorized(w)
 
 	default:
 		response.InternalError(w)

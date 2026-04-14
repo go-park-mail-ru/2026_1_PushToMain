@@ -23,7 +23,7 @@ var (
 	ErrToGenerateJWT        = errors.New("failed to generate jwt")
 	ErrWrongPassword        = errors.New("wrong password")
 	ErrUploadAvatar         = errors.New("failed to upload avatar")
-	ErrUpdatePassword = errors.New("failed to update password")
+	ErrUpdatePassword       = errors.New("failed to update password")
 )
 
 type DbRepository interface {
@@ -72,49 +72,49 @@ type UploadAvatarInput struct {
 }
 
 type UpdatePasswordInput struct {
-    UserID      int64
-    OldPassword string
-    NewPassword string
+	UserID      int64
+	OldPassword string
+	NewPassword string
 }
 
 type GetMeResult struct {
-	UserID		int64
-	Email   	string
-	Name     	string
-	Surname  	string
-	ImagePath 	string
+	UserID    int64
+	Email     string
+	Name      string
+	Surname   string
+	ImagePath string
 }
 
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
-    user, err := s.userDB.FindByID(ctx, userID)
-    if err != nil {
-        return nil, mapRepositoryError(err)
-    }
-    return &GetMeResult{
-    	UserID: user.ID,
-     	Email: user.Email,
-      	Name: user.Name,
-        Surname: user.Surname,
-        ImagePath: user.ImagePath,
-    }, nil
+	user, err := s.userDB.FindByID(ctx, userID)
+	if err != nil {
+		return nil, mapRepositoryError(err)
+	}
+	return &GetMeResult{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		Surname:   user.Surname,
+		ImagePath: user.ImagePath,
+	}, nil
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
-    user, err := s.userDB.FindByID(ctx, input.UserID)
-    if err != nil {
-        return mapRepositoryError(err)
-    }
+	user, err := s.userDB.FindByID(ctx, input.UserID)
+	if err != nil {
+		return mapRepositoryError(err)
+	}
 
-    if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
-        return fmt.Errorf("wrong password: %s. expected: %s", input.OldPassword, user.Password)
-    }
+	if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
+		return ErrWrongPassword
+	}
 
-    hash, err := utils.Hash(input.NewPassword)
-    if err != nil {
-        return ErrFailedToGenerateHash
-    }
+	hash, err := utils.Hash(input.NewPassword)
+	if err != nil {
+		return ErrFailedToGenerateHash
+	}
 
-    return s.userDB.UpdatePassword(ctx, input.UserID, hash)
+	return s.userDB.UpdatePassword(ctx, input.UserID, hash)
 }
 
 func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInput) (string, error) {
@@ -128,7 +128,7 @@ func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInp
 		if deleteErr := s.s3Storage.DeleteAvatar(ctx, uploadAvatar.UserID); deleteErr != nil {
 			return "", fmt.Errorf("update avatar in db: %w; also failed to rollback s3: %v", err, deleteErr)
 		}
-        return "", fmt.Errorf("update avatar in db: %w", err)
+		return "", fmt.Errorf("update avatar in db: %w", err)
 	}
 
 	return imagePath, nil

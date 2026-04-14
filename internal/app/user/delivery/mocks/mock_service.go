@@ -41,6 +41,36 @@ func (m *MockService) EXPECT() *MockServiceMockRecorder {
 	return m.recorder
 }
 
+// GenerateToken mocks base method.
+func (m *MockService) GenerateToken() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateToken")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GenerateToken indicates an expected call of GenerateToken.
+func (mr *MockServiceMockRecorder) GenerateToken() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateToken", reflect.TypeOf((*MockService)(nil).GenerateToken))
+}
+
+// GetMe mocks base method.
+func (m *MockService) GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMe", ctx, userID)
+	ret0, _ := ret[0].(*service.GetMeResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetMe indicates an expected call of GetMe.
+func (mr *MockServiceMockRecorder) GetMe(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMe", reflect.TypeOf((*MockService)(nil).GetMe), ctx, userID)
+}
+
 // SignIn mocks base method.
 func (m *MockService) SignIn(ctx context.Context, cmd service.SignInInput) (string, error) {
 	m.ctrl.T.Helper()
@@ -69,4 +99,33 @@ func (m *MockService) SignUp(ctx context.Context, cmd service.SignUpInput) (stri
 func (mr *MockServiceMockRecorder) SignUp(ctx, cmd any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignUp", reflect.TypeOf((*MockService)(nil).SignUp), ctx, cmd)
+}
+
+// UpdatePassword mocks base method.
+func (m *MockService) UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdatePassword", ctx, input)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdatePassword indicates an expected call of UpdatePassword.
+func (mr *MockServiceMockRecorder) UpdatePassword(ctx, input any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePassword", reflect.TypeOf((*MockService)(nil).UpdatePassword), ctx, input)
+}
+
+// UploadAvatar mocks base method.
+func (m *MockService) UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadAvatar", ctx, cmd)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UploadAvatar indicates an expected call of UploadAvatar.
+func (mr *MockServiceMockRecorder) UploadAvatar(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadAvatar", reflect.TypeOf((*MockService)(nil).UploadAvatar), ctx, cmd)
 }
