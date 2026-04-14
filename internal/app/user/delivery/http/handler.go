@@ -1,9 +1,12 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -39,4 +42,21 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/profile/me", h.GetMe).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/password", h.UpdatePassword).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/profile/change", h.UpdateProfile).Methods(http.MethodPut, http.MethodOptions)
+}
+
+func parseCommonErrors(err error, w http.ResponseWriter) {
+	switch {
+
+	case errors.Is(err, service.ErrUserNotFound):
+		response.Unauthorized(w)
+
+	case errors.Is(err, service.ErrWrongPassword):
+		response.Unauthorized(w)
+
+	case errors.Is(err, service.ErrUserAlreadyExists):
+		response.StatusConflict(w)
+
+	default:
+		response.InternalError(w)
+	}
 }

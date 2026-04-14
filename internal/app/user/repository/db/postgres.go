@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
 
-var ErrUserNotFound = errors.New("user not found")
-var ErrUserDbNotInited = errors.New("user database is not inited")
+var (
+	ErrUserNotFound    = errors.New("user not found")
+	ErrUserDbNotInited = errors.New("user database is not inited")
+	ErrQueryError      = errors.New("failed to exec query")
+)
 
 type Repository struct {
 	userDb *sql.DB
@@ -31,12 +33,12 @@ func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surn
 
 	result, err := r.userDb.ExecContext(ctx, query, name, surname, userID)
 	if err != nil {
-		return fmt.Errorf("failed to update profile: %w", err)
+		return ErrQueryError
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return ErrQueryError
 	}
 
 	if rowsAffected == 0 {
@@ -59,12 +61,12 @@ func (r *Repository) UpdateAvatar(ctx context.Context, userID int64, imagePath s
 
 	result, err := r.userDb.ExecContext(ctx, query, imagePath, userID)
 	if err != nil {
-		return fmt.Errorf("failed to update avatar: %w", err)
+		return ErrQueryError
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return ErrQueryError
 	}
 	if rowsAffected == 0 {
 		return ErrUserNotFound
@@ -96,7 +98,7 @@ func (repo *Repository) Save(ctx context.Context, user models.User) (int64, erro
 	).Scan(&userId)
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to save user: %w", err)
+		return 0, ErrQueryError
 	}
 
 	return userId, nil
@@ -121,7 +123,7 @@ func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.
 		return nil, ErrUserNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to find user by email: %w", err)
+		return nil, ErrQueryError
 	}
 
 	return &user, nil
@@ -144,7 +146,7 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
 		return nil, ErrUserNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("failed to find user by id: %w", err)
+		return nil, ErrQueryError
 	}
 	return user, nil
 }
@@ -158,11 +160,11 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 
 	result, err := r.userDb.ExecContext(ctx, query, passwordHash, userID)
 	if err != nil {
-		return fmt.Errorf("failed to update password: %w", err)
+		return ErrQueryError
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return ErrQueryError
 	}
 	if rows == 0 {
 		return ErrUserNotFound

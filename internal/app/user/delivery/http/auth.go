@@ -3,7 +3,6 @@ package http
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"regexp"
 	"strings"
@@ -132,6 +131,43 @@ func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (req *SignUpRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	if req.Name == "" {
+		return false
+	}
+
+	if !nameRegex.MatchString(req.Name) {
+		return false
+	}
+
+	if req.Surname == "" {
+		return false
+	}
+
+	if !surnameRegex.MatchString(req.Surname) {
+		return false
+	}
+
+	return true
+}
+
 type SignInRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -183,71 +219,30 @@ func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (req *SignInRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	return true
+}
+
 type UpdateProfileRequest struct {
 	Name    string `json:"name"`
 	Surname string `json:"surname"`
-}
-
-// @Summary      Обновить профиль пользователя
-// @Description  Обновляет имя и фамилию авторизованного пользователя
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        request body UpdateProfileRequest true "Новые имя и фамилия"
-// @Success      200  {object}  map[string]string
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/profile [put]
-func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Update profile request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
-		response.Unauthorized(w)
-		return
-	}
-
-	var req UpdateProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	if req.Name == "" && req.Surname == "" {
-		logger.Warnf("Name and surname are empty")
-		response.BadRequest(w)
-		return
-	}
-
-	err = h.service.UpdateProfile(r.Context(), service.UpdateProfileInput{
-		UserID:  payload.UserId,
-		Name:    req.Name,
-		Surname: req.Surname,
-	})
-	if err != nil {
-		logger.Errorf("Failed to update profile: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-
-	logger.Infof("Profile updated successfully, user_id=%d", payload.UserId)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status": "profile updated successfully",
-	})
 }
 
 // @Summary      Выход
@@ -270,23 +265,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		response.InternalError(w)
 		return
-	}
-}
-
-func parseCommonErrors(err error, w http.ResponseWriter) {
-	switch {
-
-	case errors.Is(err, service.ErrUserNotFound):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrWrongPassword):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrUserAlreadyExists):
-		response.StatusConflict(w)
-
-	default:
-		response.InternalError(w)
 	}
 }
 
@@ -316,62 +294,4 @@ func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	}
 	json.NewEncoder(w).Encode(resp)
-}
-
-func (req *SignUpRequest) Validate() bool {
-
-	if req.Email == "" {
-		return false
-	}
-
-	if !emailRegex.MatchString(req.Email) {
-		return false
-	}
-
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
-		return false
-	}
-
-	if len(req.Password) < 8 {
-		return false
-	}
-
-	if req.Name == "" {
-		return false
-	}
-
-	if !nameRegex.MatchString(req.Name) {
-		return false
-	}
-
-	if req.Surname == "" {
-		return false
-	}
-
-	if !surnameRegex.MatchString(req.Surname) {
-		return false
-	}
-
-	return true
-}
-
-func (req *SignInRequest) Validate() bool {
-
-	if req.Email == "" {
-		return false
-	}
-
-	if !emailRegex.MatchString(req.Email) {
-		return false
-	}
-
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
-		return false
-	}
-
-	if len(req.Password) < 8 {
-		return false
-	}
-
-	return true
 }
