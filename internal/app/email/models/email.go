@@ -8,7 +8,6 @@ type Email struct {
 	Header    string
 	Body      string
 	CreatedAt time.Time
-	//IsDeleted bool
 }
 
 type EmailWithMetadata struct {
@@ -16,6 +15,11 @@ type EmailWithMetadata struct {
 	IsRead          bool
 	ReceivedAt      time.Time
 	ReceiversEmails []string
+}
+
+type EmailWithAvatar struct {
+	Email
+	SenderImagePath string
 }
 
 type UserEmail struct {
