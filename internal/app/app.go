@@ -8,12 +8,14 @@ import (
 	"syscall"
 	"time"
 
-	"go.uber.org/zap"
-
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http"
-	authRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository"
-	authService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
+	profileS3Repo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/storage"
+	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
+	"go.uber.org/zap"
 
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
@@ -49,13 +51,36 @@ func New(configPath string) *App {
 }
 
 func (app *App) Run(configPath string) {
-	authRepo := authRepo.New()
-	authService := authService.New(authRepo, &app.Config.JWTManager)
-	authHandler := authHttp.New(authService, authHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	db, err := postgres.New(app.Config.Db)
+	if err != nil {
+		app.Logger.Errorf("postgres error: %v", err)
+	}
+	err = postgres.RunMigrations(app.Config.Db)
+	if err != nil {
+		app.Logger.Errorf("migrations error: %v", err)
+	}
 
-	emailRepo := emailRepo.New()
+	s3Client, err := minio.New(context.TODO(), app.Config.S3)
+	if err != nil {
+		app.Logger.Errorf("minio error: %v", err)
+	}
+
+	profileDbRepo := profileDbRepo.New(db)
+	profileS3Repo, err := profileS3Repo.New(s3Client)
+	if err != nil {
+	    app.Logger.Fatalf("s3 storage init error: %v", err)
+	}
+	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
+	authHandler := authHttp.New(userService, authHttp.Config{
+		TTL: app.Config.JWTManager.TTL(),
+		MaxAvatarSize: app.Config.Avatar.MaxSizeMB * 1024 * 1024,
+		AllowedTypes:  app.Config.Avatar.AllowedTypes,
+	})
+
+	emailRepo := emailRepo.New(db)
 	emailService := emailService.New(emailRepo)
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
+	emailHandler := emailHttp.New(emailService, emailHttp.Config{
+		TTL: app.Config.JWTManager.TTL()})
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))
@@ -67,6 +92,7 @@ func (app *App) Run(configPath string) {
 
 	private := public.PathPrefix("").Subrouter()
 	private.Use(middleware.AuthMiddleware(&app.Config.JWTManager))
+	private.Use(middleware.CSRFMiddleware)
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)
