@@ -31,7 +31,7 @@ type Repository interface {
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
 	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
-	GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error)
+	GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
@@ -298,11 +298,12 @@ type GetEmailInput struct {
 }
 
 type GetEmailResult struct {
-	ID        int64
-	SenderID  int64
-	Header    string
-	Body      string
-	CreatedAt time.Time
+	ID              int64
+	SenderID        int64
+	Header          string
+	Body            string
+	CreatedAt       time.Time
+	SenderImagePath string
 }
 
 func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEmailResult, error) {
@@ -317,11 +318,12 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 		return nil, mapRepositoryError(err)
 	}
 	return &GetEmailResult{
-		ID:        email.ID,
-		SenderID:  email.SenderID,
-		Header:    email.Header,
-		Body:      email.Body,
-		CreatedAt: email.CreatedAt,
+		ID:              email.ID,
+		SenderID:        email.SenderID,
+		Header:          email.Header,
+		Body:            email.Body,
+		CreatedAt:       email.CreatedAt,
+		SenderImagePath: email.SenderImagePath,
 	}, nil
 }
 

@@ -394,11 +394,12 @@ func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 }
 
 type GetEmailResponse struct {
-	ID        int64     `json:"id"`
-	SenderID  int64     `json:"sender_id"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
+	ID              int64     `json:"id"`
+	SenderID        int64     `json:"sender_id"`
+	Header          string    `json:"header"`
+	Body            string    `json:"body"`
+	CreatedAt       time.Time `json:"created_at"`
+	SenderImagePath string    `json:"sender_image_path"`
 }
 
 // @Summary      Получить письмо по ID
@@ -459,11 +460,12 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := GetEmailResponse{
-		ID:        result.ID,
-		SenderID:  result.SenderID,
-		Header:    result.Header,
-		Body:      result.Body,
-		CreatedAt: result.CreatedAt,
+		ID:              result.ID,
+		SenderID:        result.SenderID,
+		Header:          result.Header,
+		Body:            result.Body,
+		CreatedAt:       result.CreatedAt,
+		SenderImagePath: result.SenderImagePath,
 	}
 
 	logger.Debugf("Email retrieved successfully: user_id=%d, email_id=%d",

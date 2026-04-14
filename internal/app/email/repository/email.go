@@ -336,20 +336,28 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	return emails, nil
 }
 
-func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
+func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	query := `
-        SELECT id, sender_id, header, body, created_at
-        FROM emails
-        WHERE id = $1
+        SELECT 
+            e.id, 
+            e.sender_id, 
+            e.header, 
+            e.body, 
+            e.created_at,
+			u.image_path
+        FROM emails e
+        JOIN users u ON e.sender_id = u.id
+        WHERE e.id = $1
     `
 
-	var email models.Email
+	var email models.EmailWithAvatar
 	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
 		&email.ID,
 		&email.SenderID,
 		&email.Header,
 		&email.Body,
 		&email.CreatedAt,
+		&email.SenderImagePath,
 	)
 
 	if err != nil {
