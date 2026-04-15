@@ -39,7 +39,7 @@ func TestHandler_GetMe(t *testing.T) {
 					GetMe(gomock.Any(), int64(123)).
 					Return(&service.GetMeResult{
 						UserID:    123,
-						Email:     "user@example.com",
+						Email:     "user@smail.ru",
 						Name:      "John",
 						Surname:   "Doe",
 						ImagePath: "/avatars/123.jpg",
@@ -48,7 +48,7 @@ func TestHandler_GetMe(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedBody: &GetMeResponse{
 				ID:        123,
-				Email:     "user@example.com",
+				Email:     "user@smail.ru",
 				Name:      "John",
 				Surname:   "Doe",
 				ImagePath: "/avatars/123.jpg",
@@ -65,12 +65,12 @@ func TestHandler_GetMe(t *testing.T) {
 			expectedStatus: http.StatusNotFound,
 		},
 		{
-			name:   "service internal error",
+			name:   "internal service error",
 			userID: 123,
 			setupMock: func(m *mocks.MockService) {
 				m.EXPECT().
 					GetMe(gomock.Any(), int64(123)).
-					Return(nil, errors.New("db error"))
+					Return(nil, errors.New("database error"))
 			},
 			expectedStatus: http.StatusInternalServerError,
 		},
@@ -94,7 +94,10 @@ func TestHandler_GetMe(t *testing.T) {
 
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
 			if !tt.skipClaims {
-				payload := &utils.JwtPayload{UserId: tt.userID, Exp: time.Now().Add(time.Hour).Unix()}
+				payload := &utils.JwtPayload{
+					UserId: tt.userID,
+					Exp:    time.Now().Add(time.Hour).Unix(),
+				}
 				ctx := context.WithValue(req.Context(), middleware.ClaimsKey, payload)
 				req = req.WithContext(ctx)
 			}
