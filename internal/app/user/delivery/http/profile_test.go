@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/mocks"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/user"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"

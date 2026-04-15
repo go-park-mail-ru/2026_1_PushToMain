@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=../mocks/mock_email_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http Service
+//go:generate mockgen -destination=../../../../../mocks/app/email/mock_email_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http Service
 
 package handler
 
@@ -64,7 +64,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req SendEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Header == "" || req.Body == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
@@ -109,7 +109,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 
 func (req *SendEmailRequest) Validate() bool {
 
-	if len(req.Receivers) == 0 {
+	if len(req.Receivers) == 0 || req.Header == "" || req.Body == "" {
 		return false
 	}
 	for _, receiver := range req.Receivers {

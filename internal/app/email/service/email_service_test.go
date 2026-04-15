@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"context"
@@ -8,9 +8,10 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/mocks"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
+	s "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/email"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -20,14 +21,14 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name          string
-		input         GetEmailsInput
+		input         s.GetEmailsInput
 		setupMock     func(*mocks.MockRepository)
-		expected      *GetEmailsResult
+		expected      *s.GetEmailsResult
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: GetEmailsInput{
+			input: s.GetEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -55,8 +56,8 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 					GetUnreadEmailsCount(gomock.Any(), int64(123)).
 					Return(3, nil)
 			},
-			expected: &GetEmailsResult{
-				Emails: []EmailResult{
+			expected: &s.GetEmailsResult{
+				Emails: []s.EmailResult{
 					{
 						ID:        1,
 						SenderID:  100,
@@ -75,7 +76,7 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 		},
 		{
 			name: "repository GetEmailsByReceiver error",
-			input: GetEmailsInput{
+			input: s.GetEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -90,7 +91,7 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 		},
 		{
 			name: "repository GetEmailsCount error",
-			input: GetEmailsInput{
+			input: s.GetEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -111,7 +112,7 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 		},
 		{
 			name: "repository GetUnreadEmailsCount error",
-			input: GetEmailsInput{
+			input: s.GetEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -140,7 +141,7 @@ func TestService_GetEmailsByReceiver(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			result, err := s.GetEmailsByReceiver(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -158,14 +159,14 @@ func TestService_GetEmailsBySender(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name          string
-		input         GetMyEmailsInput
+		input         s.GetMyEmailsInput
 		setupMock     func(*mocks.MockRepository)
-		expected      *GetMyEmailsResult
+		expected      *s.GetMyEmailsResult
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: GetMyEmailsInput{
+			input: s.GetMyEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -190,8 +191,8 @@ func TestService_GetEmailsBySender(t *testing.T) {
 					GetUserEmailsCount(gomock.Any(), int64(123)).
 					Return(5, nil)
 			},
-			expected: &GetMyEmailsResult{
-				Emails: []MyEmailResult{
+			expected: &s.GetMyEmailsResult{
+				Emails: []s.MyEmailResult{
 					{
 						ID:              1,
 						SenderID:        123,
@@ -210,7 +211,7 @@ func TestService_GetEmailsBySender(t *testing.T) {
 		},
 		{
 			name: "repository GetEmailsBySender error",
-			input: GetMyEmailsInput{
+			input: s.GetMyEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -225,7 +226,7 @@ func TestService_GetEmailsBySender(t *testing.T) {
 		},
 		{
 			name: "repository GetUserEmailsCount error",
-			input: GetMyEmailsInput{
+			input: s.GetMyEmailsInput{
 				UserID: 123,
 				Limit:  20,
 				Offset: 0,
@@ -251,7 +252,7 @@ func TestService_GetEmailsBySender(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			result, err := s.GetEmailsBySender(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -269,14 +270,14 @@ func TestService_GetEmailByID(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
 		name          string
-		input         GetEmailInput
+		input         s.GetEmailInput
 		setupMock     func(*mocks.MockRepository)
-		expected      *GetEmailResult
+		expected      *s.GetEmailResult
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: GetEmailInput{
+			input: s.GetEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -297,7 +298,7 @@ func TestService_GetEmailByID(t *testing.T) {
 						SenderImagePath: "/avatars/100.jpg",
 					}, nil)
 			},
-			expected: &GetEmailResult{
+			expected: &s.GetEmailResult{
 				ID:              1,
 				SenderID:        100,
 				Header:          "Subject",
@@ -309,7 +310,7 @@ func TestService_GetEmailByID(t *testing.T) {
 		},
 		{
 			name: "access denied",
-			input: GetEmailInput{
+			input: s.GetEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -322,11 +323,11 @@ func TestService_GetEmailByID(t *testing.T) {
 					Times(0)
 			},
 			expected:      nil,
-			expectedError: ErrAccessDenied,
+			expectedError: s.ErrAccessDenied,
 		},
 		{
 			name: "GetEmailByID error",
-			input: GetEmailInput{
+			input: s.GetEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -339,7 +340,7 @@ func TestService_GetEmailByID(t *testing.T) {
 					Return(nil, repository.ErrMailNotFound)
 			},
 			expected:      nil,
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 	}
 
@@ -351,7 +352,7 @@ func TestService_GetEmailByID(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			result, err := s.GetEmailByID(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -368,13 +369,13 @@ func TestService_GetEmailByID(t *testing.T) {
 func TestService_DeleteEmailForReceiver(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         DeleteEmailInput
+		input         s.DeleteEmailInput
 		setupMock     func(*mocks.MockRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -390,7 +391,7 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 		},
 		{
 			name: "email not found",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -402,11 +403,11 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 					DeleteEmailForReceiver(gomock.Any(), gomock.Any(), gomock.Any()).
 					Times(0)
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 		{
 			name: "CheckUserEmailExists error",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -422,7 +423,7 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 		},
 		{
 			name: "DeleteEmailForReceiver error",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -434,7 +435,7 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 					DeleteEmailForReceiver(gomock.Any(), int64(1), int64(123)).
 					Return(repository.ErrMailNotFound)
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 	}
 
@@ -446,7 +447,7 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			err := s.DeleteEmailForReceiver(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -462,13 +463,13 @@ func TestService_DeleteEmailForReceiver(t *testing.T) {
 func TestService_DeleteEmailForSender(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         DeleteEmailInput
+		input         s.DeleteEmailInput
 		setupMock     func(*mocks.MockRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -481,7 +482,7 @@ func TestService_DeleteEmailForSender(t *testing.T) {
 		},
 		{
 			name: "repository error",
-			input: DeleteEmailInput{
+			input: s.DeleteEmailInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -490,7 +491,7 @@ func TestService_DeleteEmailForSender(t *testing.T) {
 					DeleteEmailForSender(gomock.Any(), int64(1), int64(123)).
 					Return(repository.ErrMailNotFound)
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 	}
 
@@ -502,7 +503,7 @@ func TestService_DeleteEmailForSender(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			err := s.DeleteEmailForSender(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -518,13 +519,13 @@ func TestService_DeleteEmailForSender(t *testing.T) {
 func TestService_MarkEmailAsRead(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         MarkAsReadInput
+		input         s.MarkAsReadInput
 		setupMock     func(*mocks.MockRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -537,7 +538,7 @@ func TestService_MarkEmailAsRead(t *testing.T) {
 		},
 		{
 			name: "repository error - not found",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -546,11 +547,11 @@ func TestService_MarkEmailAsRead(t *testing.T) {
 					MarkEmailAsRead(gomock.Any(), int64(1), int64(123)).
 					Return(repository.ErrMailNotFound)
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 		{
 			name: "repository error - query fail",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -571,7 +572,7 @@ func TestService_MarkEmailAsRead(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			err := s.MarkEmailAsRead(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -587,14 +588,14 @@ func TestService_MarkEmailAsRead(t *testing.T) {
 func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         SendEmailInput
+		input         s.SendEmailInput
 		mockSetup     func(mock sqlmock.Sqlmock)
-		expected      *SendEmailResult
+		expected      *s.SendEmailResult
 		expectedError error
 	}{
 		{
 			name: "successful send",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -618,7 +619,7 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 
 				mock.ExpectCommit()
 			},
-			expected: &SendEmailResult{
+			expected: &s.SendEmailResult{
 				ID:        10,
 				SenderID:  123,
 				Header:    "Hello",
@@ -629,18 +630,18 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 		},
 		{
 			name: "resolveReceivers fails - empty receivers",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
 				Receivers: []string{},
 			},
 			mockSetup:     func(mock sqlmock.Sqlmock) {},
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name: "resolveReceivers fails - no users found",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -651,11 +652,11 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 					WithArgs("unknown@smail.ru").
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "surname"}))
 			},
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name: "resolveReceivers - GetUsersByEmails error",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -668,7 +669,7 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 		},
 		{
 			name: "BeginTx error",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -681,11 +682,11 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 						AddRow(456, "receiver@smail.ru", "Rec", "User"))
 				mock.ExpectBegin().WillReturnError(errors.New("tx error"))
 			},
-			expectedError: ErrTransaction,
+			expectedError: s.ErrTransaction,
 		},
 		{
 			name: "SaveEmailWithTx error",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -706,7 +707,7 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 		},
 		{
 			name: "AddEmailReceiversWithTx error",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -726,11 +727,11 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnError(errors.New("add receivers failed"))
 				mock.ExpectRollback()
 			},
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name: "Commit error",
-			input: SendEmailInput{
+			input: s.SendEmailInput{
 				UserId:    123,
 				Header:    "Hello",
 				Body:      "World",
@@ -750,7 +751,7 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit().WillReturnError(errors.New("commit failed"))
 			},
-			expectedError: ErrTransaction,
+			expectedError: s.ErrTransaction,
 		},
 	}
 
@@ -763,12 +764,12 @@ func TestService_SendEmail_IntegrationWithSQLMock(t *testing.T) {
 			repo := repository.New(db)
 			tt.mockSetup(mock)
 
-			s := New(repo)
-			result, err := s.SendEmail(context.Background(), tt.input)
+			service := s.New(repo)
+			result, err := service.SendEmail(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
 				require.Error(t, err)
-				if errors.Is(tt.expectedError, ErrNoValidReceivers) || errors.Is(tt.expectedError, ErrTransaction) || errors.Is(tt.expectedError, repository.ErrSaveEmail) {
+				if errors.Is(tt.expectedError, s.ErrNoValidReceivers) || errors.Is(tt.expectedError, s.ErrTransaction) || errors.Is(tt.expectedError, repository.ErrSaveEmail) {
 					assert.ErrorIs(t, err, tt.expectedError)
 				} else {
 					assert.EqualError(t, err, tt.expectedError.Error())
@@ -814,7 +815,7 @@ func TestService_resolveReceivers(t *testing.T) {
 			emails:        []string{},
 			setupMock:     func(m *mocks.MockRepository) {},
 			expectedIDs:   nil,
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name:   "repository error",
@@ -836,7 +837,7 @@ func TestService_resolveReceivers(t *testing.T) {
 					Return([]*models.User{}, nil)
 			},
 			expectedIDs:   nil,
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 	}
 
@@ -848,8 +849,8 @@ func TestService_resolveReceivers(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
-			ids, err := s.resolveReceivers(context.Background(), tt.emails)
+			s := s.New(mockRepo)
+			ids, err := s.ResolveReceivers(context.Background(), tt.emails)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -869,18 +870,18 @@ func Test_mapRepositoryError(t *testing.T) {
 		err      error
 		expected error
 	}{
-		{"ErrDuplicate -> ErrConflict", repository.ErrDuplicate, ErrConflict},
-		{"ErrForeignKey -> ErrBadRequest", repository.ErrForeignKey, ErrBadRequest},
-		{"ErrUserNotFound -> ErrUserNotFound", repository.ErrUserNotFound, ErrUserNotFound},
-		{"ErrReceiverAdd -> ErrNoValidReceivers", repository.ErrReceiverAdd, ErrNoValidReceivers},
-		{"ErrMailNotFound -> ErrEmailNotFound", repository.ErrMailNotFound, ErrEmailNotFound},
-		{"ErrAccessDenied -> ErrAccessDenied", repository.ErrAccessDenied, ErrAccessDenied},
+		{"ErrDuplicate -> ErrConflict", repository.ErrDuplicate, s.ErrConflict},
+		{"ErrForeignKey -> ErrBadRequest", repository.ErrForeignKey, s.ErrBadRequest},
+		{"ErrUserNotFound -> ErrUserNotFound", repository.ErrUserNotFound, s.ErrUserNotFound},
+		{"ErrReceiverAdd -> ErrNoValidReceivers", repository.ErrReceiverAdd, s.ErrNoValidReceivers},
+		{"ErrMailNotFound -> ErrEmailNotFound", repository.ErrMailNotFound, s.ErrEmailNotFound},
+		{"ErrAccessDenied -> ErrAccessDenied", repository.ErrAccessDenied, s.ErrAccessDenied},
 		{"unknown error unchanged", otherErr, otherErr},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := mapRepositoryError(tt.err)
+			result := s.MapRepositoryError(tt.err)
 			assert.True(t, errors.Is(result, tt.expected))
 		})
 	}
@@ -899,13 +900,13 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		input         ForwardEmailInput
+		input         s.ForwardEmailInput
 		mockSetup     func(mock sqlmock.Sqlmock)
 		expectedError error
 	}{
 		{
 			name: "successful forward",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:    123,
 				EmailID:   10,
 				Receivers: []string{"friend@smail.ru"},
@@ -940,18 +941,18 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 		},
 		{
 			name: "BeginTx error",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:  123,
 				EmailID: 10,
 			},
 			mockSetup: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin().WillReturnError(errors.New("connection lost"))
 			},
-			expectedError: ErrTransaction,
+			expectedError: s.ErrTransaction,
 		},
 		{
 			name: "CheckEmailAccess denied",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:  123,
 				EmailID: 10,
 			},
@@ -962,11 +963,11 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnError(repository.ErrAccessDenied)
 				mock.ExpectRollback()
 			},
-			expectedError: ErrAccessDenied,
+			expectedError: s.ErrAccessDenied,
 		},
 		{
 			name: "GetEmailByID not found",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:  123,
 				EmailID: 999,
 			},
@@ -980,27 +981,24 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnError(sql.ErrNoRows)
 				mock.ExpectRollback()
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 		{
 			name: "SaveEmailWithTx error",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:    123,
 				EmailID:   10,
 				Receivers: []string{"friend@smail.ru"},
 			},
 			mockSetup: func(mock sqlmock.Sqlmock) {
 				mock.ExpectBegin()
-				// Access check
 				mock.ExpectQuery(`SELECT EXISTS\(`).
 					WithArgs(int64(10), int64(123)).
 					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-				// GetEmailByID
 				mock.ExpectQuery(`SELECT (.+) FROM emails e JOIN users u`).
 					WithArgs(int64(10)).
 					WillReturnRows(sqlmock.NewRows([]string{"id", "sender_id", "header", "body", "created_at", "image_path"}).
 						AddRow(10, 100, "Original Subject", "Original Body", now, "/avatar.jpg"))
-				// SaveEmailWithTx fails
 				mock.ExpectQuery(`INSERT INTO emails`).
 					WithArgs(int64(123), "Original Subject", "Original Body").
 					WillReturnError(errors.New("insert failed"))
@@ -1010,7 +1008,7 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 		},
 		{
 			name: "resolveReceivers no valid receivers",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:    123,
 				EmailID:   10,
 				Receivers: []string{"unknown@smail.ru"},
@@ -1032,11 +1030,11 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnRows(sqlmock.NewRows([]string{"id", "email", "name", "surname"}))
 				mock.ExpectRollback()
 			},
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name: "AddEmailReceiversWithTx error",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:    123,
 				EmailID:   10,
 				Receivers: []string{"friend@smail.ru"},
@@ -1062,11 +1060,11 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnError(errors.New("foreign key violation"))
 				mock.ExpectRollback()
 			},
-			expectedError: ErrNoValidReceivers,
+			expectedError: s.ErrNoValidReceivers,
 		},
 		{
 			name: "Commit error",
-			input: ForwardEmailInput{
+			input: s.ForwardEmailInput{
 				UserID:    123,
 				EmailID:   10,
 				Receivers: []string{"friend@smail.ru"},
@@ -1092,7 +1090,7 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(0, 1))
 				mock.ExpectCommit().WillReturnError(errors.New("commit failed"))
 			},
-			expectedError: ErrTransaction,
+			expectedError: s.ErrTransaction,
 		},
 	}
 
@@ -1103,7 +1101,7 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 
 			tt.mockSetup(mock)
 
-			s := New(repo)
+			s := s.New(repo)
 			err := s.ForwardEmail(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -1120,13 +1118,13 @@ func TestService_ForwardEmail_IntegrationWithSQLMock(t *testing.T) {
 func TestService_MarkEmailAsUnRead(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         MarkAsReadInput
+		input         s.MarkAsReadInput
 		setupMock     func(*mocks.MockRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -1139,7 +1137,7 @@ func TestService_MarkEmailAsUnRead(t *testing.T) {
 		},
 		{
 			name: "email not found",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 999,
 			},
@@ -1148,11 +1146,11 @@ func TestService_MarkEmailAsUnRead(t *testing.T) {
 					MarkEmailAsUnRead(gomock.Any(), int64(999), int64(123)).
 					Return(repository.ErrMailNotFound)
 			},
-			expectedError: ErrEmailNotFound,
+			expectedError: s.ErrEmailNotFound,
 		},
 		{
 			name: "repository error - query fail",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -1165,7 +1163,7 @@ func TestService_MarkEmailAsUnRead(t *testing.T) {
 		},
 		{
 			name: "repository error - access denied",
-			input: MarkAsReadInput{
+			input: s.MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
@@ -1174,7 +1172,7 @@ func TestService_MarkEmailAsUnRead(t *testing.T) {
 					MarkEmailAsUnRead(gomock.Any(), int64(1), int64(123)).
 					Return(repository.ErrAccessDenied)
 			},
-			expectedError: ErrAccessDenied,
+			expectedError: s.ErrAccessDenied,
 		},
 	}
 
@@ -1186,7 +1184,7 @@ func TestService_MarkEmailAsUnRead(t *testing.T) {
 			mockRepo := mocks.NewMockRepository(ctrl)
 			tt.setupMock(mockRepo)
 
-			s := New(mockRepo)
+			s := s.New(mockRepo)
 			err := s.MarkEmailAsUnRead(context.Background(), tt.input)
 
 			if tt.expectedError != nil {

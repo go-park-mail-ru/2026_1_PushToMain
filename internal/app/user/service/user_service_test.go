@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"context"
@@ -6,10 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/mocks"
+	s "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/user"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 	"golang.org/x/crypto/bcrypt"
@@ -21,7 +23,7 @@ func TestService_GetMe(t *testing.T) {
 		name          string
 		userID        int64
 		setupMock     func(*mocks.MockDbRepository)
-		expected      *GetMeResult
+		expected      *s.GetMeResult
 		expectedError error
 	}{
 		{
@@ -38,7 +40,7 @@ func TestService_GetMe(t *testing.T) {
 						ImagePath: "/avatars/123.jpg",
 					}, nil)
 			},
-			expected: &GetMeResult{
+			expected: &s.GetMeResult{
 				UserID:    123,
 				Email:     "user@example.com",
 				Name:      "John",
@@ -56,7 +58,7 @@ func TestService_GetMe(t *testing.T) {
 					Return(nil, db.ErrUserNotFound)
 			},
 			expected:      nil,
-			expectedError: ErrUserNotFound,
+			expectedError: s.ErrUserNotFound,
 		},
 		{
 			name:   "database error",
@@ -79,7 +81,7 @@ func TestService_GetMe(t *testing.T) {
 			mockDB := mocks.NewMockDbRepository(ctrl)
 			tt.setupMock(mockDB)
 
-			s := New(mockDB, nil, nil)
+			s := s.New(mockDB, nil, nil)
 			result, err := s.GetMe(context.Background(), tt.userID)
 
 			if tt.expectedError != nil {
@@ -97,13 +99,13 @@ func TestService_UpdatePassword(t *testing.T) {
 	dbErr := errors.New("database error")
 	tests := []struct {
 		name          string
-		input         UpdatePasswordInput
+		input         s.UpdatePasswordInput
 		setupMock     func(*mocks.MockDbRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: UpdatePasswordInput{
+			input: s.UpdatePasswordInput{
 				UserID:      123,
 				OldPassword: "correct-old",
 				NewPassword: "new-secure-password",
@@ -126,7 +128,7 @@ func TestService_UpdatePassword(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			input: UpdatePasswordInput{
+			input: s.UpdatePasswordInput{
 				UserID:      999,
 				OldPassword: "old",
 				NewPassword: "new",
@@ -137,11 +139,11 @@ func TestService_UpdatePassword(t *testing.T) {
 					Return(nil, db.ErrUserNotFound)
 				m.EXPECT().UpdatePassword(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
-			expectedError: ErrUserNotFound,
+			expectedError: s.ErrUserNotFound,
 		},
 		{
 			name: "wrong old password",
-			input: UpdatePasswordInput{
+			input: s.UpdatePasswordInput{
 				UserID:      123,
 				OldPassword: "wrong-old",
 				NewPassword: "new",
@@ -156,11 +158,11 @@ func TestService_UpdatePassword(t *testing.T) {
 					}, nil)
 				m.EXPECT().UpdatePassword(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 			},
-			expectedError: ErrWrongPassword,
+			expectedError: s.ErrWrongPassword,
 		},
 		{
 			name: "update password DB error",
-			input: UpdatePasswordInput{
+			input: s.UpdatePasswordInput{
 				UserID:      123,
 				OldPassword: "correct-old",
 				NewPassword: "new",
@@ -189,7 +191,7 @@ func TestService_UpdatePassword(t *testing.T) {
 			mockDB := mocks.NewMockDbRepository(ctrl)
 			tt.setupMock(mockDB)
 
-			s := New(mockDB, nil, nil)
+			s := s.New(mockDB, nil, nil)
 			err := s.UpdatePassword(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -205,14 +207,14 @@ func TestService_UpdatePassword(t *testing.T) {
 func TestService_UploadAvatar(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         UploadAvatarInput
+		input         s.UploadAvatarInput
 		setupMock     func(*mocks.MockDbRepository, *mocks.MockS3Repository)
 		expectedPath  string
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: UploadAvatarInput{
+			input: s.UploadAvatarInput{
 				UserID: 123,
 				File:   strings.NewReader("image data"),
 				Size:   1024,
@@ -230,7 +232,7 @@ func TestService_UploadAvatar(t *testing.T) {
 		},
 		{
 			name: "S3 upload fails",
-			input: UploadAvatarInput{
+			input: s.UploadAvatarInput{
 				UserID: 123,
 				File:   strings.NewReader("image data"),
 				Size:   1024,
@@ -243,11 +245,11 @@ func TestService_UploadAvatar(t *testing.T) {
 				s3.EXPECT().DeleteAvatar(gomock.Any(), gomock.Any()).Times(0)
 			},
 			expectedPath:  "",
-			expectedError: ErrUploadAvatar,
+			expectedError: s.ErrUploadAvatar,
 		},
 		{
 			name: "DB update fails, S3 rollback succeeds",
-			input: UploadAvatarInput{
+			input: s.UploadAvatarInput{
 				UserID: 123,
 				File:   strings.NewReader("image data"),
 				Size:   1024,
@@ -264,11 +266,11 @@ func TestService_UploadAvatar(t *testing.T) {
 					Return(nil)
 			},
 			expectedPath:  "",
-			expectedError: ErrUpdateAvatar,
+			expectedError: s.ErrUpdateAvatar,
 		},
 		{
 			name: "DB update fails, S3 rollback also fails",
-			input: UploadAvatarInput{
+			input: s.UploadAvatarInput{
 				UserID: 123,
 				File:   strings.NewReader("image data"),
 				Size:   1024,
@@ -298,7 +300,7 @@ func TestService_UploadAvatar(t *testing.T) {
 			mockS3 := mocks.NewMockS3Repository(ctrl)
 			tt.setupMock(mockDB, mockS3)
 
-			s := New(mockDB, mockS3, nil)
+			s := s.New(mockDB, mockS3, nil)
 			path, err := s.UploadAvatar(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -315,14 +317,14 @@ func TestService_UploadAvatar(t *testing.T) {
 func TestService_SignUp(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         SignUpInput
+		input         s.SignUpInput
 		setupMock     func(*mocks.MockDbRepository, *mocks.MockJWTManager)
 		expectedToken string
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: SignUpInput{
+			input: s.SignUpInput{
 				Email:    "new@example.com",
 				Password: "password123",
 				Name:     "Alice",
@@ -344,7 +346,7 @@ func TestService_SignUp(t *testing.T) {
 		},
 		{
 			name: "user already exists",
-			input: SignUpInput{
+			input: s.SignUpInput{
 				Email:    "existing@example.com",
 				Password: "pass",
 			},
@@ -356,11 +358,11 @@ func TestService_SignUp(t *testing.T) {
 				jwt.EXPECT().GenerateJWT(gomock.Any()).Times(0)
 			},
 			expectedToken: "",
-			expectedError: ErrUserAlreadyExists,
+			expectedError: s.ErrUserAlreadyExists,
 		},
 		{
 			name: "FindByEmail unexpected error",
-			input: SignUpInput{
+			input: s.SignUpInput{
 				Email: "error@example.com",
 			},
 			setupMock: func(dbRepo *mocks.MockDbRepository, jwt *mocks.MockJWTManager) {
@@ -374,7 +376,7 @@ func TestService_SignUp(t *testing.T) {
 		},
 		{
 			name: "Save fails",
-			input: SignUpInput{
+			input: s.SignUpInput{
 				Email:    "new@example.com",
 				Password: "pass",
 			},
@@ -392,7 +394,7 @@ func TestService_SignUp(t *testing.T) {
 		},
 		{
 			name: "JWT generation fails",
-			input: SignUpInput{
+			input: s.SignUpInput{
 				Email:    "new@example.com",
 				Password: "pass",
 			},
@@ -421,7 +423,7 @@ func TestService_SignUp(t *testing.T) {
 			mockJWT := mocks.NewMockJWTManager(ctrl)
 			tt.setupMock(mockDB, mockJWT)
 
-			s := New(mockDB, nil, mockJWT)
+			s := s.New(mockDB, nil, mockJWT)
 			token, err := s.SignUp(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
@@ -438,14 +440,14 @@ func TestService_SignUp(t *testing.T) {
 func TestService_SignIn(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         SignInInput
+		input         s.SignInInput
 		setupMock     func(*mocks.MockDbRepository, *mocks.MockJWTManager)
 		expectedToken string
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: SignInInput{
+			input: s.SignInInput{
 				Email:    "user@example.com",
 				Password: "correct-password",
 			},
@@ -466,22 +468,22 @@ func TestService_SignIn(t *testing.T) {
 		},
 		{
 			name: "user not found",
-			input: SignInInput{
+			input: s.SignInInput{
 				Email:    "missing@example.com",
 				Password: "any",
 			},
 			setupMock: func(db *mocks.MockDbRepository, jwt *mocks.MockJWTManager) {
 				db.EXPECT().
 					FindByEmail(gomock.Any(), "missing@example.com").
-					Return(nil, ErrUserNotFound)
+					Return(nil, s.ErrUserNotFound)
 				jwt.EXPECT().GenerateJWT(gomock.Any()).Times(0)
 			},
 			expectedToken: "",
-			expectedError: ErrUserNotFound,
+			expectedError: s.ErrUserNotFound,
 		},
 		{
 			name: "wrong password",
-			input: SignInInput{
+			input: s.SignInInput{
 				Email:    "user@example.com",
 				Password: "wrong",
 			},
@@ -496,11 +498,11 @@ func TestService_SignIn(t *testing.T) {
 				jwt.EXPECT().GenerateJWT(gomock.Any()).Times(0)
 			},
 			expectedToken: "",
-			expectedError: ErrWrongPassword,
+			expectedError: s.ErrWrongPassword,
 		},
 		{
 			name: "JWT generation fails",
-			input: SignInInput{
+			input: s.SignInInput{
 				Email:    "user@example.com",
 				Password: "correct-password",
 			},
@@ -530,8 +532,8 @@ func TestService_SignIn(t *testing.T) {
 			mockJWT := mocks.NewMockJWTManager(ctrl)
 			tt.setupMock(mockDB, mockJWT)
 
-			s := New(mockDB, nil, mockJWT)
-			token, err := s.SignIn(context.Background(), tt.input)
+			service := s.New(mockDB, nil, mockJWT)
+			token, err := service.SignIn(context.Background(), tt.input)
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
@@ -545,9 +547,9 @@ func TestService_SignIn(t *testing.T) {
 }
 
 func TestService_GenerateToken(t *testing.T) {
-	s := New(nil, nil, nil)
+	service := s.New(nil, nil, nil)
 
-	token, err := s.GenerateToken()
+	token, err := service.GenerateToken()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, token)
 
@@ -561,14 +563,14 @@ func Test_mapRepositoryError(t *testing.T) {
 		err      error
 		expected error
 	}{
-		{"db.ErrUserNotFound -> ErrUserNotFound", db.ErrUserNotFound, ErrUserNotFound},
-		{"bcrypt.ErrMismatchedHashAndPassword -> ErrWrongPassword", bcrypt.ErrMismatchedHashAndPassword, ErrWrongPassword},
+		{"db.ErrUserNotFound -> ErrUserNotFound", db.ErrUserNotFound, s.ErrUserNotFound},
+		{"bcrypt.ErrMismatchedHashAndPassword -> ErrWrongPassword", bcrypt.ErrMismatchedHashAndPassword, s.ErrWrongPassword},
 		{"unknown error unchanged", unknownErr, unknownErr},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := mapRepositoryError(tt.err)
+			result := s.MapRepositoryError(tt.err)
 			assert.True(t, errors.Is(result, tt.expected))
 		})
 	}
@@ -577,13 +579,13 @@ func Test_mapRepositoryError(t *testing.T) {
 func TestService_UpdateProfile(t *testing.T) {
 	tests := []struct {
 		name          string
-		input         UpdateProfileInput
+		input         s.UpdateProfileInput
 		setupMock     func(*mocks.MockDbRepository)
 		expectedError error
 	}{
 		{
 			name: "success",
-			input: UpdateProfileInput{
+			input: s.UpdateProfileInput{
 				UserID:  123,
 				Name:    "John",
 				Surname: "Doe",
@@ -597,7 +599,7 @@ func TestService_UpdateProfile(t *testing.T) {
 		},
 		{
 			name: "repository error",
-			input: UpdateProfileInput{
+			input: s.UpdateProfileInput{
 				UserID:  123,
 				Name:    "John",
 				Surname: "Doe",
@@ -605,9 +607,9 @@ func TestService_UpdateProfile(t *testing.T) {
 			setupMock: func(db *mocks.MockDbRepository) {
 				db.EXPECT().
 					UpdateProfile(gomock.Any(), int64(123), "John", "Doe").
-					Return(ErrUserNotFound)
+					Return(s.ErrUserNotFound)
 			},
-			expectedError: ErrUserNotFound,
+			expectedError: s.ErrUserNotFound,
 		},
 	}
 
@@ -619,8 +621,8 @@ func TestService_UpdateProfile(t *testing.T) {
 			mockDB := mocks.NewMockDbRepository(ctrl)
 			tt.setupMock(mockDB)
 
-			s := New(mockDB, nil, nil)
-			err := s.UpdateProfile(context.Background(), tt.input)
+			service := s.New(mockDB, nil, nil)
+			err := service.UpdateProfile(context.Background(), tt.input)
 			if tt.expectedError != nil {
 				assert.Error(t, err)
 				assert.True(t, errors.Is(err, tt.expectedError))

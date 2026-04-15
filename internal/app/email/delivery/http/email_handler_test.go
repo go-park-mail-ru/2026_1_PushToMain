@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/mocks"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/email"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -298,6 +298,7 @@ func TestHandler_SendEmail(t *testing.T) {
 			name:   "empty header",
 			userID: 1,
 			requestBody: SendEmailRequest{
+				Header:    "",
 				Body:      "b",
 				Receivers: []string{"a@smail.ru"},
 			},
@@ -311,6 +312,7 @@ func TestHandler_SendEmail(t *testing.T) {
 			userID: 1,
 			requestBody: SendEmailRequest{
 				Header:    "h",
+				Body:      "",
 				Receivers: []string{"a@smail.ru"},
 			},
 			setupMock: func(m *mocks.MockService) {

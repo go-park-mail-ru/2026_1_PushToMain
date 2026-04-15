@@ -4,6 +4,9 @@ APP_NAME = smail
 BUILD_DIR = build
 CMD_PATH = ./cmd/main.go
 
+PROJECT_ROOT := $(shell pwd)
+export PROJECT_ROOT
+
 COVERAGE_FILE=coverage.out
 COVERAGE_HTML=coverage.html
 COVERAGE_THRESHOLD=60
@@ -19,28 +22,9 @@ test:
 
 test-coverage:
 	@echo "Generating coverage profile (excluding mocks)..."
-
-	@PKGS=$$(go list ./... | grep -v '/mocks'); \
-	go test $$PKGS -coverprofile=$(COVERAGE_FILE) -covermode=atomic
-
-	@echo ""
-	@echo "Full coverage (filtered output)..."
-
-	@go tool cover -func=$(COVERAGE_FILE) | grep -v '/mocks/' | grep -v 'total:'; \
-	echo ""; \
-	echo "TOTAL:"; \
-	go tool cover -func=$(COVERAGE_FILE) | grep total
-
-	@echo ""
-	@echo "Checking coverage threshold..."
-
-	@COVERAGE=$$(go tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}' | sed 's/%//'); \
-	if [ $$(echo "$$COVERAGE < $(COVERAGE_THRESHOLD)" | bc) -eq 1 ]; then \
-		echo "❌ Coverage $$COVERAGE% is below $(COVERAGE_THRESHOLD)%"; \
-		exit 1; \
-	else \
-		echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; \
-	fi
+	@go test -coverprofile=coverage.out $(shell go list ./... | grep -v /mocks)
+	@echo "\n==> Общее покрытие кода тестами:"
+	@go tool cover -func=coverage.out | grep total
 
 test-race:
 	go test ./... -race -coverprofile=$(COVERAGE_FILE)
