@@ -336,20 +336,28 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	return emails, nil
 }
 
-func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
+func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	query := `
-        SELECT id, sender_id, header, body, created_at
-        FROM emails
-        WHERE id = $1
+        SELECT 
+            e.id, 
+            e.sender_id, 
+            e.header, 
+            e.body, 
+            e.created_at,
+			u.image_path
+        FROM emails e
+        JOIN users u ON e.sender_id = u.id
+        WHERE e.id = $1
     `
 
-	var email models.Email
+	var email models.EmailWithAvatar
 	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
 		&email.ID,
 		&email.SenderID,
 		&email.Header,
 		&email.Body,
 		&email.CreatedAt,
+		&email.SenderImagePath,
 	)
 
 	if err != nil {
@@ -422,6 +430,31 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 		UPDATE user_emails
 		SET is_read = true, updated_at = NOW()
 		WHERE email_id = $1 AND receiver_id = $2 AND is_read = false
+	`
+
+	_, err = r.db.ExecContext(ctx, query, emailID, userID)
+	if err != nil {
+		return checkError(err)
+	}
+
+	return nil
+}
+
+func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error {
+	var exists bool
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`
+	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
+	if err != nil {
+		return ErrQueryFail
+	}
+	if !exists {
+		return ErrMailNotFound
+	}
+
+	query := `
+		UPDATE user_emails
+		SET is_read = false, updated_at = NOW()
+		WHERE email_id = $1 AND receiver_id = $2 AND is_read = true
 	`
 
 	_, err = r.db.ExecContext(ctx, query, emailID, userID)
