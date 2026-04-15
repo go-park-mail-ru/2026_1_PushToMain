@@ -17,10 +17,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-type contextKey string
-
-var claimsKey contextKey = "claims"
-
 func TestHandler_GetEmails(t *testing.T) {
 	now := time.Now()
 
@@ -346,7 +342,7 @@ func TestHandler_GetEmails_ManyEmails(t *testing.T) {
 	}
 }
 
-func TestHandler_GetSentEmails(t *testing.T) {
+func TestHandler_GetMyEmails(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
@@ -509,7 +505,7 @@ func TestHandler_GetSentEmails(t *testing.T) {
 	}
 }
 
-func TestHandler_GetSentEmails_MissingClaims(t *testing.T) {
+func TestHandler_GetMyEmails_MissingClaims(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -527,7 +523,7 @@ func TestHandler_GetSentEmails_MissingClaims(t *testing.T) {
 	}
 }
 
-func TestHandler_SendMail(t *testing.T) {
+func TestHandler_SendEmail(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
@@ -651,10 +647,9 @@ func TestHandler_SendMail(t *testing.T) {
 			}
 		})
 	}
-
 }
 
-func TestHandler_GetEmailById(t *testing.T) {
+func TestHandler_GetEmailByID(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
@@ -868,7 +863,7 @@ func TestHandler_GetEmailById(t *testing.T) {
 	}
 }
 
-func TestHandler_GetEmailById_WithQueryParams(t *testing.T) {
+func TestHandler_GetEmailByID_WithQueryParams(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -911,7 +906,7 @@ func TestHandler_GetEmailById_WithQueryParams(t *testing.T) {
 	}
 }
 
-func TestHandler_GetEmailById_InvalidClaimsType(t *testing.T) {
+func TestHandler_GetEmailByID_InvalidClaimsType(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

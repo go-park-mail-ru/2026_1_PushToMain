@@ -23,6 +23,7 @@ func TestHandler_SignUp(t *testing.T) {
 		requestBody    SignUpRequest
 		setupMock      func(*mocks.MockService)
 		expectedStatus int
+		checkCookie    bool
 	}{
 		{
 			name: "successful signup",
@@ -43,13 +44,91 @@ func TestHandler_SignUp(t *testing.T) {
 					Return("test-token", nil)
 			},
 			expectedStatus: http.StatusOK,
+			checkCookie:    true,
+		},
+		{
+			name: "empty email",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe",
+				Email:    "",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid email domain",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe",
+				Email:    "john@other.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name: "invalid email format",
 			requestBody: SignUpRequest{
 				Name:     "John",
 				Surname:  "Doe",
-				Email:    "invalid@email.com",
+				Email:    "not-an-email",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "password too short",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe",
+				Email:    "john.doe@smail.ru",
+				Password: "short",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "empty name",
+			requestBody: SignUpRequest{
+				Name:     "",
+				Surname:  "Doe",
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid name characters",
+			requestBody: SignUpRequest{
+				Name:     "John123",
+				Surname:  "Doe",
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "empty surname",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "",
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid surname characters",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe123",
+				Email:    "john.doe@smail.ru",
 				Password: "password123",
 			},
 			setupMock:      func(m *mocks.MockService) {},
@@ -70,6 +149,32 @@ func TestHandler_SignUp(t *testing.T) {
 			},
 			expectedStatus: http.StatusConflict,
 		},
+		{
+			name: "service internal error",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe",
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SignUp(gomock.Any(), gomock.Any()).
+					Return("", errors.New("db error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "malformed json",
+			requestBody: SignUpRequest{
+				Name:     "John",
+				Surname:  "Doe",
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
@@ -85,16 +190,48 @@ func TestHandler_SignUp(t *testing.T) {
 				cfg:     Config{TTL: time.Hour},
 			}
 
-			body, _ := json.Marshal(tt.requestBody)
+			var body []byte
+			var err error
+			if tt.name == "malformed json" {
+				body = []byte(`{"name": "John", "surname": "Doe", "email": "john.doe@smail.ru", "password":`)
+			} else {
+				body, err = json.Marshal(tt.requestBody)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
 			req := httptest.NewRequest(http.MethodPost, "/signup", bytes.NewBuffer(body))
 			w := httptest.NewRecorder()
 
-			// Execute
 			handler.SignUp(w, req)
 
-			// Assert
 			if w.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			if tt.expectedStatus == http.StatusOK && tt.checkCookie {
+				cookies := w.Result().Cookies()
+				var sessionCookie *http.Cookie
+				for _, c := range cookies {
+					if c.Name == sessionTokenCookie {
+						sessionCookie = c
+						break
+					}
+				}
+				if sessionCookie == nil {
+					t.Error("session cookie not set")
+				} else {
+					if sessionCookie.Value != "test-token" {
+						t.Errorf("expected token 'test-token', got %q", sessionCookie.Value)
+					}
+					if !sessionCookie.HttpOnly {
+						t.Error("expected HttpOnly true")
+					}
+					if sessionCookie.Path != "/" {
+						t.Errorf("expected path '/', got %q", sessionCookie.Path)
+					}
+				}
 			}
 		})
 	}
@@ -106,6 +243,7 @@ func TestHandler_SignIn(t *testing.T) {
 		requestBody    SignInRequest
 		setupMock      func(*mocks.MockService)
 		expectedStatus int
+		checkCookie    bool
 	}{
 		{
 			name: "successful signin",
@@ -122,12 +260,40 @@ func TestHandler_SignIn(t *testing.T) {
 					Return("test-token", nil)
 			},
 			expectedStatus: http.StatusOK,
+			checkCookie:    true,
+		},
+		{
+			name: "empty email",
+			requestBody: SignInRequest{
+				Email:    "",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "invalid email domain",
+			requestBody: SignInRequest{
+				Email:    "john@other.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name: "invalid email format",
 			requestBody: SignInRequest{
-				Email:    "invalid@email.com",
+				Email:    "not-an-email",
 				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name: "password too short",
+			requestBody: SignInRequest{
+				Email:    "john.doe@smail.ru",
+				Password: "short",
 			},
 			setupMock:      func(m *mocks.MockService) {},
 			expectedStatus: http.StatusBadRequest,
@@ -158,6 +324,28 @@ func TestHandler_SignIn(t *testing.T) {
 			},
 			expectedStatus: http.StatusUnauthorized,
 		},
+		{
+			name: "service internal error",
+			requestBody: SignInRequest{
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SignIn(gomock.Any(), gomock.Any()).
+					Return("", errors.New("db error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name: "malformed json",
+			requestBody: SignInRequest{
+				Email:    "john.doe@smail.ru",
+				Password: "password123",
+			},
+			setupMock:      func(m *mocks.MockService) {},
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
@@ -173,7 +361,17 @@ func TestHandler_SignIn(t *testing.T) {
 				cfg:     Config{TTL: time.Hour},
 			}
 
-			body, _ := json.Marshal(tt.requestBody)
+			var body []byte
+			var err error
+			if tt.name == "malformed json" {
+				body = []byte(`{"email": "john.doe@smail.ru", "password":`)
+			} else {
+				body, err = json.Marshal(tt.requestBody)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+
 			req := httptest.NewRequest(http.MethodPost, "/signin", bytes.NewBuffer(body))
 			w := httptest.NewRecorder()
 
@@ -181,6 +379,30 @@ func TestHandler_SignIn(t *testing.T) {
 
 			if w.Code != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+
+			if tt.expectedStatus == http.StatusOK && tt.checkCookie {
+				cookies := w.Result().Cookies()
+				var sessionCookie *http.Cookie
+				for _, c := range cookies {
+					if c.Name == sessionTokenCookie {
+						sessionCookie = c
+						break
+					}
+				}
+				if sessionCookie == nil {
+					t.Error("session cookie not set")
+				} else {
+					if sessionCookie.Value != "test-token" {
+						t.Errorf("expected token 'test-token', got %q", sessionCookie.Value)
+					}
+					if !sessionCookie.HttpOnly {
+						t.Error("expected HttpOnly true")
+					}
+					if sessionCookie.Path != "/" {
+						t.Errorf("expected path '/', got %q", sessionCookie.Path)
+					}
+				}
 			}
 		})
 	}
