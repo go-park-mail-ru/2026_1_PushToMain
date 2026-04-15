@@ -12,7 +12,7 @@ import (
 type ctxKey string
 
 const (
-	claimsKey ctxKey = "claims"
+	ClaimsKey ctxKey = "claims"
 )
 
 func AuthMiddleware(jwtManager *utils.JWTManager) func(http.Handler) http.Handler {
@@ -39,11 +39,11 @@ func AuthMiddleware(jwtManager *utils.JWTManager) func(http.Handler) http.Handle
 }
 
 func ContextWithClaims(ctx context.Context, claims *utils.JwtPayload) context.Context {
-	return context.WithValue(ctx, claimsKey, claims)
+	return context.WithValue(ctx, ClaimsKey, claims)
 }
 
 func ClaimsFromContext(ctx context.Context) (*utils.JwtPayload, error) {
-	claims, ok := ctx.Value(claimsKey).(*utils.JwtPayload)
+	claims, ok := ctx.Value(ClaimsKey).(*utils.JwtPayload)
 	if !ok {
 		return nil, fmt.Errorf("no claims found in context")
 	}

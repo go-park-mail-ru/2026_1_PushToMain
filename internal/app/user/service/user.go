@@ -1,3 +1,7 @@
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_db_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service DbRepository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_s3_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service S3Repository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_jwt_manager.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service JWTManager
+
 package service
 
 import (
@@ -89,7 +93,7 @@ type GetMeResult struct {
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
 	user, err := s.userDB.FindByID(ctx, userID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 	return &GetMeResult{
 		UserID:    user.ID,
@@ -109,7 +113,7 @@ type UpdateProfileInput struct {
 func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) error {
 	err := s.userDB.UpdateProfile(ctx, input.UserID, input.Name, input.Surname)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
@@ -118,7 +122,7 @@ func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) e
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
 	user, err := s.userDB.FindByID(ctx, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
@@ -157,12 +161,12 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 	}
 
 	if !errors.Is(err, db.ErrUserNotFound) {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 
 	hash, err := utils.Hash(signUp.Password)
 	if err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 	userId, err := s.userDB.Save(ctx, models.User{
 		Email:    signUp.Email,
@@ -171,12 +175,12 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 		Surname:  signUp.Surname,
 	})
 	if err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 
 	token, err := s.jwt.GenerateJWT(userId)
 	if err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 
 	return token, nil
@@ -190,15 +194,15 @@ type SignInInput struct {
 func (s *Service) SignIn(ctx context.Context, signIn SignInInput) (string, error) {
 	user, err := s.userDB.FindByEmail(ctx, signIn.Email)
 	if err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 
 	if err := utils.ComparePasswordAndHash(user.Password, signIn.Password); err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 	token, err := s.jwt.GenerateJWT(user.ID)
 	if err != nil {
-		return "", mapRepositoryError(err)
+		return "", MapRepositoryError(err)
 	}
 
 	return token, nil
@@ -215,7 +219,7 @@ func (s *Service) GenerateToken() (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
-func mapRepositoryError(err error) error {
+func MapRepositoryError(err error) error {
 	switch {
 	case errors.Is(err, db.ErrUserNotFound):
 		return ErrUserNotFound

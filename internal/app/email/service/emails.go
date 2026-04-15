@@ -1,3 +1,5 @@
+//go:generate mockgen -destination=../../../../mocks/app/email/mock_email_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service Repository
+
 package service
 
 import (
@@ -78,17 +80,17 @@ type EmailResult struct {
 func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput) (*GetEmailsResult, error) {
 	emails, err := s.repo.GetEmailsByReceiver(ctx, input.UserID, input.Limit, input.Offset)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	total, err := s.repo.GetEmailsCount(ctx, input.UserID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	unreadCount, err := s.repo.GetUnreadEmailsCount(ctx, input.UserID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	resultEmails := make([]EmailResult, len(emails))
@@ -138,12 +140,12 @@ type MyEmailResult struct {
 func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput) (*GetMyEmailsResult, error) {
 	emails, err := s.repo.GetEmailsBySender(ctx, input.UserID, input.Limit, input.Offset)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	total, err := s.repo.GetUserEmailsCount(ctx, input.UserID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	resultEmails := make([]MyEmailResult, len(emails))
@@ -183,9 +185,9 @@ type SendEmailResult struct {
 }
 
 func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*SendEmailResult, error) {
-	receiverIDs, err := s.resolveReceivers(ctx, input.Receivers)
+	receiverIDs, err := s.ResolveReceivers(ctx, input.Receivers)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	tx, err := s.repo.BeginTx(ctx)
@@ -208,13 +210,13 @@ func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*SendEma
 
 	emailID, err := s.repo.SaveEmailWithTx(ctx, tx, email)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 	email.ID = emailID
 
 	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -259,7 +261,7 @@ func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) err
 
 	forwardEmail, err := s.GetEmailByID(ctx, getEmail)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	email := models.Email{
@@ -270,18 +272,18 @@ func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) err
 
 	emailID, err := s.repo.SaveEmailWithTx(ctx, tx, email)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 	email.ID = emailID
 
-	receiverIDs, err := s.resolveReceivers(ctx, input.Receivers)
+	receiverIDs, err := s.ResolveReceivers(ctx, input.Receivers)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	if err = tx.Commit(); err != nil {
@@ -310,12 +312,12 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 
 	err := s.repo.CheckEmailAccess(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	email, err := s.repo.GetEmailByID(ctx, input.EmailID)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 	return &GetEmailResult{
 		ID:              email.ID,
@@ -335,7 +337,7 @@ type DeleteEmailInput struct {
 func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailInput) error {
 	exists, err := s.repo.CheckUserEmailExists(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	if !exists {
@@ -344,7 +346,7 @@ func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailI
 
 	err = s.repo.DeleteEmailForReceiver(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
@@ -353,7 +355,7 @@ func (s *Service) DeleteEmailForReceiver(ctx context.Context, input DeleteEmailI
 func (s *Service) DeleteEmailForSender(ctx context.Context, input DeleteEmailInput) error {
 	err := s.repo.DeleteEmailForSender(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
@@ -367,7 +369,7 @@ type MarkAsReadInput struct {
 func (s *Service) MarkEmailAsRead(ctx context.Context, input MarkAsReadInput) error {
 	err := s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
@@ -376,20 +378,20 @@ func (s *Service) MarkEmailAsRead(ctx context.Context, input MarkAsReadInput) er
 func (s *Service) MarkEmailAsUnRead(ctx context.Context, input MarkAsReadInput) error {
 	err := s.repo.MarkEmailAsUnRead(ctx, input.EmailID, input.UserID)
 	if err != nil {
-		return mapRepositoryError(err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
 }
 
-func (s *Service) resolveReceivers(ctx context.Context, receiverEmails []string) ([]int64, error) {
+func (s *Service) ResolveReceivers(ctx context.Context, receiverEmails []string) ([]int64, error) {
 	if len(receiverEmails) == 0 {
 		return nil, ErrNoValidReceivers
 	}
 
 	users, err := s.repo.GetUsersByEmails(ctx, receiverEmails)
 	if err != nil {
-		return nil, mapRepositoryError(err)
+		return nil, MapRepositoryError(err)
 	}
 
 	if len(users) == 0 {
@@ -404,7 +406,7 @@ func (s *Service) resolveReceivers(ctx context.Context, receiverEmails []string)
 	return receiverIDs, nil
 }
 
-func mapRepositoryError(err error) error {
+func MapRepositoryError(err error) error {
 	switch {
 	case errors.Is(err, repository.ErrDuplicate):
 		return ErrConflict

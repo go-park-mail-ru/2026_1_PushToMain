@@ -1,3 +1,5 @@
+//go:generate mockgen -destination=../../../../../mocks/app/user/mock_user_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http Service
+
 package http
 
 import (
@@ -50,6 +52,12 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logger.Errorf("failed to get claims from context: %v", err)
 		response.InternalError(w)
+		return
+	}
+
+	if claims.UserId <= 0 {
+		logger.Warnf("Invalid user ID in claims: %d", claims.UserId)
+		response.BadRequest(w)
 		return
 	}
 

@@ -1,3 +1,5 @@
+//go:generate mockgen -destination=../../../../../mocks/app/email/mock_email_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http Service
+
 package handler
 
 import (
@@ -107,7 +109,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 
 func (req *SendEmailRequest) Validate() bool {
 
-	if len(req.Receivers) == 0 {
+	if len(req.Receivers) == 0 || req.Header == "" || req.Body == "" {
 		return false
 	}
 	for _, receiver := range req.Receivers {
@@ -144,13 +146,29 @@ func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-
 	var req ForwardEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
+
+	if req.EmailID <= 0 {
+		logger.Warn("invalid email_id")
+		response.BadRequest(w)
+		return
+	}
+	if payload.UserId <= 0 {
+		logger.Warn("invalid user_id")
+		response.BadRequest(w)
+		return
+	}
+	if len(req.Receivers) == 0 {
+		logger.Warn("empty receivers list")
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Forwarding email, user_id=%d, email_id=%d, receivers_count=%d",
 		payload.UserId, req.EmailID, len(req.Receivers))
 
@@ -433,7 +451,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
+	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)
 		response.BadRequest(w)
 		return
@@ -520,6 +538,12 @@ func (handler *Handler) DeleteEmailForReceiver(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Deleting email for receiver, user_id=%d, email_id=%d",
 		payload.UserId, req.EmailID)
 
@@ -581,6 +605,12 @@ func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	logger.Debugf("Deleting email for sender, user_id=%d, email_id=%d",
 		payload.UserId, req.EmailID)
 
@@ -622,6 +652,13 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 		response.InternalError(w)
 		return
 	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)
@@ -677,6 +714,13 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 		response.InternalError(w)
 		return
 	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)

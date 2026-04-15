@@ -43,14 +43,15 @@ func Ping(db *sql.DB) error {
 	return nil
 }
 
-func New(cfg Config) (*sql.DB, error) {
-	dsn := cfg.ToDSN()
-	db, err := sql.Open("pgx", dsn)
-	if err != nil {
-		return nil, err
-	}
+type Opener func(driverName, dataSourceName string) (*sql.DB, error)
 
-	return db, nil
+func NewWithOpener(cfg Config, opener Opener) (*sql.DB, error) {
+	dsn := cfg.ToDSN()
+	return opener("pgx", dsn)
+}
+
+func New(cfg Config) (*sql.DB, error) {
+	return NewWithOpener(cfg, sql.Open)
 }
 
 func RunMigrations(cfg Config) error {
