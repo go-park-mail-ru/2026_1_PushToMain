@@ -276,26 +276,6 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseCommonErrors(err error, w http.ResponseWriter) {
-	switch {
-
-	case errors.Is(err, service.ErrUserNotFound):
-		response.NotFound(w)
-
-	case errors.Is(err, service.ErrWrongPassword):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrUserAlreadyExists):
-		response.StatusConflict(w)
-
-	case errors.Is(err, service.ErrWrongPassword):
-		response.Unauthorized(w)
-
-	default:
-		response.InternalError(w)
-	}
-}
-
 type csrfResponse struct {
 	Token string `json:"csrf_token"`
 }

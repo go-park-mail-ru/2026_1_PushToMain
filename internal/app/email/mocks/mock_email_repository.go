@@ -143,10 +143,10 @@ func (mr *MockRepositoryMockRecorder) DeleteEmailForSender(ctx, emailID, userID 
 }
 
 // GetEmailByID mocks base method.
-func (m *MockRepository) GetEmailByID(ctx context.Context, emailID int64) (*models.Email, error) {
+func (m *MockRepository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEmailByID", ctx, emailID)
-	ret0, _ := ret[0].(*models.Email)
+	ret0, _ := ret[0].(*models.EmailWithAvatar)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -259,6 +259,20 @@ func (m *MockRepository) MarkEmailAsRead(ctx context.Context, emailID, userID in
 func (mr *MockRepositoryMockRecorder) MarkEmailAsRead(ctx, emailID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsRead", reflect.TypeOf((*MockRepository)(nil).MarkEmailAsRead), ctx, emailID, userID)
+}
+
+// MarkEmailAsUnRead mocks base method.
+func (m *MockRepository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkEmailAsUnRead", ctx, emailID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkEmailAsUnRead indicates an expected call of MarkEmailAsUnRead.
+func (mr *MockRepositoryMockRecorder) MarkEmailAsUnRead(ctx, emailID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsUnRead", reflect.TypeOf((*MockRepository)(nil).MarkEmailAsUnRead), ctx, emailID, userID)
 }
 
 // SaveEmail mocks base method.

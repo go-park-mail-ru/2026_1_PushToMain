@@ -283,20 +283,24 @@ func TestService_GetEmailByID(t *testing.T) {
 					Return(nil)
 				m.EXPECT().
 					GetEmailByID(gomock.Any(), int64(1)).
-					Return(&models.Email{
-						ID:        1,
-						SenderID:  100,
-						Header:    "Subject",
-						Body:      "Body",
-						CreatedAt: now,
+					Return(&models.EmailWithAvatar{
+						Email: models.Email{
+							ID:        1,
+							SenderID:  100,
+							Header:    "Subject",
+							Body:      "Body",
+							CreatedAt: now,
+						},
+						SenderImagePath: "/avatars/100.jpg",
 					}, nil)
 			},
 			expected: &GetEmailResult{
-				ID:        1,
-				SenderID:  100,
-				Header:    "Subject",
-				Body:      "Body",
-				CreatedAt: now,
+				ID:              1,
+				SenderID:        100,
+				Header:          "Subject",
+				Body:            "Body",
+				CreatedAt:       now,
+				SenderImagePath: "/avatars/100.jpg",
 			},
 			expectedError: nil,
 		},
@@ -523,56 +527,31 @@ func TestService_MarkEmailAsRead(t *testing.T) {
 			},
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().
-					GetEmailByID(gomock.Any(), int64(1)).
-					Return(&models.Email{SenderID: 123}, nil)
-				m.EXPECT().
 					MarkEmailAsRead(gomock.Any(), int64(1), int64(123)).
 					Return(nil)
 			},
 			expectedError: nil,
 		},
 		{
-			name: "access denied (user not sender)",
+			name: "repository error - not found",
 			input: MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
 			setupMock: func(m *mocks.MockRepository) {
 				m.EXPECT().
-					GetEmailByID(gomock.Any(), int64(1)).
-					Return(&models.Email{SenderID: 999}, nil)
-				m.EXPECT().
-					MarkEmailAsRead(gomock.Any(), gomock.Any(), gomock.Any()).
-					Times(0)
-			},
-			expectedError: ErrAccessDenied,
-		},
-		{
-			name: "GetEmailByID error",
-			input: MarkAsReadInput{
-				UserID:  123,
-				EmailID: 1,
-			},
-			setupMock: func(m *mocks.MockRepository) {
-				m.EXPECT().
-					GetEmailByID(gomock.Any(), int64(1)).
-					Return(nil, repository.ErrMailNotFound)
-				m.EXPECT().
-					MarkEmailAsRead(gomock.Any(), gomock.Any(), gomock.Any()).
-					Times(0)
+					MarkEmailAsRead(gomock.Any(), int64(1), int64(123)).
+					Return(repository.ErrMailNotFound)
 			},
 			expectedError: ErrEmailNotFound,
 		},
 		{
-			name: "MarkEmailAsRead error",
+			name: "repository error - query fail",
 			input: MarkAsReadInput{
 				UserID:  123,
 				EmailID: 1,
 			},
 			setupMock: func(m *mocks.MockRepository) {
-				m.EXPECT().
-					GetEmailByID(gomock.Any(), int64(1)).
-					Return(&models.Email{SenderID: 123}, nil)
 				m.EXPECT().
 					MarkEmailAsRead(gomock.Any(), int64(1), int64(123)).
 					Return(repository.ErrQueryFail)

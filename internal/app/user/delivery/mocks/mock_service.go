@@ -115,6 +115,20 @@ func (mr *MockServiceMockRecorder) UpdatePassword(ctx, input any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePassword", reflect.TypeOf((*MockService)(nil).UpdatePassword), ctx, input)
 }
 
+// UpdateProfile mocks base method.
+func (m *MockService) UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateProfile", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateProfile indicates an expected call of UpdateProfile.
+func (mr *MockServiceMockRecorder) UpdateProfile(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfile", reflect.TypeOf((*MockService)(nil).UpdateProfile), ctx, cmd)
+}
+
 // UploadAvatar mocks base method.
 func (m *MockService) UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error) {
 	m.ctrl.T.Helper()

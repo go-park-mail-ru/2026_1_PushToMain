@@ -48,7 +48,7 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
 
 	case errors.Is(err, service.ErrUserNotFound):
-		response.Unauthorized(w)
+		response.NotFound(w)
 
 	case errors.Is(err, service.ErrWrongPassword):
 		response.Unauthorized(w)

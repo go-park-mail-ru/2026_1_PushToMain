@@ -501,20 +501,30 @@ func TestRepository_GetEmailByID(t *testing.T) {
 		name      string
 		emailID   int64
 		mockSetup func(mock sqlmock.Sqlmock)
-		want      *models.Email
+		want      *models.EmailWithAvatar
 		wantErr   error
 	}{
 		{
-			name:    "success",
+			name:    "success with avatar",
 			emailID: 1,
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				rows := sqlmock.NewRows([]string{"id", "sender_id", "header", "body", "created_at"}).
-					AddRow(1, 2, "Subj", "Body", now)
-				mock.ExpectQuery(`SELECT id, sender_id, header, body, created_at FROM emails WHERE id = \$1`).
+				rows := sqlmock.NewRows([]string{
+					"id", "sender_id", "header", "body", "created_at", "image_path",
+				}).AddRow(1, 2, "Subj", "Body", now, "/avatars/2.jpg")
+				mock.ExpectQuery(`SELECT (.+) FROM emails e JOIN users u`).
 					WithArgs(int64(1)).
 					WillReturnRows(rows)
 			},
-			want:    &models.Email{ID: 1, SenderID: 2, Header: "Subj", Body: "Body", CreatedAt: now},
+			want: &models.EmailWithAvatar{
+				Email: models.Email{
+					ID:        1,
+					SenderID:  2,
+					Header:    "Subj",
+					Body:      "Body",
+					CreatedAt: now,
+				},
+				SenderImagePath: "/avatars/2.jpg",
+			},
 			wantErr: nil,
 		},
 		{
@@ -525,6 +535,15 @@ func TestRepository_GetEmailByID(t *testing.T) {
 			},
 			want:    nil,
 			wantErr: ErrMailNotFound,
+		},
+		{
+			name:    "database error",
+			emailID: 1,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`SELECT`).WillReturnError(errors.New("connection lost"))
+			},
+			want:    nil,
+			wantErr: ErrQueryFail,
 		},
 	}
 	for _, tt := range tests {

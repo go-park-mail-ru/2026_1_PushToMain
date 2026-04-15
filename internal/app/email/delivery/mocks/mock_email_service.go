@@ -142,6 +142,20 @@ func (mr *MockServiceMockRecorder) MarkEmailAsRead(ctx, cmd any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsRead", reflect.TypeOf((*MockService)(nil).MarkEmailAsRead), ctx, cmd)
 }
 
+// MarkEmailAsUnRead mocks base method.
+func (m *MockService) MarkEmailAsUnRead(ctx context.Context, cmd service.MarkAsReadInput) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkEmailAsUnRead", ctx, cmd)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkEmailAsUnRead indicates an expected call of MarkEmailAsUnRead.
+func (mr *MockServiceMockRecorder) MarkEmailAsUnRead(ctx, cmd any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsUnRead", reflect.TypeOf((*MockService)(nil).MarkEmailAsUnRead), ctx, cmd)
+}
+
 // SendEmail mocks base method.
 func (m *MockService) SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error) {
 	m.ctrl.T.Helper()

@@ -264,7 +264,7 @@ func TestService_UploadAvatar(t *testing.T) {
 					Return(nil)
 			},
 			expectedPath:  "",
-			expectedError: errors.New("update avatar in db: db error"),
+			expectedError: ErrUpdateAvatar,
 		},
 		{
 			name: "DB update fails, S3 rollback also fails",
@@ -285,7 +285,7 @@ func TestService_UploadAvatar(t *testing.T) {
 					Return(errors.New("s3 delete error"))
 			},
 			expectedPath:  "",
-			expectedError: errors.New("update avatar in db: db error; also failed to rollback s3: s3 delete error"),
+			expectedError: errors.New("s3 delete error"),
 		},
 	}
 
@@ -303,7 +303,7 @@ func TestService_UploadAvatar(t *testing.T) {
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.True(t, errors.Is(err, tt.expectedError) || err.Error() == tt.expectedError.Error())
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedPath, path)
@@ -331,9 +331,7 @@ func TestService_SignUp(t *testing.T) {
 			setupMock: func(dbRepo *mocks.MockDbRepository, jwt *mocks.MockJWTManager) {
 				dbRepo.EXPECT().
 					FindByEmail(gomock.Any(), "new@example.com").
-					DoAndReturn(func(_ context.Context, _ string) (*models.User, error) {
-						return nil, db.ErrUserNotFound
-					})
+					Return(nil, db.ErrUserNotFound)
 				dbRepo.EXPECT().
 					Save(gomock.Any(), gomock.Any()).
 					Return(int64(456), nil)
@@ -372,7 +370,7 @@ func TestService_SignUp(t *testing.T) {
 				dbRepo.EXPECT().Save(gomock.Any(), gomock.Any()).Times(0)
 			},
 			expectedToken: "",
-			expectedError: errors.New("failed to find user: db connection lost"),
+			expectedError: errors.New("db connection lost"),
 		},
 		{
 			name: "Save fails",
@@ -383,16 +381,14 @@ func TestService_SignUp(t *testing.T) {
 			setupMock: func(dbRepo *mocks.MockDbRepository, jwt *mocks.MockJWTManager) {
 				dbRepo.EXPECT().
 					FindByEmail(gomock.Any(), "new@example.com").
-					DoAndReturn(func(_ context.Context, _ string) (*models.User, error) {
-						return nil, db.ErrUserNotFound
-					})
+					Return(nil, db.ErrUserNotFound)
 				dbRepo.EXPECT().
 					Save(gomock.Any(), gomock.Any()).
 					Return(int64(0), errors.New("duplicate key"))
 				jwt.EXPECT().GenerateJWT(gomock.Any()).Times(0)
 			},
 			expectedToken: "",
-			expectedError: errors.New("failed to save user: duplicate key"),
+			expectedError: errors.New("duplicate key"),
 		},
 		{
 			name: "JWT generation fails",
@@ -403,9 +399,7 @@ func TestService_SignUp(t *testing.T) {
 			setupMock: func(dbRepo *mocks.MockDbRepository, jwt *mocks.MockJWTManager) {
 				dbRepo.EXPECT().
 					FindByEmail(gomock.Any(), "new@example.com").
-					DoAndReturn(func(_ context.Context, _ string) (*models.User, error) {
-						return nil, db.ErrUserNotFound
-					})
+					Return(nil, db.ErrUserNotFound)
 				dbRepo.EXPECT().
 					Save(gomock.Any(), gomock.Any()).
 					Return(int64(456), nil)
@@ -414,7 +408,7 @@ func TestService_SignUp(t *testing.T) {
 					Return("", errors.New("jwt signing error"))
 			},
 			expectedToken: "",
-			expectedError: errors.New("failed to generate jwt: jwt signing error"),
+			expectedError: errors.New("jwt signing error"),
 		},
 	}
 
@@ -432,7 +426,7 @@ func TestService_SignUp(t *testing.T) {
 
 			if tt.expectedError != nil {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.expectedError.Error())
+				assert.True(t, errors.Is(err, tt.expectedError) || strings.Contains(err.Error(), tt.expectedError.Error()))
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedToken, token)
@@ -523,7 +517,7 @@ func TestService_SignIn(t *testing.T) {
 					Return("", errors.New("jwt error"))
 			},
 			expectedToken: "",
-			expectedError: errors.New("failed to generate jwt: jwt error"),
+			expectedError: errors.New("jwt error"),
 		},
 	}
 
@@ -576,6 +570,63 @@ func Test_mapRepositoryError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := mapRepositoryError(tt.err)
 			assert.True(t, errors.Is(result, tt.expected))
+		})
+	}
+}
+
+func TestService_UpdateProfile(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         UpdateProfileInput
+		setupMock     func(*mocks.MockDbRepository)
+		expectedError error
+	}{
+		{
+			name: "success",
+			input: UpdateProfileInput{
+				UserID:  123,
+				Name:    "John",
+				Surname: "Doe",
+			},
+			setupMock: func(db *mocks.MockDbRepository) {
+				db.EXPECT().
+					UpdateProfile(gomock.Any(), int64(123), "John", "Doe").
+					Return(nil)
+			},
+			expectedError: nil,
+		},
+		{
+			name: "repository error",
+			input: UpdateProfileInput{
+				UserID:  123,
+				Name:    "John",
+				Surname: "Doe",
+			},
+			setupMock: func(db *mocks.MockDbRepository) {
+				db.EXPECT().
+					UpdateProfile(gomock.Any(), int64(123), "John", "Doe").
+					Return(ErrUserNotFound)
+			},
+			expectedError: ErrUserNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockDB := mocks.NewMockDbRepository(ctrl)
+			tt.setupMock(mockDB)
+
+			s := New(mockDB, nil, nil)
+			err := s.UpdateProfile(context.Background(), tt.input)
+			if tt.expectedError != nil {
+				assert.Error(t, err)
+				assert.True(t, errors.Is(err, tt.expectedError))
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }
