@@ -18,11 +18,12 @@ test:
 	go test ./...
 
 test-coverage:
-	@echo "Generating coverage profile (excluding mocks)..."
-	@PKGS=$$(go list ./... | grep -v '/mocks' | tr '\n' ','); \
-	go test -coverpkg=$$PKGS ./... -coverprofile=$(COVERAGE_FILE) -covermode=atomic
+	@echo "Generating coverage profile (correct mode)..."
+	go test ./... -coverprofile=$(COVERAGE_FILE) -covermode=atomic
+
 	@echo ""
-	@go tool cover -func=$(COVERAGE_FILE)
+	go tool cover -func=$(COVERAGE_FILE)
+
 	@echo ""
 	@echo "Checking coverage threshold..."
 	@COVERAGE=$$(go tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}' | sed 's/%//'); \

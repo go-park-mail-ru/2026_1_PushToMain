@@ -451,7 +451,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
+	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)
 		response.BadRequest(w)
 		return
