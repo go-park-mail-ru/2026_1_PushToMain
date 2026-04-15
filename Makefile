@@ -18,14 +18,22 @@ test:
 	go test ./...
 
 test-coverage:
-	@echo "Generating coverage profile (correct mode)..."
-	go test ./... -coverprofile=$(COVERAGE_FILE) -covermode=atomic
+	@echo "Generating coverage profile (excluding mocks)..."
+
+	@PKGS=$$(go list ./... | grep -v '/mocks'); \
+	go test $$PKGS -coverprofile=$(COVERAGE_FILE) -covermode=atomic
 
 	@echo ""
-	go tool cover -func=$(COVERAGE_FILE)
+	@echo "Full coverage (filtered output)..."
+
+	@go tool cover -func=$(COVERAGE_FILE) | grep -v '/mocks/' | grep -v 'total:'; \
+	echo ""; \
+	echo "TOTAL:"; \
+	go tool cover -func=$(COVERAGE_FILE) | grep total
 
 	@echo ""
 	@echo "Checking coverage threshold..."
+
 	@COVERAGE=$$(go tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}' | sed 's/%//'); \
 	if [ $$(echo "$$COVERAGE < $(COVERAGE_THRESHOLD)" | bc) -eq 1 ]; then \
 		echo "❌ Coverage $$COVERAGE% is below $(COVERAGE_THRESHOLD)%"; \
