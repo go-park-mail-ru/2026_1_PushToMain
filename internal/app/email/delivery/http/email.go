@@ -64,7 +64,7 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req SendEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Header == "" || req.Body == "" {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
@@ -714,6 +714,13 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 		response.InternalError(w)
 		return
 	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
 		logger.Warnf("Invalid url %v", err)

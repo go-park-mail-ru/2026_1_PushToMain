@@ -528,66 +528,173 @@ func TestHandler_SendEmail(t *testing.T) {
 
 	tests := []struct {
 		name             string
+		userID           int64
+		skipClaims       bool
 		requestBody      interface{}
-		setupMock        func(m *mocks.MockService)
+		setupMock        func(*mocks.MockService)
 		expectedStatus   int
 		expectedResponse *SendEmailResponse
 	}{
 		{
-			name: "successful send email",
+			name:   "successful send email",
+			userID: 123,
 			requestBody: SendEmailRequest{
-				Header:    "test subject",
-				Body:      "test message",
+				Header:    "Hello",
+				Body:      "World",
 				Receivers: []string{"foo@smail.ru", "bar@smail.ru"},
 			},
 			setupMock: func(m *mocks.MockService) {
 				m.EXPECT().
 					SendEmail(gomock.Any(), service.SendEmailInput{
 						UserId:    123,
-						Header:    "test subject",
-						Body:      "test message",
+						Header:    "Hello",
+						Body:      "World",
 						Receivers: []string{"foo@smail.ru", "bar@smail.ru"},
 					}).
 					Return(&service.SendEmailResult{
-						ID:        1,
+						ID:        10,
 						SenderID:  123,
-						Header:    "test subject",
-						Body:      "test message",
+						Header:    "Hello",
+						Body:      "World",
 						CreatedAt: now,
 					}, nil)
 			},
 			expectedStatus: http.StatusOK,
 			expectedResponse: &SendEmailResponse{
-				ID:        1,
+				ID:        10,
 				SenderID:  123,
-				Header:    "test subject",
-				Body:      "test message",
+				Header:    "Hello",
+				Body:      "World",
 				CreatedAt: now,
 			},
 		},
 		{
-			name: "service error",
-			requestBody: SendEmailRequest{
-				Header:    "test subject",
-				Body:      "test message",
-				Receivers: []string{"foo@smail.ru", "bar@smail.ru"},
-			},
+			name:        "missing claims",
+			skipClaims:  true,
+			requestBody: SendEmailRequest{},
 			setupMock: func(m *mocks.MockService) {
-				m.EXPECT().
-					SendEmail(gomock.Any(), service.SendEmailInput{
-						UserId:    123,
-						Header:    "test subject",
-						Body:      "test message",
-						Receivers: []string{"foo@smail.ru", "bar@smail.ru"},
-					}).
-					Return(nil, context.DeadlineExceeded)
+				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
 			},
 			expectedStatus: http.StatusInternalServerError,
 		},
 		{
-			name: "missing claims",
+			name:        "malformed JSON body",
+			userID:      123,
+			requestBody: `{"header": "Hello", "body": "World", "receivers": [}`,
 			setupMock: func(m *mocks.MockService) {
 				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "validation failure - empty header",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "",
+				Body:      "World",
+				Receivers: []string{"foo@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "validation failure - empty body",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "",
+				Receivers: []string{"foo@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "validation failure - empty receivers",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "validation failure - invalid email format",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{"not-an-email"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().SendEmail(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:   "service error - email not found (should not happen for send, but tested)",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{"foo@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SendEmail(gomock.Any(), gomock.Any()).
+					Return(nil, service.ErrEmailNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:   "service error - access denied",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{"foo@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SendEmail(gomock.Any(), gomock.Any()).
+					Return(nil, service.ErrAccessDenied)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:   "service error - no valid receivers",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{"unknown@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SendEmail(gomock.Any(), gomock.Any()).
+					Return(nil, service.ErrNoValidReceivers)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:   "service error - internal error",
+			userID: 123,
+			requestBody: SendEmailRequest{
+				Header:    "Hello",
+				Body:      "World",
+				Receivers: []string{"foo@smail.ru"},
+			},
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					SendEmail(gomock.Any(), gomock.Any()).
+					Return(nil, context.DeadlineExceeded)
 			},
 			expectedStatus: http.StatusInternalServerError,
 		},
@@ -605,14 +712,24 @@ func TestHandler_SendEmail(t *testing.T) {
 
 			var body bytes.Buffer
 			if tt.requestBody != nil {
-				if err := json.NewEncoder(&body).Encode(tt.requestBody); err != nil {
-					t.Fatalf("failed to encode request body: %v", err)
+				switch v := tt.requestBody.(type) {
+				case string:
+					body.WriteString(v)
+				default:
+					if err := json.NewEncoder(&body).Encode(v); err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
 
 			req := httptest.NewRequest(http.MethodPost, "/api/v1/send", &body)
-			if tt.name != "missing claims" {
-				payload := &utils.JwtPayload{UserId: 123, Exp: time.Now().Add(time.Hour).Unix()}
+			req.Header.Set("Content-Type", "application/json")
+
+			if !tt.skipClaims {
+				payload := &utils.JwtPayload{
+					UserId: tt.userID,
+					Exp:    time.Now().Add(time.Hour).Unix(),
+				}
 				ctx := context.WithValue(req.Context(), middleware.ClaimsKey, payload)
 				req = req.WithContext(ctx)
 			}
@@ -624,7 +741,7 @@ func TestHandler_SendEmail(t *testing.T) {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
 			}
 
-			if tt.expectedStatus == http.StatusOK && tt.expectedResponse != nil {
+			if tt.expectedResponse != nil {
 				var resp SendEmailResponse
 				if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
 					t.Fatalf("failed to decode response: %v", err)
@@ -636,10 +753,10 @@ func TestHandler_SendEmail(t *testing.T) {
 					t.Errorf("expected SenderID %d, got %d", tt.expectedResponse.SenderID, resp.SenderID)
 				}
 				if resp.Header != tt.expectedResponse.Header {
-					t.Errorf("expected Header %s, got %s", tt.expectedResponse.Header, resp.Header)
+					t.Errorf("expected Header %q, got %q", tt.expectedResponse.Header, resp.Header)
 				}
 				if resp.Body != tt.expectedResponse.Body {
-					t.Errorf("expected Body %s, got %s", tt.expectedResponse.Body, resp.Body)
+					t.Errorf("expected Body %q, got %q", tt.expectedResponse.Body, resp.Body)
 				}
 				if !resp.CreatedAt.Equal(tt.expectedResponse.CreatedAt) {
 					t.Errorf("expected CreatedAt %v, got %v", tt.expectedResponse.CreatedAt, resp.CreatedAt)
@@ -1865,6 +1982,205 @@ func TestHandler_MarkEmailAsRead_InvalidClaimsType(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	handler.MarkEmailAsRead(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)
+	}
+}
+
+func TestHandler_MarkEmailAsUnRead(t *testing.T) {
+	tests := []struct {
+		name           string
+		emailID        string
+		userID         int64
+		skipClaims     bool
+		setupMock      func(*mocks.MockService)
+		expectedStatus int
+	}{
+		{
+			name:       "successful mark as unread",
+			emailID:    "1",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{
+						UserID:  123,
+						EmailID: 1,
+					}).
+					Return(nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:       "email not found",
+			emailID:    "999",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{
+						UserID:  123,
+						EmailID: 999,
+					}).
+					Return(service.ErrEmailNotFound)
+			},
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:       "access denied",
+			emailID:    "2",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{
+						UserID:  123,
+						EmailID: 2,
+					}).
+					Return(service.ErrAccessDenied)
+			},
+			expectedStatus: http.StatusForbidden,
+		},
+		{
+			name:       "service internal error",
+			emailID:    "3",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{
+						UserID:  123,
+						EmailID: 3,
+					}).
+					Return(context.DeadlineExceeded)
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "invalid email ID format",
+			emailID:    "abc",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid URL path - too short",
+			emailID:    "",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "missing JWT claims",
+			emailID:    "1",
+			userID:     0,
+			skipClaims: true,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:       "invalid user ID - zero",
+			emailID:    "1",
+			userID:     0,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "invalid user ID - negative",
+			emailID:    "1",
+			userID:     -5,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "large email ID",
+			emailID:    "9223372036854775807",
+			userID:     123,
+			skipClaims: false,
+			setupMock: func(m *mocks.MockService) {
+				m.EXPECT().
+					MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{
+						UserID:  123,
+						EmailID: 9223372036854775807,
+					}).
+					Return(nil)
+			},
+			expectedStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockService := mocks.NewMockService(ctrl)
+			tt.setupMock(mockService)
+
+			handler := &Handler{service: mockService}
+
+			url := "/api/v1/emails/" + tt.emailID + "/unread"
+			req := httptest.NewRequest(http.MethodPut, url, nil)
+
+			if tt.emailID != "" && tt.name != "invalid URL path - too short" {
+				req = mux.SetURLVars(req, map[string]string{"id": tt.emailID})
+			}
+			if tt.name == "invalid URL path - too short" {
+				// simulate a malformed URL without the email ID part
+				req = httptest.NewRequest(http.MethodPut, "/api/v1/emails", nil)
+			}
+
+			if !tt.skipClaims {
+				payload := &utils.JwtPayload{
+					UserId: tt.userID,
+					Exp:    time.Now().Add(time.Hour).Unix(),
+				}
+				ctx := context.WithValue(req.Context(), middleware.ClaimsKey, payload)
+				req = req.WithContext(ctx)
+			}
+
+			w := httptest.NewRecorder()
+			handler.MarkEmailAsUnRead(w, req)
+
+			if w.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, w.Code)
+			}
+		})
+	}
+}
+
+func TestHandler_MarkEmailAsUnRead_InvalidClaimsType(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockService := mocks.NewMockService(ctrl)
+	mockService.EXPECT().MarkEmailAsUnRead(gomock.Any(), gomock.Any()).Times(0)
+
+	handler := &Handler{service: mockService}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/emails/1/unread", nil)
+	req = mux.SetURLVars(req, map[string]string{"id": "1"})
+
+	ctx := context.WithValue(req.Context(), middleware.ClaimsKey, "invalid claims type")
+	req = req.WithContext(ctx)
+
+	w := httptest.NewRecorder()
+	handler.MarkEmailAsUnRead(w, req)
 
 	if w.Code != http.StatusInternalServerError {
 		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, w.Code)

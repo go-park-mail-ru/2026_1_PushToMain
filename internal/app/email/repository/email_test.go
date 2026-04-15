@@ -982,6 +982,88 @@ func TestRepository_CheckEmailAccess(t *testing.T) {
 	}
 }
 
+func TestRepository_MarkEmailAsUnRead(t *testing.T) {
+	tests := []struct {
+		name      string
+		emailID   int64
+		userID    int64
+		mockSetup func(mock sqlmock.Sqlmock)
+		wantErr   error
+	}{
+		{
+			name:    "success",
+			emailID: 1,
+			userID:  2,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				// Existence check returns true
+				mock.ExpectQuery(`SELECT EXISTS\(SELECT 1 FROM user_emails WHERE email_id = \$1 AND receiver_id = \$2\)`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+				// Update query
+				mock.ExpectExec(`UPDATE user_emails SET is_read = false, updated_at = NOW\(\) WHERE email_id = \$1 AND receiver_id = \$2 AND is_read = true`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnResult(sqlmock.NewResult(0, 1))
+			},
+			wantErr: nil,
+		},
+		{
+			name:    "email not found",
+			emailID: 1,
+			userID:  2,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`SELECT EXISTS`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+			},
+			wantErr: ErrMailNotFound,
+		},
+		{
+			name:    "exists query error",
+			emailID: 1,
+			userID:  2,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`SELECT EXISTS`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnError(errors.New("db error"))
+			},
+			wantErr: ErrQueryFail,
+		},
+		{
+			name:    "update execution error",
+			emailID: 1,
+			userID:  2,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				mock.ExpectQuery(`SELECT EXISTS`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+				mock.ExpectExec(`UPDATE user_emails`).
+					WithArgs(int64(1), int64(2)).
+					WillReturnError(errors.New("update failed"))
+			},
+			wantErr: ErrQueryFail,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer db.Close()
+
+			repo := &Repository{db: db}
+			tt.mockSetup(mock)
+
+			err = repo.MarkEmailAsUnRead(context.Background(), tt.emailID, tt.userID)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestRepository_BeginTx(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
