@@ -76,6 +76,7 @@ type EmailResult struct {
 	SenderEmail   string
 	SenderName    string
 	SenderSurname string
+	ReceiverList  []string
 	Header        string
 	Body          string
 	CreatedAt     time.Time
@@ -109,6 +110,7 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 			SenderEmail:   user.Email,
 			SenderName:    user.Name,
 			SenderSurname: user.Surname,
+			ReceiverList:  email.ReceiversEmails,
 			Header:        email.Header,
 			Body:          email.Body,
 			CreatedAt:     email.CreatedAt,

@@ -206,6 +206,7 @@ type EmailResponse struct {
 	SenderEmail   string    `json:"sender_email"`
 	SenderName    string    `json:"sender_name"`
 	SenderSurname string    `json:"sender_surname"`
+	ReceiverList  []string  `json:"receiver_list"`
 	Header        string    `json:"header"`
 	Body          string    `json:"body"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -285,6 +286,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 			SenderEmail:   email.SenderEmail,
 			SenderName:    email.SenderName,
 			SenderSurname: email.SenderSurname,
+			ReceiverList:  email.ReceiverList,
 			Header:        email.Header,
 			Body:          email.Body,
 			CreatedAt:     email.CreatedAt,
