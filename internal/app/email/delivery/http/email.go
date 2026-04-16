@@ -202,12 +202,14 @@ func (req *ForwardEmailRequest) Validate() bool {
 }
 
 type EmailResponse struct {
-	ID        int64     `json:"id"`
-	SenderID  int64     `json:"sender_id"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-	IsRead    bool      `json:"is_read"`
+	ID            int64     `json:"id"`
+	SenderEmail   string    `json:"sender_email"`
+	SenderName    string    `json:"sender_name"`
+	SenderSurname string    `json:"sender_surname"`
+	Header        string    `json:"header"`
+	Body          string    `json:"body"`
+	CreatedAt     time.Time `json:"created_at"`
+	IsRead        bool      `json:"is_read"`
 }
 
 type GetEmailsResponse struct {
@@ -279,12 +281,14 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	emails := make([]EmailResponse, len(result.Emails))
 	for i, email := range result.Emails {
 		emails[i] = EmailResponse{
-			ID:        email.ID,
-			SenderID:  email.SenderID,
-			Header:    email.Header,
-			Body:      email.Body,
-			CreatedAt: email.CreatedAt,
-			IsRead:    email.IsRead,
+			ID:            email.ID,
+			SenderEmail:   email.SenderEmail,
+			SenderName:    email.SenderName,
+			SenderSurname: email.SenderSurname,
+			Header:        email.Header,
+			Body:          email.Body,
+			CreatedAt:     email.CreatedAt,
+			IsRead:        email.IsRead,
 		}
 	}
 
@@ -414,6 +418,9 @@ func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 type GetEmailResponse struct {
 	ID              int64     `json:"id"`
 	SenderID        int64     `json:"sender_id"`
+	SenderEmail     string    `json:"sender_email"`
+	SenderName      string    `json:"sender_name"`
+	SenderSurname   string    `json:"sender_surname"`
 	Header          string    `json:"header"`
 	Body            string    `json:"body"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -480,6 +487,9 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	resp := GetEmailResponse{
 		ID:              result.ID,
 		SenderID:        result.SenderID,
+		SenderEmail:     result.SenderEmail,
+		SenderName:      result.SenderName,
+		SenderSurname:   result.SenderSurname,
 		Header:          result.Header,
 		Body:            result.Body,
 		CreatedAt:       result.CreatedAt,

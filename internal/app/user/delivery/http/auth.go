@@ -25,6 +25,7 @@ type Service interface {
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
 	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
+	
 }
 
 type SignUpRequest struct {
