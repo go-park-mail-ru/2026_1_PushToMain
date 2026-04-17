@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
+	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 )
 
 var (
@@ -47,11 +48,12 @@ type Repository interface {
 }
 
 type Service struct {
-	repo Repository
+	repo        Repository
+	userService *userService.Service
 }
 
-func New(repo Repository) *Service {
-	return &Service{repo: repo}
+func New(repo Repository, userService *userService.Service) *Service {
+	return &Service{repo: repo, userService: userService}
 }
 
 type GetEmailsInput struct {
@@ -69,12 +71,16 @@ type GetEmailsResult struct {
 }
 
 type EmailResult struct {
-	ID        int64
-	SenderID  int64
-	Header    string
-	Body      string
-	CreatedAt time.Time
-	IsRead    bool
+	ID            int64
+	SenderID      int64
+	SenderEmail   string
+	SenderName    string
+	SenderSurname string
+	ReceiverList  []string
+	Header        string
+	Body          string
+	CreatedAt     time.Time
+	IsRead        bool
 }
 
 func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput) (*GetEmailsResult, error) {
@@ -95,13 +101,20 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, input GetEmailsInput)
 
 	resultEmails := make([]EmailResult, len(emails))
 	for i, email := range emails {
+		user, err := s.userService.GetMe(ctx, email.SenderID)
+		if err != nil {
+			return nil, userService.MapRepositoryError(err)
+		}
 		resultEmails[i] = EmailResult{
-			ID:        email.ID,
-			SenderID:  email.SenderID,
-			Header:    email.Header,
-			Body:      email.Body,
-			CreatedAt: email.CreatedAt,
-			IsRead:    email.IsRead,
+			ID:            email.ID,
+			SenderEmail:   user.Email,
+			SenderName:    user.Name,
+			SenderSurname: user.Surname,
+			ReceiverList:  email.ReceiversEmails,
+			Header:        email.Header,
+			Body:          email.Body,
+			CreatedAt:     email.CreatedAt,
+			IsRead:        email.IsRead,
 		}
 	}
 
@@ -302,6 +315,9 @@ type GetEmailInput struct {
 type GetEmailResult struct {
 	ID              int64
 	SenderID        int64
+	SenderEmail     string
+	SenderName      string
+	SenderSurname   string
 	Header          string
 	Body            string
 	CreatedAt       time.Time
@@ -319,9 +335,17 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
+	user, err := s.userService.GetMe(ctx, email.SenderID)
+	if err != nil {
+		return nil, userService.MapRepositoryError(err)
+	}
 	return &GetEmailResult{
 		ID:              email.ID,
 		SenderID:        email.SenderID,
+		SenderEmail:     user.Email,
+		SenderName:      user.Name,
+		SenderSurname:   user.Surname,
 		Header:          email.Header,
 		Body:            email.Body,
 		CreatedAt:       email.CreatedAt,

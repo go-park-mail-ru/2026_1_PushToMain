@@ -52,7 +52,7 @@ func (r *Repository) GetUsersByEmails(ctx context.Context, emails []string) ([]*
 
 	query := fmt.Sprintf(`
 		SELECT id, email, name, surname
-		FROM users 
+		FROM users
 		WHERE email IN (%s)
 	`, strings.Join(placeholders, ", "))
 
@@ -183,7 +183,7 @@ func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, em
 	}
 
 	placeholders := make([]string, len(receiverIDs))
-	args := make([]interface{}, 0, len(receiverIDs)*2)
+	args := make([]any, 0, len(receiverIDs)*2)
 
 	for i, receiverID := range receiverIDs {
 		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
@@ -221,19 +221,36 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	}
 
 	query := `
-        SELECT 
-            e.id,
-            e.sender_id,
-            e.header,
-            e.body,
-            e.created_at,
-            ue.is_read,
-            ue.created_at as received_at
-        FROM emails e
-        JOIN user_emails ue ON e.id = ue.email_id
-        WHERE ue.receiver_id = $1
-        ORDER BY ue.created_at DESC
-        LIMIT $2 OFFSET $3
+    	WITH paginated_emails AS (
+            SELECT
+                e.id,
+                e.sender_id,
+                e.header,
+                e.body,
+                e.created_at,
+                ue.is_read,
+                ue.created_at AS received_at
+            FROM user_emails ue
+            JOIN emails e ON ue.email_id = e.id
+            WHERE ue.receiver_id = $1
+            ORDER BY ue.created_at DESC
+            LIMIT $2 OFFSET $3
+        ),
+        receivers AS (
+            SELECT
+                ue.email_id,
+                array_agg(u.email ORDER BY u.id) AS receivers_emails
+            FROM user_emails ue
+            JOIN users u ON ue.receiver_id = u.id
+            WHERE ue.email_id IN (SELECT id FROM paginated_emails)
+            GROUP BY ue.email_id
+        )
+        SELECT
+            pe.*,
+            COALESCE(r.receivers_emails, '{}'::text[]) AS receivers_emails
+        FROM paginated_emails pe
+        LEFT JOIN receivers r ON pe.id = r.email_id
+        ORDER BY pe.received_at DESC;
     `
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
@@ -246,6 +263,8 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	for rows.Next() {
 		var email models.EmailWithMetadata
 
+		var receiversStr string
+
 		err := rows.Scan(
 			&email.ID,
 			&email.SenderID,
@@ -254,10 +273,19 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 			&email.CreatedAt,
 			&email.IsRead,
 			&email.ReceivedAt,
+			&receiversStr,
 		)
 		if err != nil {
 			return nil, err
 		}
+
+		receiversStr = strings.Trim(receiversStr, "{}")
+		var receivers []string
+		if receiversStr != "" {
+			receivers = strings.Split(receiversStr, ",")
+		}
+
+		email.ReceiversEmails = receivers
 
 		emails = append(emails, email)
 	}
@@ -278,7 +306,7 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	}
 
 	query := `
-    SELECT 
+    SELECT
         e.id,
         e.sender_id,
         e.header,
@@ -338,11 +366,11 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	query := `
-        SELECT 
-            e.id, 
-            e.sender_id, 
-            e.header, 
-            e.body, 
+        SELECT
+            e.id,
+            e.sender_id,
+            e.header,
+            e.body,
             e.created_at,
 			u.image_path
         FROM emails e
@@ -468,7 +496,7 @@ func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int6
 func (r *Repository) CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error) {
 	query := `
         SELECT EXISTS(
-            SELECT 1 FROM user_emails 
+            SELECT 1 FROM user_emails
             WHERE email_id = $1 AND receiver_id = $2
         )
     `
@@ -532,10 +560,10 @@ func (r *Repository) DeleteEmailForSender(ctx context.Context, emailID, userID i
 func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) error {
 	query := `
 		SELECT EXISTS(
-			SELECT 1 
+			SELECT 1
 			FROM emails e
 			LEFT JOIN user_emails ue ON e.id = ue.email_id
-			WHERE e.id = $1 
+			WHERE e.id = $1
 			AND (e.sender_id = $2 OR ue.receiver_id = $2)
 		)
 	`

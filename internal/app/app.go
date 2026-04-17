@@ -78,7 +78,7 @@ func (app *App) Run(configPath string) {
 	})
 
 	emailRepo := emailRepo.New(db)
-	emailService := emailService.New(emailRepo)
+	emailService := emailService.New(emailRepo, userService)
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
 
