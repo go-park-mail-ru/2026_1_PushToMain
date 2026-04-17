@@ -221,26 +221,36 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	}
 
 	query := `
+    	WITH paginated_emails AS (
+            SELECT
+                e.id,
+                e.sender_id,
+                e.header,
+                e.body,
+                e.created_at,
+                ue.is_read,
+                ue.created_at AS received_at
+            FROM user_emails ue
+            JOIN emails e ON ue.email_id = e.id
+            WHERE ue.receiver_id = $1
+            ORDER BY ue.created_at DESC
+            LIMIT $2 OFFSET $3
+        ),
+        receivers AS (
+            SELECT
+                ue.email_id,
+                array_agg(u.email ORDER BY u.id) AS receivers_emails
+            FROM user_emails ue
+            JOIN users u ON ue.receiver_id = u.id
+            WHERE ue.email_id IN (SELECT id FROM paginated_emails)
+            GROUP BY ue.email_id
+        )
         SELECT
-            e.id,
-            e.sender_id,
-            e.header,
-            e.body,
-            e.created_at,
-            ue.is_read,
-            ue.created_at as received_at,
-            COALESCE(
-                (SELECT array_agg(u.email ORDER BY u.id)
-                FROM user_emails ue2
-                JOIN users u ON ue2.receiver_id = u.id
-                WHERE ue2.email_id = e.id),
-                '{}'::text[]
-            ) AS receivers_emails
-        FROM emails e
-        JOIN user_emails ue ON e.id = ue.email_id
-        WHERE ue.receiver_id = $1
-        ORDER BY ue.created_at DESC
-        LIMIT $2 OFFSET $3
+            pe.*,
+            COALESCE(r.receivers_emails, '{}'::text[]) AS receivers_emails
+        FROM paginated_emails pe
+        LEFT JOIN receivers r ON pe.id = r.email_id
+        ORDER BY pe.received_at DESC;
     `
 
 	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
