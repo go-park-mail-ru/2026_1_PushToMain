@@ -20,6 +20,7 @@ type EmailWithMetadata struct {
 type EmailWithAvatar struct {
 	Email
 	SenderImagePath string
+	ReceiversEmails []string
 }
 
 type UserEmail struct {

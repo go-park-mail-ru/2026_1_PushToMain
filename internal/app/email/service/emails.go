@@ -322,6 +322,7 @@ type GetEmailResult struct {
 	Body            string
 	CreatedAt       time.Time
 	SenderImagePath string
+	ReceiverList    []string
 }
 
 func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEmailResult, error) {
@@ -350,6 +351,7 @@ func (s *Service) GetEmailByID(ctx context.Context, input GetEmailInput) (*GetEm
 		Body:            email.Body,
 		CreatedAt:       email.CreatedAt,
 		SenderImagePath: email.SenderImagePath,
+		ReceiverList:    email.ReceiversEmails,
 	}, nil
 }
 

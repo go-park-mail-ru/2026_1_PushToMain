@@ -366,19 +366,42 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	query := `
+        WITH email_data AS (
+            SELECT
+                e.id,
+                e.sender_id,
+                e.header,
+                e.body,
+                e.created_at,
+                COALESCE(u.image_path, '') as image_path
+            FROM emails e
+            JOIN users u ON e.sender_id = u.id
+            WHERE e.id = $1
+        ),
+        receivers AS (
+            SELECT
+                ue.email_id,
+                array_agg(u.email ORDER BY u.id) AS receivers_emails
+            FROM user_emails ue
+            JOIN users u ON ue.receiver_id = u.id
+            WHERE ue.email_id = $1
+            GROUP BY ue.email_id
+        )
         SELECT
-            e.id,
-            e.sender_id,
-            e.header,
-            e.body,
-            e.created_at,
-			u.image_path
-        FROM emails e
-        JOIN users u ON e.sender_id = u.id
-        WHERE e.id = $1
+            ed.id,
+            ed.sender_id,
+            ed.header,
+            ed.body,
+            ed.created_at,
+            ed.image_path,
+            COALESCE(r.receivers_emails, '{}'::text[]) AS receivers_emails
+        FROM email_data ed
+        LEFT JOIN receivers r ON ed.id = r.email_id
     `
 
 	var email models.EmailWithAvatar
+	var receiversStr string
+
 	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
 		&email.ID,
 		&email.SenderID,
@@ -386,10 +409,22 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 		&email.Body,
 		&email.CreatedAt,
 		&email.SenderImagePath,
+		&receiversStr,
 	)
 
 	if err != nil {
-		return nil, checkError(err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrMailNotFound
+		}
+		return nil, err
+	}
+
+	// Так же как в вашем примере
+	receiversStr = strings.Trim(receiversStr, "{}")
+	if receiversStr != "" {
+		email.ReceiversEmails = strings.Split(receiversStr, ",")
+	} else {
+		email.ReceiversEmails = []string{}
 	}
 
 	return &email, nil
