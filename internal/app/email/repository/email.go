@@ -608,6 +608,10 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	if err != nil {
 		return ErrAccessDenied
 	}
+	if !hasAccess {
+		return ErrAccessDenied
+	}
+
 	return nil
 }
 
