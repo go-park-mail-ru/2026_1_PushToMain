@@ -427,6 +427,7 @@ type GetEmailResponse struct {
 	Body            string    `json:"body"`
 	CreatedAt       time.Time `json:"created_at"`
 	SenderImagePath string    `json:"sender_image_path"`
+	ReceiverList    []string  `json:"receiver_list"`
 }
 
 // @Summary      Получить письмо по ID
@@ -496,6 +497,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		Body:            result.Body,
 		CreatedAt:       result.CreatedAt,
 		SenderImagePath: result.SenderImagePath,
+		ReceiverList:    result.ReceiverList,
 	}
 
 	logger.Debugf("Email retrieved successfully: user_id=%d, email_id=%d",
