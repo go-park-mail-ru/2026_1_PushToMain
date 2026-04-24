@@ -25,14 +25,13 @@ var (
 
 type Repository interface {
 	SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
-	AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error
+	AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID int64, userID int64, isSender bool) error
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 	CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error)
 
 	GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	SaveEmail(ctx context.Context, email models.Email) (int64, error)
-	AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error)
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
@@ -226,8 +225,13 @@ func (s *Service) SendEmail(ctx context.Context, input SendEmailInput) (*SendEma
 		return nil, MapRepositoryError(err)
 	}
 	email.ID = emailID
-
-	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
+	for _, receiverID := range receiverIDs {
+		err = s.repo.AddEmailUserWithTx(ctx, tx, emailID, receiverID, false)
+		if err != nil {
+			return nil, MapRepositoryError(err)
+		}
+	}
+	err = s.repo.AddEmailUserWithTx(ctx, tx, emailID, email.SenderID, true)
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
@@ -293,8 +297,13 @@ func (s *Service) ForwardEmail(ctx context.Context, input ForwardEmailInput) err
 	if err != nil {
 		return MapRepositoryError(err)
 	}
-
-	err = s.repo.AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs)
+	for _, receiverID := range receiverIDs {
+		err = s.repo.AddEmailUserWithTx(ctx, tx, emailID, receiverID, false)
+		if err != nil {
+			return MapRepositoryError(err)
+		}
+	}
+	err = s.repo.AddEmailUserWithTx(ctx, tx, emailID, email.SenderID, true)
 	if err != nil {
 		return MapRepositoryError(err)
 	}

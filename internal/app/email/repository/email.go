@@ -110,41 +110,6 @@ func (r *Repository) SaveEmail(ctx context.Context, email models.Email) (int64, 
 	return emailID, nil
 }
 
-func (r *Repository) AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error {
-	if len(receiverIDs) == 0 {
-		return nil
-	}
-
-	placeholders := make([]string, len(receiverIDs))
-	args := make([]interface{}, 0, len(receiverIDs)*2)
-
-	for i, receiverID := range receiverIDs {
-		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
-		args = append(args, receiverID, emailID)
-	}
-
-	query := fmt.Sprintf(`
-		INSERT INTO user_emails (receiver_id, email_id)
-		VALUES %s
-	`, strings.Join(placeholders, ", "))
-
-	_, err := r.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == UniqueViolation {
-				return ErrDuplicate
-			}
-			if pgErr.Code == ForeignKeyViolation {
-				return ErrForeignKey
-			}
-		}
-		return ErrReceiverAdd
-	}
-
-	return nil
-}
-
 func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error) {
 	query := `
 		INSERT INTO emails (sender_id, header, body)
@@ -177,25 +142,13 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email mode
 	return emailID, nil
 }
 
-func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error {
-	if len(receiverIDs) == 0 {
-		return nil
-	}
+func (r *Repository) AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID int64, userID int64, isSender bool) error {
+	query := `
+		INSERT INTO user_emails (user_id, email_id, is_sender)
+		VALUES ($1, $2, $3)
+	`
 
-	placeholders := make([]string, len(receiverIDs))
-	args := make([]any, 0, len(receiverIDs)*2)
-
-	for i, receiverID := range receiverIDs {
-		placeholders[i] = fmt.Sprintf("($%d, $%d)", i*2+1, i*2+2)
-		args = append(args, receiverID, emailID)
-	}
-
-	query := fmt.Sprintf(`
-		INSERT INTO user_emails (receiver_id, email_id)
-		VALUES %s
-	`, strings.Join(placeholders, ", "))
-
-	_, err := tx.ExecContext(ctx, query, args...)
+	_, err := tx.ExecContext(ctx, query, userID, emailID, isSender)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -208,7 +161,6 @@ func (r *Repository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, em
 		}
 		return ErrReceiverAdd
 	}
-
 	return nil
 }
 
@@ -232,7 +184,7 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
                 ue.created_at AS received_at
             FROM user_emails ue
             JOIN emails e ON ue.email_id = e.id
-            WHERE ue.receiver_id = $1
+            WHERE ue.user_id = $1 AND ue.is_sender = false AND ue.is_deleted = false
             ORDER BY ue.created_at DESC
             LIMIT $2 OFFSET $3
         ),
@@ -241,7 +193,7 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
                 ue.email_id,
                 array_agg(u.email ORDER BY u.id) AS receivers_emails
             FROM user_emails ue
-            JOIN users u ON ue.receiver_id = u.id
+            JOIN users u ON ue.user_id = u.id
             WHERE ue.email_id IN (SELECT id FROM paginated_emails)
             GROUP BY ue.email_id
         )
@@ -316,12 +268,12 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
         COALESCE(
             (SELECT json_agg(u.email)
              FROM user_emails ue
-             JOIN users u ON ue.receiver_id = u.id
-             WHERE ue.email_id = e.id),
+             JOIN users u ON ue.user_id = u.id
+             WHERE ue.email_id = e.id AND ue.is_deleted = false),
             '[]'::json
         ) as receivers_emails
     FROM emails e
-    WHERE e.sender_id = $1 AND is_deleted = false
+    WHERE e.sender_id = $1
     ORDER BY e.created_at DESC
     LIMIT $2 OFFSET $3
 `
@@ -383,7 +335,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
                 ue.email_id,
                 array_agg(u.email ORDER BY u.id) AS receivers_emails
             FROM user_emails ue
-            JOIN users u ON ue.receiver_id = u.id
+            JOIN users u ON ue.user_id = u.id
             WHERE ue.email_id = $1
             GROUP BY ue.email_id
         )
@@ -434,7 +386,7 @@ func (r *Repository) GetUnreadEmailsCount(ctx context.Context, userID int64) (in
 	query := `
 		SELECT COUNT(*)
 		FROM user_emails
-		WHERE receiver_id = $1 AND is_read = false
+		WHERE user_id = $1 AND is_read = false AND is_sender = false
 	`
 
 	var count int
@@ -450,7 +402,7 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 	query := `
 		SELECT COUNT(*)
 		FROM user_emails
-		WHERE receiver_id = $1
+		WHERE user_id = $1 AND is_sender = false
 	`
 
 	var count int
@@ -465,8 +417,8 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM emails
-		WHERE sender_id = $1 and is_deleted = false
+		FROM user_emails
+		WHERE user_id = $1 AND is_deleted = false AND is_sender = true
 	`
 
 	var count int
@@ -505,7 +457,7 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 
 func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error {
 	var exists bool
-	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND user_id = $2)`
 	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
 	if err != nil {
 		return ErrQueryFail
@@ -517,7 +469,7 @@ func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int6
 	query := `
 		UPDATE user_emails
 		SET is_read = false, updated_at = NOW()
-		WHERE email_id = $1 AND receiver_id = $2 AND is_read = true
+		WHERE email_id = $1 AND user_id = $2 AND is_read = true
 	`
 
 	_, err = r.db.ExecContext(ctx, query, emailID, userID)
@@ -532,7 +484,7 @@ func (r *Repository) CheckUserEmailExists(ctx context.Context, emailID, userID i
 	query := `
         SELECT EXISTS(
             SELECT 1 FROM user_emails
-            WHERE email_id = $1 AND receiver_id = $2
+            WHERE email_id = $1 AND user_id = $2
         )
     `
 
@@ -547,8 +499,9 @@ func (r *Repository) CheckUserEmailExists(ctx context.Context, emailID, userID i
 
 func (r *Repository) DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error {
 	query := `
-        DELETE FROM user_emails
-        WHERE email_id = $1 AND receiver_id = $2
+		UPDATE user_emails
+		SET is_deleted = true, updated_at = NOW()
+        WHERE email_id = $1 AND user_id = $2 AND is_sender = false AND is_deleted = false
     `
 
 	result, err := r.db.ExecContext(ctx, query, emailID, userID)
@@ -570,9 +523,9 @@ func (r *Repository) DeleteEmailForReceiver(ctx context.Context, emailID, userID
 
 func (r *Repository) DeleteEmailForSender(ctx context.Context, emailID, userID int64) error {
 	query := `
-        UPDATE emails
-		SET is_deleted = true
-		WHERE id = $1 AND sender_id = $2 AND is_deleted = false
+        UPDATE user_emails
+		SET is_deleted = true, updated_at = NOW()
+		WHERE email_id = $1 AND user_id = $2 AND is_deleted = false AND is_sender = true
     `
 
 	result, err := r.db.ExecContext(ctx, query, emailID, userID)
@@ -596,10 +549,8 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	query := `
 		SELECT EXISTS(
 			SELECT 1
-			FROM emails e
-			LEFT JOIN user_emails ue ON e.id = ue.email_id
-			WHERE e.id = $1
-			AND (e.sender_id = $2 OR ue.receiver_id = $2)
+			FROM user_emails
+			WHERE email_id = $1 AND user_id = $2
 		)
 	`
 

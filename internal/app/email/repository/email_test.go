@@ -181,93 +181,6 @@ func TestRepository_SaveEmail(t *testing.T) {
 	}
 }
 
-func TestRepository_AddEmailReceivers(t *testing.T) {
-	tests := []struct {
-		name        string
-		emailID     int64
-		receiverIDs []int64
-		mockSetup   func(mock sqlmock.Sqlmock)
-		wantErr     error
-	}{
-		{
-			name:        "empty receivers",
-			emailID:     1,
-			receiverIDs: []int64{},
-			mockSetup:   func(mock sqlmock.Sqlmock) {},
-			wantErr:     nil,
-		},
-		{
-			name:        "success single",
-			emailID:     1,
-			receiverIDs: []int64{2},
-			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(`INSERT INTO user_emails \(receiver_id, email_id\) VALUES \(\$1, \$2\)`).
-					WithArgs(int64(2), int64(1)).
-					WillReturnResult(sqlmock.NewResult(0, 1))
-			},
-			wantErr: nil,
-		},
-		{
-			name:        "success multiple",
-			emailID:     1,
-			receiverIDs: []int64{2, 3},
-			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(`INSERT INTO user_emails \(receiver_id, email_id\) VALUES \(\$1, \$2\), \(\$3, \$4\)`).
-					WithArgs(int64(2), int64(1), int64(3), int64(1)).
-					WillReturnResult(sqlmock.NewResult(0, 2))
-			},
-			wantErr: nil,
-		},
-		{
-			name:        "duplicate error",
-			emailID:     1,
-			receiverIDs: []int64{2},
-			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(`INSERT INTO user_emails`).
-					WithArgs(int64(2), int64(1)).
-					WillReturnError(&pgconn.PgError{Code: UniqueViolation})
-			},
-			wantErr: ErrDuplicate,
-		},
-		{
-			name:        "foreign key error",
-			emailID:     1,
-			receiverIDs: []int64{2},
-			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(`INSERT INTO user_emails`).
-					WithArgs(int64(2), int64(1)).
-					WillReturnError(&pgconn.PgError{Code: ForeignKeyViolation})
-			},
-			wantErr: ErrForeignKey,
-		},
-		{
-			name:        "other error",
-			emailID:     1,
-			receiverIDs: []int64{2},
-			mockSetup: func(mock sqlmock.Sqlmock) {
-				mock.ExpectExec(`INSERT INTO user_emails`).
-					WillReturnError(errors.New("some error"))
-			},
-			wantErr: ErrReceiverAdd,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock, _ := sqlmock.New()
-			defer db.Close()
-			repo := &Repository{db: db}
-			tt.mockSetup(mock)
-			err := repo.AddEmailReceivers(context.Background(), tt.emailID, tt.receiverIDs)
-			if tt.wantErr != nil {
-				assert.ErrorIs(t, err, tt.wantErr)
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.NoError(t, mock.ExpectationsWereMet())
-		})
-	}
-}
-
 func TestRepository_SaveEmailWithTx(t *testing.T) {
 	email := models.Email{SenderID: 1, Header: "Hello", Body: "World"}
 	tests := []struct {
@@ -367,7 +280,9 @@ func TestRepository_AddEmailReceiversWithTx(t *testing.T) {
 			require.NoError(t, err)
 
 			repo := &Repository{db: db}
-			err = repo.AddEmailReceiversWithTx(context.Background(), tx, tt.emailID, tt.receiverIDs)
+			for _, receiverID := range tt.receiverIDs {
+				err = repo.AddEmailUserWithTx(context.Background(), tx, tt.emailID, receiverID, false)
+			}
 
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)
