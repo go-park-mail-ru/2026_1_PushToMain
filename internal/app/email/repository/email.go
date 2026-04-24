@@ -195,6 +195,8 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
             FROM user_emails ue
             JOIN users u ON ue.user_id = u.id
             WHERE ue.email_id IN (SELECT id FROM paginated_emails)
+			AND ue.is_sender = false
+      		AND ue.is_deleted = false
             GROUP BY ue.email_id
         )
         SELECT
@@ -269,11 +271,15 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
             (SELECT json_agg(u.email)
              FROM user_emails ue
              JOIN users u ON ue.user_id = u.id
-             WHERE ue.email_id = e.id AND ue.is_deleted = false),
+             WHERE ue.email_id = e.id AND ue.is_deleted = false AND ue.is_sender = false),
             '[]'::json
         ) as receivers_emails
     FROM emails e
-    WHERE e.sender_id = $1
+	JOIN user_emails ue ON e.id = ue.email_id  
+	WHERE e.sender_id = $1 
+  	AND ue.user_id = $1                        
+  	AND ue.is_sender = true                    
+  	AND ue.is_deleted = false
     ORDER BY e.created_at DESC
     LIMIT $2 OFFSET $3
 `
@@ -336,7 +342,9 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
                 array_agg(u.email ORDER BY u.id) AS receivers_emails
             FROM user_emails ue
             JOIN users u ON ue.user_id = u.id
-            WHERE ue.email_id = $1
+            WHERE ue.email_id = $1 
+			AND ue.is_sender = false
+      		AND ue.is_deleted = false
             GROUP BY ue.email_id
         )
         SELECT
@@ -402,7 +410,7 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 	query := `
 		SELECT COUNT(*)
 		FROM user_emails
-		WHERE user_id = $1 AND is_sender = false
+		WHERE user_id = $1 AND is_sender = false AND is_deleted = false
 	`
 
 	var count int
@@ -414,7 +422,7 @@ func (r *Repository) GetEmailsCount(ctx context.Context, userID int64) (int, err
 	return count, nil
 }
 
-func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int, error) {
+func (r *Repository) GetSenderEmailsCount(ctx context.Context, userID int64) (int, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM user_emails
@@ -432,7 +440,8 @@ func (r *Repository) GetUserEmailsCount(ctx context.Context, userID int64) (int,
 
 func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64) error {
 	var exists bool
-	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND receiver_id = $2)`
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND user_id = $2 AND is_sender = false
+	      		AND is_deleted = false )`
 	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
 	if err != nil {
 		return ErrQueryFail
@@ -443,8 +452,9 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 
 	query := `
 		UPDATE user_emails
-		SET is_read = true, updated_at = NOW()
-		WHERE email_id = $1 AND receiver_id = $2 AND is_read = false
+		SET is_read = true
+		WHERE email_id = $1 AND user_id = $2 AND is_read = false AND is_sender = false
+      		AND is_deleted = false
 	`
 
 	_, err = r.db.ExecContext(ctx, query, emailID, userID)
@@ -457,7 +467,8 @@ func (r *Repository) MarkEmailAsRead(ctx context.Context, emailID, userID int64)
 
 func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error {
 	var exists bool
-	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND user_id = $2)`
+	checkQuery := `SELECT EXISTS(SELECT 1 FROM user_emails WHERE email_id = $1 AND user_id = $2 AND is_sender = false
+      		AND is_deleted = false)`
 	err := r.db.QueryRowContext(ctx, checkQuery, emailID, userID).Scan(&exists)
 	if err != nil {
 		return ErrQueryFail
@@ -469,7 +480,8 @@ func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int6
 	query := `
 		UPDATE user_emails
 		SET is_read = false, updated_at = NOW()
-		WHERE email_id = $1 AND user_id = $2 AND is_read = true
+		WHERE email_id = $1 AND user_id = $2 AND is_read = true AND is_sender = false
+      		AND is_deleted = false
 	`
 
 	_, err = r.db.ExecContext(ctx, query, emailID, userID)

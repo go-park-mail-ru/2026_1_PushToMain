@@ -37,7 +37,7 @@ type Repository interface {
 	MarkEmailAsRead(ctx context.Context, emailID, userID int64) error
 	MarkEmailAsUnRead(ctx context.Context, emailID, userID int64) error
 	GetEmailsCount(ctx context.Context, userID int64) (int, error)
-	GetUserEmailsCount(ctx context.Context, userID int64) (int, error)
+	GetSenderEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error)
 
 	DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error
@@ -155,7 +155,7 @@ func (s *Service) GetEmailsBySender(ctx context.Context, input GetMyEmailsInput)
 		return nil, MapRepositoryError(err)
 	}
 
-	total, err := s.repo.GetUserEmailsCount(ctx, input.UserID)
+	total, err := s.repo.GetSenderEmailsCount(ctx, input.UserID)
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}

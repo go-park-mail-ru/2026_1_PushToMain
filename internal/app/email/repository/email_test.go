@@ -606,7 +606,7 @@ func TestRepository_GetUserEmailsCount(t *testing.T) {
 			defer db.Close()
 			repo := &Repository{db: db}
 			tt.mockSetup(mock)
-			got, err := repo.GetUserEmailsCount(context.Background(), tt.userID)
+			got, err := repo.GetSenderEmailsCount(context.Background(), tt.userID)
 			assert.Equal(t, tt.want, got)
 			if tt.wantErr != nil {
 				assert.ErrorIs(t, err, tt.wantErr)

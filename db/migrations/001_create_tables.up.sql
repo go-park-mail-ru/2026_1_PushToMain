@@ -48,6 +48,7 @@ CREATE TABLE user_emails (
     is_starred BOOLEAN NOT NULL DEFAULT false,
 
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT unique_user_email_sender UNIQUE (user_id, email_id, is_sender)
 
