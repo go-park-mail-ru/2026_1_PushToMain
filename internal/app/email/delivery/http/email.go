@@ -776,19 +776,19 @@ type MarkEmailsAsReadRequest struct {
 	EmailIDs []int64 `json:"email_ids"`
 }
 
-// @Summary      Отметить письмо как прочитанное
+// @Summary      Отметить письма как прочитанные
 // @Description  Помечает указанное письмо как прочитанное.
 // @Tags         emails
 // @Accept       json
 // @Produce      json
-// @Param         id   path      int  true  "ID письма"
+// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
 // @Success      200  "Success"
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      403  {object}  response.ErrorResponse
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/read [put]
+// @Router       /api/v1/emails/read [put]
 func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Mark email as read request received")
@@ -835,19 +835,19 @@ func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusOK)
 }
 
-// @Summary      Отметить письмо как непрочитанное
+// @Summary      Отметить письма как непрочитанные
 // @Description  Помечает указанное письмо как непрочитанное.
 // @Tags         emails
 // @Accept       json
 // @Produce      json
-// @Param         id   path      int  true  "ID письма"
+// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
 // @Success      200  "Success"
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      403  {object}  response.ErrorResponse
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/read [put]
+// @Router       /api/v1/emails/read [put]
 func (handler *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Mark email as unread request received")
