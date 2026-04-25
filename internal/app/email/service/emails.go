@@ -398,22 +398,24 @@ func (s *Service) DeleteEmailForSender(ctx context.Context, input DeleteEmailInp
 
 type MarkAsReadInput struct {
 	UserID  int64
-	EmailID int64
+	EmailID []int64
 }
 
 func (s *Service) MarkEmailAsRead(ctx context.Context, input MarkAsReadInput) error {
-	err := s.repo.MarkEmailAsRead(ctx, input.EmailID, input.UserID)
-	if err != nil {
-		return MapRepositoryError(err)
+	for _, emailID := range input.EmailID {
+		if err := s.repo.MarkEmailAsRead(ctx, emailID, input.UserID); err != nil {
+			return MapRepositoryError(err)
+		}
 	}
 
 	return nil
 }
 
 func (s *Service) MarkEmailAsUnRead(ctx context.Context, input MarkAsReadInput) error {
-	err := s.repo.MarkEmailAsUnRead(ctx, input.EmailID, input.UserID)
-	if err != nil {
-		return MapRepositoryError(err)
+	for _, emailID := range input.EmailID {
+		if err := s.repo.MarkEmailAsUnRead(ctx, emailID, input.UserID); err != nil {
+			return MapRepositoryError(err)
+		}
 	}
 
 	return nil
