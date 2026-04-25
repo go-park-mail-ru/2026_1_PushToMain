@@ -1,10 +1,8 @@
 package http
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/supoort/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/gorilla/mux"
 )
@@ -33,16 +31,6 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
-
-	case errors.Is(err, service.ErrUserNotFound):
-		response.NotFound(w)
-
-	case errors.Is(err, service.ErrWrongPassword):
-		response.Unauthorized(w)
-
-	case errors.Is(err, service.ErrUserAlreadyExists):
-		response.StatusConflict(w)
-
 	default:
 		response.InternalError(w)
 	}

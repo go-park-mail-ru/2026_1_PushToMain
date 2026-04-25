@@ -20,6 +20,11 @@ import (
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+
+	supportHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/support/delivery/http"
+	supportRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/support/repository"
+	supportService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/support/service"
+
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
@@ -68,11 +73,11 @@ func (app *App) Run(configPath string) {
 	profileDbRepo := profileDbRepo.New(db)
 	profileS3Repo, err := profileS3Repo.New(s3Client)
 	if err != nil {
-	    app.Logger.Fatalf("s3 storage init error: %v", err)
+		app.Logger.Fatalf("s3 storage init error: %v", err)
 	}
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	authHandler := authHttp.New(userService, authHttp.Config{
-		TTL: app.Config.JWTManager.TTL(),
+		TTL:           app.Config.JWTManager.TTL(),
 		MaxAvatarSize: app.Config.Avatar.MaxSizeMB * 1024 * 1024,
 		AllowedTypes:  app.Config.Avatar.AllowedTypes,
 	})
@@ -81,6 +86,10 @@ func (app *App) Run(configPath string) {
 	emailService := emailService.New(emailRepo, userService)
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
+
+	supportRepo := supportRepo.New(db)
+	supportService := supportService.New(supportRepo)
+	supportHandler := supportHttp.New(supportService)
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))
@@ -96,6 +105,7 @@ func (app *App) Run(configPath string) {
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)
+	supportHandler.InitRoutes(public, private)
 
 	app.Server = http.Server{
 		Addr:    ":" + app.Config.ServerPort,
