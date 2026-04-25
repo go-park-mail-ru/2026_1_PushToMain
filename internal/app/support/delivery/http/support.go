@@ -133,26 +133,26 @@ type ChangeStatusResponse struct {
 	Status string `json:"status"`
 }
 
-func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) *ChangeStatusResponse {
+func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
 	claims, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("failed to get claims from context: %v", err)
 		response.InternalError(w)
-		return nil
+		return
 	}
 
 	if claims.UserId <= 0 {
 		logger.Warnf("Invalid user ID in claims: %d", claims.UserId)
 		response.BadRequest(w)
-		return nil
+		return
 	}
 
 	var req ChangeStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w)
-		return nil
+		return
 	}
 
 	err = handler.service.ChangeStatus(r.Context(), service.ChangeStatusInput{
@@ -162,15 +162,15 @@ func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) *Ch
 	})
 	if err != nil {
 		parseCommonErrors(err, w)
-		return nil
+		return
 	}
 
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+	resp := ChangeStatusResponse{Status: req.Status}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		logger.Errorf("failed to encode response: %v", err)
 		response.InternalError(w)
-		return nil
+		return
 	}
-
-	return &ChangeStatusResponse{Status: req.Status}
 }
 
 type AnswerOnQuestionRequest struct {
