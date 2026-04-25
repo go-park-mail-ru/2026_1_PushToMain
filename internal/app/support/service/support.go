@@ -11,11 +11,11 @@ import (
 type Repository interface {
 	CreateTicket(ctx context.Context, ticket models.Ticket) (int64, error)
 	GetTicketByTicketID(ctx context.Context, ticketID int64) (*models.Ticket, error)
-	GetAllTicketsByUserID(ctx context.Context, userID int64, limit int, offset int) ([]models.Ticket, error)
+	GetAllTicketsByUserID(ctx context.Context, userID int64) ([]models.Ticket, error)
 	UpdateTicketStatus(ctx context.Context, ticketID int64, newStatus string) error
-	ListAllTickets(ctx context.Context, status, theme string, limit, offset int) ([]models.Ticket, error)
+	ListAllTickets(ctx context.Context, status, theme string) ([]models.Ticket, error)
 	CreateMessage(ctx context.Context, msg models.Message) (int64, error)
-	ListMessagesByTicket(ctx context.Context, ticketID int64, limit, offset int) ([]models.Message, error)
+	ListMessagesByTicket(ctx context.Context, ticketID int64) ([]models.Message, error)
 	IsAdmin(ctx context.Context, userID int64) (bool, error)
 }
 type Service struct {
@@ -29,13 +29,15 @@ func New(repo Repository) *Service {
 type SendQuestionInput struct {
 	UserID int64
 	Theme  string
+	Header string
 	Body   string
 }
 
 type Question struct {
-	Theme  string
-	Header string
-	Body   string
+	Theme    string
+	Header   string
+	TickerID int64
+	Status   string
 }
 
 type GetMyQuestionsInput struct {
@@ -96,9 +98,8 @@ func (s *Service) SendQuestion(ctx context.Context, input SendQuestionInput) (st
 	// Создаём тикет
 	ticket := models.Ticket{
 		UserID:   input.UserID,
-		Subject:  input.Theme,
-		Category: "general",
-		Status:   "open",
+		Subject:  input.Header,
+		Category: input.Theme,
 	}
 
 	ticketID, err := s.repo.CreateTicket(ctx, ticket)
@@ -122,7 +123,7 @@ func (s *Service) SendQuestion(ctx context.Context, input SendQuestionInput) (st
 
 // GetMyQuestions возвращает все тикеты пользователя
 func (s *Service) GetMyQuestions(ctx context.Context, input GetMyQuestionsInput) (*GetMyQuestionsResult, error) {
-	tickets, err := s.repo.GetAllTicketsByUserID(ctx, input.UserID, 100, 0)
+	tickets, err := s.repo.GetAllTicketsByUserID(ctx, input.UserID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tickets: %w", err)
 	}
@@ -130,9 +131,10 @@ func (s *Service) GetMyQuestions(ctx context.Context, input GetMyQuestionsInput)
 	result := make([]Question, len(tickets))
 	for i, ticket := range tickets {
 		result[i] = Question{
-			Theme:  ticket.Subject,
-			Header: ticket.Category,
-			Body:   ticket.Status,
+			Theme:    ticket.Category,
+			Header:   ticket.Subject,
+			TickerID: ticket.ID,
+			Status:   ticket.Status,
 		}
 	}
 
@@ -224,7 +226,7 @@ func (s *Service) GetAllMessages(ctx context.Context, input GettAllMessagesInput
 	}
 
 	// Получаем сообщения
-	messages, err := s.repo.ListMessagesByTicket(ctx, input.QuestionID, 1000, 0)
+	messages, err := s.repo.ListMessagesByTicket(ctx, input.QuestionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get messages: %w", err)
 	}
@@ -253,7 +255,7 @@ func (s *Service) GetAllQuestionsByFilter(ctx context.Context, input GetAllQuest
 		return nil, ErrNotAdmin
 	}
 
-	tickets, err := s.repo.ListAllTickets(ctx, input.Status, input.Theme, 100, 0)
+	tickets, err := s.repo.ListAllTickets(ctx, input.Status, input.Theme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tickets: %w", err)
 	}
@@ -261,9 +263,10 @@ func (s *Service) GetAllQuestionsByFilter(ctx context.Context, input GetAllQuest
 	result := make([]Question, len(tickets))
 	for i, ticket := range tickets {
 		result[i] = Question{
-			Theme:  ticket.Subject,
-			Header: ticket.Category,
-			Body:   ticket.Status,
+			Theme:    ticket.Category,
+			Header:   ticket.Subject,
+			TickerID: ticket.ID,
+			Status:   ticket.Status,
 		}
 	}
 

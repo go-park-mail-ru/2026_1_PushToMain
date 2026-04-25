@@ -21,7 +21,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	// Private routes
 	private.HandleFunc("/support/send", h.SendQuestion).Methods(http.MethodPost, http.MethodOptions)
-	private.HandleFunc("/support/myqyestions", h.GetMyQuestions).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/support/myquestions", h.GetMyQuestions).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/support/changestatus", h.ChangeStatus).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/support/answer", h.AnswerOnQuestion).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/support/{id}/chat", h.GetAllMessages).Methods(http.MethodGet, http.MethodOptions)

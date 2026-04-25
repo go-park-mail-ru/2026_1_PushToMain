@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/support/models"
 )
@@ -24,11 +22,6 @@ type Repository struct {
 	db *sql.DB
 }
 
-type ListTicketsFilter struct {
-	Status   *string
-	Category *string
-}
-
 // GetTicketByIDForUser(ctx, ticketID, userID) (*Ticket, error) // для юзера
 // ListTicketsByUser(ctx, userID, limit, offset) ([]Ticket, error)
 // CountTicketsByUser(ctx, userID) (int, error)
@@ -45,10 +38,6 @@ type ListTicketsFilter struct {
 
 func New(db *sql.DB) *Repository {
 	return &Repository{db: db}
-}
-
-func (r *Repository) BeginTx(ctx context.Context) (*sql.Tx, error) {
-	return r.db.BeginTx(ctx, nil)
 }
 
 func (r *Repository) CreateTicket(ctx context.Context, ticket models.Ticket) (int64, error) {
@@ -107,16 +96,15 @@ func (r *Repository) GetTicketByTicketID(ctx context.Context, ticketID int64) (*
 	return &ticket, nil
 }
 
-func (r *Repository) GetAllTicketsByUserID(ctx context.Context, userID int64, limit int, offset int) ([]models.Ticket, error) {
+func (r *Repository) GetAllTicketsByUserID(ctx context.Context, userID int64) ([]models.Ticket, error) {
 	query := `
 		SELECT id, user_id, support_id, subject, category, status, created_at, updated_at, closed_at
 		FROM support_tickets
 		WHERE user_id = $1
-		ORDER_BY created_at DESC
-		LIMIT $2 OFFSET $3
+		ORDER BY created_at DESC
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, ErrQueryError
 	}
@@ -148,37 +136,16 @@ func (r *Repository) UpdateTicketStatus(ctx context.Context, ticketID int64, new
 	return nil
 }
 
-func (r *Repository) ListAllTickets(ctx context.Context, filter ListTicketsFilter, limit, offset int) ([]models.Ticket, error) {
-	var (
-		conds []string
-		args  []interface{}
-	)
-
-	if filter.Status != nil {
-		conds = append(conds, fmt.Sprintf("status = $%d", len(args)+1))
-		args = append(args, *filter.Status)
-	}
-	if filter.Category != nil {
-		conds = append(conds, fmt.Sprintf("category = $%d", len(args)+1))
-		args = append(args, *filter.Category)
-	}
-
-	where := ""
-	if len(conds) > 0 {
-		where = "WHERE " + strings.Join(conds, " AND ")
-	}
-
-	query := fmt.Sprintf(`
+func (r *Repository) ListAllTickets(ctx context.Context, status, theme string) ([]models.Ticket, error) {
+	query := `
         SELECT id, user_id, support_id, subject, category, status, created_at, updated_at, closed_at
         FROM support_tickets
-        %s
+        WHERE ($1 = '' OR status = $1)
+        AND ($2 = '' OR category = $2)
         ORDER BY created_at DESC
-        LIMIT $%d OFFSET $%d
-    `, where, len(args)+1, len(args)+2)
+    `
 
-	args = append(args, limit, offset)
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := r.db.QueryContext(ctx, query, status, theme)
 	if err != nil {
 		return nil, ErrQueryError
 	}
@@ -210,16 +177,15 @@ func (r *Repository) CreateMessage(ctx context.Context, msg models.Message) (int
 	return messageID, nil
 }
 
-func (r *Repository) ListMessagesByTicket(ctx context.Context, ticketID int64, limit, offset int) ([]models.Message, error) {
+func (r *Repository) ListMessagesByTicket(ctx context.Context, ticketID int64) ([]models.Message, error) {
 	query := `
         SELECT id, ticket_id, author_id, body, created_at
         FROM support_messages
         WHERE ticket_id = $1
         ORDER BY id
-        LIMIT $2 OFFSET $3
     `
 
-	rows, err := r.db.QueryContext(ctx, query, ticketID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, ticketID)
 	if err != nil {
 		return nil, ErrQueryError
 	}

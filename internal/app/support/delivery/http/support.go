@@ -61,6 +61,7 @@ func (handler *Handler) SendQuestion(w http.ResponseWriter, r *http.Request) {
 	question, err := handler.service.SendQuestion(r.Context(), service.SendQuestionInput{
 		UserID: claims.UserId,
 		Theme:  req.Theme,
+		Header: req.Header,
 		Body:   req.Quesion,
 	})
 	if err != nil {
@@ -77,9 +78,10 @@ func (handler *Handler) SendQuestion(w http.ResponseWriter, r *http.Request) {
 }
 
 type GetMyQuestionResponse struct {
-	Theme  string `json:"theme"`
-	Header string `json:"header"`
-	Body   string `json:"body"`
+	TickerID int64  `json:"ticket_id"`
+	Status   string `json:"status"`
+	Theme    string `json:"theme"`
+	Header   string `json:"header"`
 }
 
 func (handler *Handler) GetMyQuestions(w http.ResponseWriter, r *http.Request) {
@@ -109,9 +111,10 @@ func (handler *Handler) GetMyQuestions(w http.ResponseWriter, r *http.Request) {
 	questions := make([]GetMyQuestionResponse, len(result.Questions))
 	for i, question := range result.Questions {
 		questions[i] = GetMyQuestionResponse{
-			Theme:  question.Theme,
-			Header: question.Header,
-			Body:   question.Body,
+			TickerID: question.TickerID,
+			Status:   question.Status,
+			Theme:    question.Theme,
+			Header:   question.Header,
 		}
 	}
 
@@ -212,9 +215,10 @@ type GetAllQuestionsByFilterRequest struct {
 	Theme  string `json:"theme"`
 }
 type GetAllQuestionsByFilterResponse struct {
-	Theme  string `json:"theme"`
-	Header string `json:"header"`
-	Body   string `json:"body"`
+	TickerID int64  `json:"ticket_id"`
+	Status   string `json:"status"`
+	Theme    string `json:"theme"`
+	Header   string `json:"header"`
 }
 
 func (handler *Handler) GetAllQuestionsByFilter(w http.ResponseWriter, r *http.Request) {
@@ -234,9 +238,12 @@ func (handler *Handler) GetAllQuestionsByFilter(w http.ResponseWriter, r *http.R
 	}
 
 	var req GetAllQuestionsByFilterRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.BadRequest(w)
-		return
+	if r.ContentLength > 0 {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			logger.Warnf("Invalid request body: %v", err)
+			response.BadRequest(w)
+			return
+		}
 	}
 
 	result, err := handler.service.GetAllQuestionsByFilter(r.Context(), service.GetAllQuestionsByFilterInput{
@@ -252,9 +259,10 @@ func (handler *Handler) GetAllQuestionsByFilter(w http.ResponseWriter, r *http.R
 	questions := make([]GetAllQuestionsByFilterResponse, len(result.Questions))
 	for i, question := range result.Questions {
 		questions[i] = GetAllQuestionsByFilterResponse{
-			Theme:  question.Theme,
-			Header: question.Header,
-			Body:   question.Body,
+			TickerID: question.TickerID,
+			Status:   question.Status,
+			Theme:    question.Theme,
+			Header:   question.Header,
 		}
 	}
 
@@ -297,7 +305,11 @@ func (handler *Handler) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 
 	questionIDstr := pathParts[4]
 	questionID, err := strconv.ParseInt(questionIDstr, 10, 64)
-
+	if err != nil {
+		logger.Warnf("Invalid question ID format: %s", questionIDstr)
+		response.BadRequest(w)
+		return
+	}
 	result, err := handler.service.GetAllMessages(r.Context(), service.GettAllMessagesInput{
 		UserID:     claims.UserId,
 		QuestionID: questionID,
