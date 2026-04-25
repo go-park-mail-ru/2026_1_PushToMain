@@ -17,7 +17,7 @@ type Service interface {
 	GetMyQuestions(ctx context.Context, cmd service.GetMyQuestionsInput) (*service.GetMyQuestionsResult, error)
 
 	ChangeStatus(ctx context.Context, cmd service.ChangeStatusInput) error
-	AnswerOnQuestion(ctx context.Context, cmd service.AnswerOnQuestionInput) error
+	AnswerOnQuestion(ctx context.Context, cmd service.AnswerOnQuestionInput) (*service.AnswerOnQuestionResult, error)
 
 	GetAllMessages(ctx context.Context, cmd service.GettAllMessagesInput) (*service.GettAllMessagesResult, error)
 
@@ -129,26 +129,30 @@ type ChangeStatusRequest struct {
 	QuestionID int64  `json:"question_id"`
 }
 
-func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
+type ChangeStatusResponse struct {
+	Status string `json:"status"`
+}
+
+func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) *ChangeStatusResponse {
 	logger := middleware.GetLogger(r.Context())
 
 	claims, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("failed to get claims from context: %v", err)
 		response.InternalError(w)
-		return
+		return nil
 	}
 
 	if claims.UserId <= 0 {
 		logger.Warnf("Invalid user ID in claims: %d", claims.UserId)
 		response.BadRequest(w)
-		return
+		return nil
 	}
 
 	var req ChangeStatusRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.BadRequest(w)
-		return
+		return nil
 	}
 
 	err = handler.service.ChangeStatus(r.Context(), service.ChangeStatusInput{
@@ -158,18 +162,27 @@ func (handler *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		parseCommonErrors(err, w)
-		return
+		return nil
 	}
 
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
 		response.InternalError(w)
-		return
+		return nil
 	}
+
+	return &ChangeStatusResponse{Status: req.Status}
 }
 
 type AnswerOnQuestionRequest struct {
 	QuestionID int64  `json:"question_id"`
 	Answer     string `json:"answer"`
+}
+
+type AnswerOnQuestionResponse struct {
+	MessageID int64  `json:"message_id"`
+	TicketID  int64  `json:"ticket_id"`
+	AuthorID  int64  `json:"author_id"`
+	Body      string `json:"body"`
 }
 
 func (handler *Handler) AnswerOnQuestion(w http.ResponseWriter, r *http.Request) {
@@ -194,17 +207,25 @@ func (handler *Handler) AnswerOnQuestion(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = handler.service.AnswerOnQuestion(r.Context(), service.AnswerOnQuestionInput{
+	result, err := handler.service.AnswerOnQuestion(r.Context(), service.AnswerOnQuestionInput{
 		UserID:     claims.UserId,
 		QuestionID: req.QuestionID,
 		Answer:     req.Answer,
 	})
+
 	if err != nil {
 		parseCommonErrors(err, w)
 		return
 	}
 
-	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+	resp := AnswerOnQuestionResponse{
+		MessageID: result.MessageID,
+		TicketID:  result.TicketID,
+		AuthorID:  result.AuthorID,
+		Body:      result.Body,
+	}
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		response.InternalError(w)
 		return
 	}

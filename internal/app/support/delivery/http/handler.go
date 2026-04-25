@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
@@ -30,6 +31,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
+	fmt.Println("service error: %v", err)
 	switch {
 	default:
 		response.InternalError(w)

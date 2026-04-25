@@ -171,25 +171,31 @@ func (s *Service) ChangeStatus(ctx context.Context, input ChangeStatusInput) err
 	return s.repo.UpdateTicketStatus(ctx, input.QuestionID, input.Status)
 }
 
+type AnswerOnQuestionResult struct {
+	MessageID int64
+	TicketID  int64
+	AuthorID  int64
+	Body      string
+}
+
 // AnswerOnQuestion добавляет ответ на вопрос (только для админов)
-func (s *Service) AnswerOnQuestion(ctx context.Context, input AnswerOnQuestionInput) error {
+func (s *Service) AnswerOnQuestion(ctx context.Context, input AnswerOnQuestionInput) (result *AnswerOnQuestionResult, err error) {
 	if input.Answer == "" {
-		return ErrEmptyMessage
+		return nil, ErrEmptyMessage
+	}
+
+	ticket, err := s.repo.GetTicketByTicketID(ctx, input.QuestionID)
+	if err != nil {
+		return nil, ErrTicketNotFound
 	}
 
 	// Проверяем, что пользователь — админ
 	isAdmin, err := s.repo.IsAdmin(ctx, input.UserID)
 	if err != nil {
-		return fmt.Errorf("failed to check admin: %w", err)
+		return nil, fmt.Errorf("failed to check admin: %w", err)
 	}
-	if !isAdmin {
-		return ErrNotAdmin
-	}
-
-	// Проверяем существование тикета
-	ticket, err := s.repo.GetTicketByTicketID(ctx, input.QuestionID)
-	if err != nil {
-		return ErrTicketNotFound
+	if ticket.UserID != input.UserID && !isAdmin {
+		return nil, ErrAccessDenied
 	}
 
 	// Создаём сообщение от админа
@@ -199,8 +205,9 @@ func (s *Service) AnswerOnQuestion(ctx context.Context, input AnswerOnQuestionIn
 		Body:     input.Answer,
 	}
 
-	if _, err := s.repo.CreateMessage(ctx, msg); err != nil {
-		return fmt.Errorf("failed to create answer: %w", err)
+	message, err := s.repo.CreateMessage(ctx, msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create answer: %w", err)
 	}
 
 	// Если статус был "open", меняем на "in_progress"
@@ -208,7 +215,14 @@ func (s *Service) AnswerOnQuestion(ctx context.Context, input AnswerOnQuestionIn
 		_ = s.repo.UpdateTicketStatus(ctx, input.QuestionID, "in_progress")
 	}
 
-	return nil
+	result = &AnswerOnQuestionResult{
+		MessageID: message,
+		TicketID:  input.QuestionID,
+		AuthorID:  input.UserID,
+		Body:      input.Answer,
+	}
+
+	return result, nil
 }
 
 // GetAllMessages возвращает все сообщения по тикету
