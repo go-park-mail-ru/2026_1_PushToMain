@@ -1,32 +1,20 @@
 package handler
 
 import (
-	"net/http"
-	"time"
-
 	"github.com/gorilla/mux"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/support/service"
 )
 
-type Config struct {
-	TTL time.Duration
-}
-
 type Handler struct {
-	service Service
+	service *service.Service
 }
 
-func New(service Service, cfg Config) *Handler {
+func New(service *service.Service) *Handler {
 	return &Handler{
 		service: service,
-		cfg:     cfg,
 	}
 }
 
-func (h *Handler) InitRoutes(public, private *mux.Router) {
-
-}
-
-func parseCommonErrors(err error, w http.ResponseWriter) {
+func (h *Handler) InitRoutes(private, admin *mux.Router) {
 }
