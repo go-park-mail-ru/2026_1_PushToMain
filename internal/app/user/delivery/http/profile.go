@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -105,6 +106,13 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type UpdateProfileRequest struct {
+	Name     string  `json:"name"`
+	Surname  string  `json:"surname"`
+	Birthday *string `json:"birthday"` // ISO-8601 формат 2000-02-20
+	IsMale   *bool   `json:"is_male"`
+}
+
 // @Summary      Обновить профиль пользователя
 // @Description  Обновляет имя и фамилию авторизованного пользователя
 // @Tags         auth
@@ -141,16 +149,30 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" && req.Surname == "" {
+	var birthdate *time.Time
+	if req.Birthday != nil {
+		parsed, err := time.Parse("2006-01-02", *req.Birthday)
+		if err != nil {
+			logger.Warnf("Invalid birthday format: %s", req.Birthday)
+			response.BadRequest(w)
+			return
+		}
+
+		birthdate = &parsed
+	}
+
+	if req.Name == "" || req.Surname == "" {
 		logger.Warnf("Name and surname are empty")
 		response.BadRequest(w)
 		return
 	}
 
 	err = h.service.UpdateProfile(r.Context(), service.UpdateProfileInput{
-		UserID:  payload.UserId,
-		Name:    req.Name,
-		Surname: req.Surname,
+		UserID:    payload.UserId,
+		Name:      req.Name,
+		Surname:   req.Surname,
+		IsMale:    req.IsMale,
+		Birthdate: birthdate,
 	})
 	if err != nil {
 		logger.Errorf("Failed to update profile: %v", err)

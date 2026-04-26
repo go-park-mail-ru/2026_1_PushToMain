@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
@@ -24,14 +25,14 @@ func New(userDb *sql.DB) *Repository {
 	}
 }
 
-func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string) error {
+func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error {
 	query := `
         UPDATE users
-        SET name = $1, surname = $2, updated_at = NOW()
-        WHERE id = $3
+        SET name = $1, surname = $2, is_male = $3, birthdate = $4, updated_at = NOW()
+        WHERE id = $5
     `
 
-	result, err := r.userDb.ExecContext(ctx, query, name, surname, userID)
+	result, err := r.userDb.ExecContext(ctx, query, name, surname, isMale, birthdate, userID)
 	if err != nil {
 		return ErrQueryError
 	}
