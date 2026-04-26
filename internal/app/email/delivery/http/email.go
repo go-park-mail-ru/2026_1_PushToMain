@@ -689,11 +689,13 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	emailIDs := []int64{emailID}
+
 	logger.Debugf("Marking email as read, user_id=%d, email_id=%d", payload.UserId, emailID)
 
 	if err := handler.service.MarkEmailAsRead(r.Context(), service.MarkAsReadInput{
 		UserID:  payload.UserId,
-		EmailID: emailID,
+		EmailID: emailIDs,
 	}); err != nil {
 		logger.Errorf("Failed to mark email as read: %v", err)
 		parseCommonErrors(err, w)
@@ -751,11 +753,13 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	emailIDs := []int64{emailID}
+
 	logger.Debugf("Marking email as unread, user_id=%d, email_id=%d", payload.UserId, emailID)
 
 	if err := handler.service.MarkEmailAsUnRead(r.Context(), service.MarkAsReadInput{
 		UserID:  payload.UserId,
-		EmailID: emailID,
+		EmailID: emailIDs,
 	}); err != nil {
 		logger.Errorf("Failed to mark email as unread: %v", err)
 		parseCommonErrors(err, w)
@@ -764,6 +768,128 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 
 	logger.Debugf("Email marked as unread successfully: user_id=%d, email_id=%d",
 		payload.UserId, emailID)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+type MarkEmailsAsReadRequest struct {
+	EmailIDs []int64 `json:"email_ids"`
+}
+
+// @Summary      Отметить письма как прочитанные
+// @Description  Помечает указанное письмо как прочитанное.
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/read [put]
+func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Mark email as read request received")
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	var req MarkEmailsAsReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if len(req.EmailIDs) == 0 {
+		logger.Warnf("Email IDs array is empty")
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Marking emails as read, user_id=%d", payload.UserId)
+
+	if err := handler.service.MarkEmailAsRead(r.Context(), service.MarkAsReadInput{
+		UserID:  payload.UserId,
+		EmailID: req.EmailIDs,
+	}); err != nil {
+		logger.Errorf("Failed to mark email as read: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email marked as read successfully: user_id=%d",
+		payload.UserId)
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// @Summary      Отметить письма как непрочитанные
+// @Description  Помечает указанное письмо как непрочитанное.
+// @Tags         emails
+// @Accept       json
+// @Produce      json
+// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/read [put]
+func (handler *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Mark email as unread request received")
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if payload.UserId <= 0 {
+		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	var req MarkEmailsAsReadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if len(req.EmailIDs) == 0 {
+		logger.Warnf("Email IDs array is empty")
+		response.BadRequest(w)
+		return
+	}
+
+	logger.Debugf("Marking email as unread, user_id=%d", payload.UserId)
+
+	if err := handler.service.MarkEmailAsUnRead(r.Context(), service.MarkAsReadInput{
+		UserID:  payload.UserId,
+		EmailID: req.EmailIDs,
+	}); err != nil {
+		logger.Errorf("Failed to mark email as unread: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Email marked as unread successfully: user_id=%d",
+		payload.UserId)
 
 	w.WriteHeader(http.StatusOK)
 }

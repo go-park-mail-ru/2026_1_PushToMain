@@ -24,10 +24,14 @@ type EmailWithAvatar struct {
 }
 
 type UserEmail struct {
-	ID         int64
-	EmailID    int64
-	ReceiverID int64
-	IsRead     bool
+	ID        int64
+	EmailID   int64
+	UserID    int64
+	IsSender  bool
+	IsRead    bool
+	IsDeleted bool
+	isStared  bool
+	CreatedAt time.Time
 }
 
 type User struct {

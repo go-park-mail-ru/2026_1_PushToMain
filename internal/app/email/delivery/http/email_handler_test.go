@@ -1161,7 +1161,7 @@ func TestHandler_MarkEmailAsRead(t *testing.T) {
 			emailID: "1",
 			userID:  123,
 			setupMock: func(m *mocks.MockService) {
-				m.EXPECT().MarkEmailAsRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: 1}).Return(nil)
+				m.EXPECT().MarkEmailAsRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: []int64{1}}).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -1242,7 +1242,7 @@ func TestHandler_MarkEmailAsRead(t *testing.T) {
 			emailID: "9223372036854775807",
 			userID:  123,
 			setupMock: func(m *mocks.MockService) {
-				m.EXPECT().MarkEmailAsRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: 9223372036854775807}).Return(nil)
+				m.EXPECT().MarkEmailAsRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: []int64{9223372036854775807}}).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -1309,7 +1309,7 @@ func TestHandler_MarkEmailAsUnRead(t *testing.T) {
 			emailID: "1",
 			userID:  123,
 			setupMock: func(m *mocks.MockService) {
-				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: 1}).Return(nil)
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: []int64{1}}).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -1390,7 +1390,7 @@ func TestHandler_MarkEmailAsUnRead(t *testing.T) {
 			emailID: "9223372036854775807",
 			userID:  123,
 			setupMock: func(m *mocks.MockService) {
-				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: 9223372036854775807}).Return(nil)
+				m.EXPECT().MarkEmailAsUnRead(gomock.Any(), service.MarkAsReadInput{UserID: 123, EmailID: []int64{9223372036854775807}}).Return(nil)
 			},
 			expectedStatus: http.StatusOK,
 		},
