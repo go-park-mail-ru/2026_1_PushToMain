@@ -20,6 +20,9 @@ type GetMeResponse struct {
 	Name      string `json:"name"`
 	Surname   string `json:"surname"`
 	ImagePath string `json:"image_path"`
+
+	IsMale    *bool      `json:"is_male,omitempty"`
+	Birthdate *time.Time `json:"birthdate,omitempty"`
 }
 
 func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +52,8 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		Name:      result.Name,
 		Surname:   result.Surname,
 		ImagePath: result.ImagePath,
+		IsMale:    result.IsMale,
+		Birthdate: result.Birthdate,
 	}); err != nil {
 		logger.Errorf("failed to encode response: %v", err)
 		response.InternalError(w)
@@ -107,10 +112,10 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateProfileRequest struct {
-	Name     string  `json:"name"`
-	Surname  string  `json:"surname"`
-	Birthday *string `json:"birthday"` // ISO-8601 формат 2000-02-20
-	IsMale   *bool   `json:"is_male"`
+	Name      string  `json:"name"`
+	Surname   string  `json:"surname"`
+	Birthdate *string `json:"birthdate"` // ISO-8601 формат 2000-02-20
+	IsMale    *bool   `json:"is_male"`
 }
 
 // @Summary      Обновить профиль пользователя
@@ -150,10 +155,10 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var birthdate *time.Time
-	if req.Birthday != nil {
-		parsed, err := time.Parse("2006-01-02", *req.Birthday)
+	if req.Birthdate != nil {
+		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
 		if err != nil {
-			logger.Warnf("Invalid birthday format: %s", req.Birthday)
+			logger.Warnf("Invalid birthday format: %s", req.Birthdate)
 			response.BadRequest(w)
 			return
 		}

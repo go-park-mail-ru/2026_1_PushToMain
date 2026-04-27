@@ -89,6 +89,8 @@ type GetMeResult struct {
 	Name      string
 	Surname   string
 	ImagePath string
+	IsMale    *bool
+	Birthdate *time.Time
 }
 
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
@@ -102,6 +104,8 @@ func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error)
 		Name:      user.Name,
 		Surname:   user.Surname,
 		ImagePath: user.ImagePath,
+		IsMale:    user.IsMale,
+		Birthdate: user.Birthdate,
 	}, nil
 }
 
