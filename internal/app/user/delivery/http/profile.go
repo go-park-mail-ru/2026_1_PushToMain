@@ -112,10 +112,10 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 }
 
 type UpdateProfileRequest struct {
-	Name      string  `json:"name"`
-	Surname   string  `json:"surname"`
-	Birthdate *string `json:"birthdate"` // ISO-8601 формат 2000-02-20
-	IsMale    *bool   `json:"is_male"`
+	Name      string     `json:"name"`
+	Surname   string     `json:"surname"`
+	Birthdate *time.Time `json:"birthdate"` // ISO-8601 формат 2000-02-20
+	IsMale    *bool      `json:"is_male"`
 }
 
 // @Summary      Обновить профиль пользователя
@@ -154,18 +154,6 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var birthdate *time.Time
-	if req.Birthdate != nil {
-		parsed, err := time.Parse("2006-01-02", *req.Birthdate)
-		if err != nil {
-			logger.Warnf("Invalid birthday format: %s", req.Birthdate)
-			response.BadRequest(w)
-			return
-		}
-
-		birthdate = &parsed
-	}
-
 	if req.Name == "" || req.Surname == "" {
 		logger.Warnf("Name and surname are empty")
 		response.BadRequest(w)
@@ -177,7 +165,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		Name:      req.Name,
 		Surname:   req.Surname,
 		IsMale:    req.IsMale,
-		Birthdate: birthdate,
+		Birthdate: req.Birthdate,
 	})
 	if err != nil {
 		logger.Errorf("Failed to update profile: %v", err)
@@ -187,7 +175,6 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	logger.Infof("Profile updated successfully, user_id=%d", payload.UserId)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "profile updated successfully",
