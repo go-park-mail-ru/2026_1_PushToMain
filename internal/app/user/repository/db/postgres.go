@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
@@ -26,13 +28,49 @@ func New(userDb *sql.DB) *Repository {
 }
 
 func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error {
-	query := `
-        UPDATE users
-        SET name = $1, surname = $2, is_male = $3, birthdate = $4, updated_at = NOW()
-        WHERE id = $5
-    `
+	var setParts []string
+	var args []interface{}
+	argCounter := 1
 
-	result, err := r.userDb.ExecContext(ctx, query, name, surname, isMale, birthdate, userID)
+	if name != "" {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argCounter))
+		args = append(args, name)
+		argCounter++
+	}
+
+	if surname != "" {
+		setParts = append(setParts, fmt.Sprintf("surname = $%d", argCounter))
+		args = append(args, surname)
+		argCounter++
+	}
+
+	if isMale != nil {
+		setParts = append(setParts, fmt.Sprintf("is_male = $%d", argCounter))
+		args = append(args, *isMale)
+		argCounter++
+	}
+
+	if birthdate != nil {
+		setParts = append(setParts, fmt.Sprintf("birthdate = $%d", argCounter))
+		args = append(args, *birthdate)
+		argCounter++
+	}
+
+	if len(setParts) == 0 {
+		return nil
+	}
+
+	setParts = append(setParts, "updated_at = NOW()")
+
+	query := fmt.Sprintf(`
+        UPDATE users
+        SET %s
+        WHERE id = $%d
+    `, strings.Join(setParts, ", "), argCounter)
+
+	args = append(args, userID)
+
+	result, err := r.userDb.ExecContext(ctx, query, args...)
 	if err != nil {
 		return ErrQueryError
 	}
