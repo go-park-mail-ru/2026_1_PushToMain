@@ -25,7 +25,6 @@ type Service interface {
 	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
 	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
-	
 }
 
 type SignUpRequest struct {
@@ -247,11 +246,6 @@ func (req *SignInRequest) Validate() bool {
 	}
 
 	return true
-}
-
-type UpdateProfileRequest struct {
-	Name    string `json:"name"`
-	Surname string `json:"surname"`
 }
 
 // @Summary      Выход

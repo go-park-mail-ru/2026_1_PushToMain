@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 )
@@ -24,14 +27,50 @@ func New(userDb *sql.DB) *Repository {
 	}
 }
 
-func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string) error {
-	query := `
-        UPDATE users
-        SET name = $1, surname = $2, updated_at = NOW()
-        WHERE id = $3
-    `
+func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error {
+	var setParts []string
+	var args []interface{}
+	argCounter := 1
 
-	result, err := r.userDb.ExecContext(ctx, query, name, surname, userID)
+	if name != "" {
+		setParts = append(setParts, fmt.Sprintf("name = $%d", argCounter))
+		args = append(args, name)
+		argCounter++
+	}
+
+	if surname != "" {
+		setParts = append(setParts, fmt.Sprintf("surname = $%d", argCounter))
+		args = append(args, surname)
+		argCounter++
+	}
+
+	if isMale != nil {
+		setParts = append(setParts, fmt.Sprintf("is_male = $%d", argCounter))
+		args = append(args, *isMale)
+		argCounter++
+	}
+
+	if birthdate != nil {
+		setParts = append(setParts, fmt.Sprintf("birthdate = $%d", argCounter))
+		args = append(args, *birthdate)
+		argCounter++
+	}
+
+	if len(setParts) == 0 {
+		return nil
+	}
+
+	setParts = append(setParts, "updated_at = NOW()")
+
+	query := fmt.Sprintf(`
+        UPDATE users
+        SET %s
+        WHERE id = $%d
+    `, strings.Join(setParts, ", "), argCounter)
+
+	args = append(args, userID)
+
+	result, err := r.userDb.ExecContext(ctx, query, args...)
 	if err != nil {
 		return ErrQueryError
 	}
@@ -131,7 +170,7 @@ func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.
 
 func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, error) {
 	query := `
-        SELECT id, email, password_hash, name, surname, image_path
+        SELECT id, email, password_hash, name, surname, image_path, is_male, birthdate
         FROM users
         WHERE id = $1
     `
@@ -141,7 +180,7 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
 
 	user := &models.User{}
 	err := r.userDb.QueryRowContext(ctx, query, userID).
-		Scan(&user.ID, &user.Email, &user.Password, &user.Name, &user.Surname, &user.ImagePath)
+		Scan(&user.ID, &user.Email, &user.Password, &user.Name, &user.Surname, &user.ImagePath, &user.IsMale, &user.Birthdate)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}

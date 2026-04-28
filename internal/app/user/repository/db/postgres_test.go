@@ -88,7 +88,7 @@ func TestRepository_UpdateProfile(t *testing.T) {
 			repo := &Repository{userDb: db}
 			tt.mockSetup(mock)
 
-			err = repo.UpdateProfile(context.Background(), tt.userID, tt.nameParam, tt.surname)
+			err = repo.UpdateProfile(context.Background(), tt.userID, tt.nameParam, tt.surname, nil, nil)
 			if tt.expectedErr != nil {
 				assert.ErrorIs(t, err, tt.expectedErr)
 			} else {
