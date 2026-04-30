@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/gorilla/mux"
 )
@@ -29,6 +31,29 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
+	case errors.Is(err, service.ErrFolderNameTooLong):
+		response.BadRequest(w)
+
+	case errors.Is(err, service.ErrFolderNameEmpty):
+		response.BadRequest(w)
+
+	case errors.Is(err, service.ErrFolderNameInvalid):
+		response.BadRequest(w)
+
+	case errors.Is(err, service.ErrEmptyEmailsList):
+		response.BadRequest(w)
+
+	case errors.Is(err, service.ErrFolderNotFound):
+		response.NotFound(w)
+
+	case errors.Is(err, service.ErrFolderAlreadyExists):
+		response.StatusConflict(w)
+
+	case errors.Is(err, service.ErrMaxFoldersReached):
+		response.StatusConflict(w)
+
+	case errors.Is(err, service.ErrAccessDenied):
+		response.Forbidden(w)
 
 	default:
 		response.InternalError(w)

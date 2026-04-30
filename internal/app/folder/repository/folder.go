@@ -6,15 +6,13 @@ import (
 	"encoding/json"
 
 	"errors"
-	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/models"
 )
 
 var (
-	ErrFolderNotFound  = errors.New("folder not found")
-	ErrQueryError      = errors.New("database query error")
-	ErrNoEmailsDeleted = errors.New("no mails to delete error")
+	ErrFolderNotFound = errors.New("folder not found")
+	ErrQueryError     = errors.New("database query error")
 )
 
 type Repository struct {
@@ -35,7 +33,7 @@ func (r *Repository) CreateFolder(ctx context.Context, folder models.Folder) (in
 	var folderID int64
 	err := r.db.QueryRowContext(ctx, query, folder.UserID, folder.Name).Scan(&folderID)
 	if err != nil {
-		return 0, fmt.Errorf("%w: %v", ErrQueryError, err)
+		return 0, ErrQueryError
 	}
 
 	return folderID, nil
@@ -61,7 +59,7 @@ func (r *Repository) GetFolderByID(ctx context.Context, folderID int64) (*models
 		return nil, ErrFolderNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrQueryError, err)
+		return nil, ErrQueryError
 	}
 
 	return &folder, nil
@@ -76,12 +74,12 @@ func (r *Repository) UpdateFolderName(ctx context.Context, folderID int64, newNa
 
 	result, err := r.db.ExecContext(ctx, query, newName, folderID)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrQueryError, err)
+		return ErrQueryError
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrQueryError, err)
+		return ErrQueryError
 	}
 
 	if rowsAffected == 0 {
@@ -111,7 +109,7 @@ func (r *Repository) GetFolderByName(ctx context.Context, userID int64, name str
 		return nil, ErrFolderNotFound
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrQueryError, err)
+		return nil, ErrQueryError
 	}
 
 	return &folder, nil
@@ -127,7 +125,7 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 	var count int
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("%w: %v", ErrQueryError, err)
+		return 0, ErrQueryError
 	}
 
 	return count, nil
@@ -162,7 +160,7 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 
 	rows, err := r.db.QueryContext(ctx, query, folderID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query emails: %w", err)
+		return nil, ErrQueryError
 	}
 	defer rows.Close()
 
@@ -183,7 +181,7 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 			&email.IsRead,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan email: %w", err)
+			return nil, err
 		}
 
 		// Парсим JSON массив получателей
@@ -195,7 +193,7 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, err
 	}
 
 	return emails, nil
@@ -211,7 +209,7 @@ func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (i
 	var count int
 	err := r.db.QueryRowContext(ctx, query, folderID).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("failed to count emails: %w", err)
+		return 0, err
 	}
 
 	return count, nil
@@ -229,7 +227,7 @@ func (r *Repository) CountUnreadEmailsInFolder(ctx context.Context, folderID, us
 	var count int
 	err := r.db.QueryRowContext(ctx, query, folderID, userID).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("failed to count unread emails: %w", err)
+		return 0, err
 	}
 
 	return count, nil
@@ -247,7 +245,7 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	var exists bool
 	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("failed to check email access: %w", err)
+		return false, err
 	}
 
 	return exists, nil
@@ -263,7 +261,7 @@ func (r *Repository) AddEmailToFolder(ctx context.Context, folderID, emailID int
 
 	_, err := r.db.ExecContext(ctx, query, folderID, emailID)
 	if err != nil {
-		return fmt.Errorf("failed to add email to folder: %w", err)
+		return err
 	}
 
 	return nil
@@ -277,12 +275,12 @@ func (r *Repository) DeleteEmailFromFolder(ctx context.Context, folderID, emailI
 
 	result, err := r.db.ExecContext(ctx, query, folderID, emailID)
 	if err != nil {
-		return fmt.Errorf("failed to delete email from folder: %w", err)
+		return err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return err
 	}
 
 	if rowsAffected == 0 {

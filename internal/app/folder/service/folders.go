@@ -80,14 +80,14 @@ func (s *Service) CreateNewFolder(ctx context.Context, input CreateNewFolderInpu
 	}
 
 	existing, err := s.repo.GetFolderByName(ctx, input.UserId, input.FolderName)
-	if err != nil && !errors.Is(err, repository.ErrFolderNotFound) {
+	err = MapRepositoryError(err)
+	if err != nil && !errors.Is(err, ErrFolderNotFound) {
 		return nil, fmt.Errorf("failed to check existing folder: %w", err)
 	}
 	if existing != nil {
 		return nil, ErrFolderAlreadyExists
 	}
 
-	// Создаём папку
 	folder := models.Folder{
 		UserID: input.UserId,
 		Name:   input.FolderName,
@@ -133,7 +133,8 @@ func (s *Service) ChangeFolderName(ctx context.Context, input ChangeFolderNameIn
 	}
 
 	existingFolder, err := s.repo.GetFolderByName(ctx, input.UserID, input.FolderName)
-	if err != nil && !errors.Is(err, repository.ErrFolderNotFound) {
+	err = MapRepositoryError(err)
+	if err != nil && !errors.Is(err, ErrFolderNotFound) {
 		return fmt.Errorf("failed to check existing folder: %w", err)
 	}
 	if existingFolder != nil && existingFolder.ID != input.FolderID {
@@ -207,7 +208,6 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 		return nil, fmt.Errorf("failed to count unread emails: %w", err)
 	}
 
-	// Конвертируем результаты
 	resultEmails := make([]EmailFromFolderResult, len(emails))
 	for i, email := range emails {
 		resultEmails[i] = EmailFromFolderResult{
@@ -239,12 +239,11 @@ type AddEmailsInFolderInput struct {
 }
 
 func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolderInput) error {
-	// Валидация
+
 	if len(input.EmailsID) == 0 {
 		return ErrEmptyEmailsList
 	}
 
-	// Проверяем, что папка принадлежит пользователю
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
 		return fmt.Errorf("failed to get folder: %w", err)
@@ -253,9 +252,7 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 		return ErrAccessDenied
 	}
 
-	// Добавляем каждое письмо в папку
 	for _, emailID := range input.EmailsID {
-		// Проверяем доступ к письму
 		hasAccess, err := s.repo.CheckEmailAccess(ctx, emailID, input.UserID)
 		if err != nil {
 			return fmt.Errorf("failed to check email access for email %d: %w", emailID, err)
@@ -264,7 +261,6 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 			return fmt.Errorf("email %d not found or access denied", emailID)
 		}
 
-		// Добавляем письмо в папку
 		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, emailID); err != nil {
 			return fmt.Errorf("failed to add email %d to folder: %w", emailID, err)
 		}
@@ -284,7 +280,6 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 		return ErrEmptyEmailsList
 	}
 
-	// Проверяем, что папка принадлежит пользователю
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
 		return fmt.Errorf("failed to get folder: %w", err)
@@ -305,6 +300,8 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 
 func MapRepositoryError(err error) error {
 	switch {
+	case errors.Is(err, repository.ErrFolderNotFound):
+		return ErrFolderNotFound
 	default:
 		return err
 	}
