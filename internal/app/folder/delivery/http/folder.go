@@ -29,6 +29,20 @@ type CreateNewFolderResponse struct {
 	ID int64 `json:"folder_id"`
 }
 
+// @Summary      Создать новую папку
+// @Description  Создаёт новую кастомную папку для писем
+// @Tags         folders
+// @Accept       json
+// @Produce      json
+// @Param        request body CreateNewFolderRequest true "Название папки"
+// @Success      201  {object}  CreateNewFolderResponse
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      409  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/new [post]
 func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("create folder request received")
@@ -78,6 +92,22 @@ type ChangeFolderNameRequest struct {
 	FolderName string `json:"folder_name"`
 }
 
+// @Summary      Изменить название папки
+// @Description  Изменяет название существующей кастомной папки
+// @Tags         folders
+// @Accept       json
+// @Produce      json
+// @Param        id      path      int                     true "ID папки"
+// @Param        request body      ChangeFolderNameRequest true "Новое название папки"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      409  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/{id}/name [put]
 func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("change folder name request received")
@@ -146,6 +176,21 @@ type GetEmailsFromFolderResponse struct {
 	UnreadCount int             `json:"unread_count"`
 }
 
+// @Summary      Получить письма из папки
+// @Description  Возвращает список писем в указанной папке с пагинацией
+// @Tags         folders
+// @Produce      json
+// @Param        id      path      int  true  "ID папки"
+// @Param        limit   query     int  false "Количество записей на странице (default: 20, max: 100)"
+// @Param        offset  query     int  false "Смещение для пагинации (default: 0)"
+// @Success      200  {object}  GetEmailsFromFolderResponse
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/{id} [get]
 func (handler *Handler) GetEmailsFromFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof(" get email from folder request received")
@@ -230,6 +275,21 @@ type AddEmailsInFolderRequest struct {
 	EmailsID []int64 `json:"emails_id"`
 }
 
+// @Summary      Добавить письма в папку
+// @Description  Добавляет одно или несколько писем в указанную папку
+// @Tags         folders
+// @Accept       json
+// @Produce      json
+// @Param        id      path      int                       true "ID папки"
+// @Param        request body      AddEmailsInFolderRequest  true "Список ID писем"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/{id}/add [post]
 func (handler *Handler) AddEmailsInFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("add emails in folder name request received")
@@ -278,6 +338,21 @@ type DeleteEmailsFromFolderRequest struct {
 	EmailsID []int64 `json:"emails_id"`
 }
 
+// @Summary      Удалить письма из папки
+// @Description  Удаляет указанные письма из папки
+// @Tags         folders
+// @Accept       json
+// @Produce      json
+// @Param        id      path      int                          true "ID папки"
+// @Param        request body      DeleteEmailsFromFolderRequest true "Список ID писем"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/{id}/delete [delete]
 func (handler *Handler) DeleteEmailsFromFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("delete emails in folder name request received")
