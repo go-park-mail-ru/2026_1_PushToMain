@@ -96,12 +96,12 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        input  body      handler.SignUpRequest  true  "Данные для регистрации"
+// @Param        input  body   SignUpRequest  true  "Данные для регистрации"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
 // @Failure      409    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
-// @Router       api/v1/auth/signup [post]
+// @Router       /api/v1/auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
 	var req SignUpRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -186,12 +186,12 @@ type SignInRequest struct {
 // @Tags         auth
 // @Accept       json
 // @Produce      json
-// @Param        input  body      handler.SignInRequest  true  "Данные для входа"
+// @Param        input  body      SignInRequest  true  "Данные для входа"
 // @Success      200    {object}  map[string]string
 // @Failure      400    {object}  response.ErrorResponse
 // @Failure      401    {object}  response.ErrorResponse
 // @Failure      500    {object}  response.ErrorResponse
-// @Router       api/v1/auth/signin [post]
+// @Router       /api/v1/auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
 	var req SignInRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -254,7 +254,7 @@ func (req *SignInRequest) Validate() bool {
 // @Produce      json
 // @Success      200  {object}  map[string]string
 // @Failure      500  {object}  response.ErrorResponse
-// @Router       api/v1/auth/logout [post]
+// @Router       /api/v1/auth/logout [post]
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, &http.Cookie{

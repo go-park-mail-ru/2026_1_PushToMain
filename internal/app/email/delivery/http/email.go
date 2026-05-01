@@ -720,7 +720,7 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/read [put]
+// @Router       /api/v1/emails/{id}/unread [put]
 func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Mark email as unread request received")
@@ -781,7 +781,7 @@ type MarkEmailsAsReadRequest struct {
 // @Tags         emails
 // @Accept       json
 // @Produce      json
-// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
+// @Param        request body MarkEmailsAsReadRequest true "ID письем"
 // @Success      200  "Success"
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      403  {object}  response.ErrorResponse
@@ -840,14 +840,14 @@ func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request)
 // @Tags         emails
 // @Accept       json
 // @Produce      json
-// @Param        request body DeleteEMarkEmailsAsReadRequestmailRequest true "ID письем"
+// @Param        request body MarkEmailsAsReadRequest  true "ID письем"
 // @Success      200  "Success"
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      403  {object}  response.ErrorResponse
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/read [put]
+// @Router       /api/v1/emails/unread [put]
 func (handler *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	logger.Infof("Mark email as unread request received")

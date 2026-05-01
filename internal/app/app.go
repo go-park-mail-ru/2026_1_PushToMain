@@ -13,6 +13,7 @@ import (
 	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
 	profileS3Repo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/storage"
 	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
+
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 	"go.uber.org/zap"
@@ -20,6 +21,11 @@ import (
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/service"
+
+	folderHttp "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/delivery/http"
+	folderRepo "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/repository"
+	folderService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/service"
+
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
@@ -68,11 +74,11 @@ func (app *App) Run(configPath string) {
 	profileDbRepo := profileDbRepo.New(db)
 	profileS3Repo, err := profileS3Repo.New(s3Client)
 	if err != nil {
-	    app.Logger.Fatalf("s3 storage init error: %v", err)
+		app.Logger.Fatalf("s3 storage init error: %v", err)
 	}
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	authHandler := authHttp.New(userService, authHttp.Config{
-		TTL: app.Config.JWTManager.TTL(),
+		TTL:           app.Config.JWTManager.TTL(),
 		MaxAvatarSize: app.Config.Avatar.MaxSizeMB * 1024 * 1024,
 		AllowedTypes:  app.Config.Avatar.AllowedTypes,
 	})
@@ -81,6 +87,10 @@ func (app *App) Run(configPath string) {
 	emailService := emailService.New(emailRepo, userService)
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
+
+	folderRepo := folderRepo.New(db)
+	folderService := folderService.New(folderRepo)
+	folderHandler := folderHttp.New(folderService)
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))
@@ -96,6 +106,7 @@ func (app *App) Run(configPath string) {
 
 	authHandler.InitRoutes(public, private)
 	emailHandler.InitRoutes(public, private)
+	folderHandler.InitRoutes(public, private)
 
 	app.Server = http.Server{
 		Addr:    ":" + app.Config.ServerPort,
