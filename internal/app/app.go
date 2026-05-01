@@ -83,14 +83,19 @@ func (app *App) Run(configPath string) {
 		AllowedTypes:  app.Config.Avatar.AllowedTypes,
 	})
 
-	emailRepo := emailRepo.New(db)
-	emailService := emailService.New(emailRepo, userService)
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{
-		TTL: app.Config.JWTManager.TTL()})
-
 	folderRepo := folderRepo.New(db)
 	folderService := folderService.New(folderRepo)
 	folderHandler := folderHttp.New(folderService)
+
+	emailRepo := emailRepo.New(db)
+	emailService := emailService.New(
+		emailRepo,
+		folderRepo, // используется для перемещения письма в кастомную папку (PUT /emails/{id}/folder)
+		userService,
+		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
+	)
+	emailHandler := emailHttp.New(emailService, emailHttp.Config{
+		TTL: app.Config.JWTManager.TTL()})
 
 	router := mux.NewRouter()
 	router.Use(middleware.Logging(app.Logger))

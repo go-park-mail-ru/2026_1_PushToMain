@@ -47,3 +47,6 @@ avatar:
     - image/jpeg
     - image/png
     - image/webp
+
+drafts:
+  max_per_user: 100

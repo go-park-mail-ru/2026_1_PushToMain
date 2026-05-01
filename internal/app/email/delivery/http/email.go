@@ -26,6 +26,22 @@ type Service interface {
 	MarkEmailAsUnRead(ctx context.Context, cmd service.MarkAsReadInput) error
 	DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error
 	DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error
+
+	// Spam and junk
+	GetSpamEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetTrashEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+
+	// Email actions
+	ChangeFolder(ctx context.Context, cmd service.ChangeFolderInput) error
+	RestoreFromTrash(ctx context.Context, cmd service.ChangeFolderInput) error
+
+	// Drafts
+	CreateDraft(ctx context.Context, cmd service.CreateDraftInput) (*service.DraftResult, error)
+	UpdateDraft(ctx context.Context, cmd service.UpdateDraftInput) (*service.DraftResult, error)
+	GetDraftByID(ctx context.Context, cmd service.GetDraftInput) (*service.DraftResult, error)
+	GetDrafts(ctx context.Context, cmd service.GetDraftsInput) (*service.GetDraftsResult, error)
+	DeleteDraft(ctx context.Context, cmd service.DeleteDraftInput) error
+	SendDraft(ctx context.Context, cmd service.SendDraftInput) (*service.SendEmailResult, error)
 }
 
 type SendEmailRequest struct {

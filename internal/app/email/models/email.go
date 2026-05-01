@@ -13,6 +13,9 @@ type Email struct {
 type EmailWithMetadata struct {
 	Email
 	IsRead          bool
+	IsStarred       bool
+	IsSpam          bool
+	IsDeleted       bool
 	ReceivedAt      time.Time
 	ReceiversEmails []string
 }
@@ -23,6 +26,16 @@ type EmailWithAvatar struct {
 	ReceiversEmails []string
 }
 
+type Draft struct {
+	ID        int64
+	SenderID  int64
+	Header    string
+	Body      string
+	Receivers []string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type UserEmail struct {
 	ID        int64
 	EmailID   int64
@@ -30,8 +43,11 @@ type UserEmail struct {
 	IsSender  bool
 	IsRead    bool
 	IsDeleted bool
-	isStared  bool
+	IsStarred bool
+	IsSpam    bool
+	IsDraft   bool
 	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type User struct {
