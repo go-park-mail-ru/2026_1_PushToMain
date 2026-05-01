@@ -3,11 +3,11 @@ package models
 import "time"
 
 type Folder struct {
-	ID        int64     `json:"id"`
-	UserID    int64     `json:"user_id"`
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64
+	UserID    int64
+	Name      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type EmailFromFolder struct {

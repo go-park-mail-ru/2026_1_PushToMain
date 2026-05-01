@@ -31,15 +31,6 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
 	switch {
-	case errors.Is(err, service.ErrFolderNameTooLong):
-		response.BadRequest(w)
-
-	case errors.Is(err, service.ErrFolderNameEmpty):
-		response.BadRequest(w)
-
-	case errors.Is(err, service.ErrFolderNameInvalid):
-		response.BadRequest(w)
-
 	case errors.Is(err, service.ErrEmptyEmailsList):
 		response.BadRequest(w)
 

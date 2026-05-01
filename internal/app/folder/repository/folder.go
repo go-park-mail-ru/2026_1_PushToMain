@@ -4,15 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 
 	"errors"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/models"
+	"github.com/jackc/pgconn"
 )
+
+// Коды ошибок PostgreSQL
+const UniqueViolation = "23505"
 
 var (
 	ErrFolderNotFound = errors.New("folder not found")
-	ErrQueryError     = errors.New("database query error")
+	ErrDuplicate      = errors.New("record already exists")
 )
 
 type Repository struct {
@@ -33,9 +38,14 @@ func (r *Repository) CreateFolder(ctx context.Context, folder models.Folder) (in
 	var folderID int64
 	err := r.db.QueryRowContext(ctx, query, folder.UserID, folder.Name).Scan(&folderID)
 	if err != nil {
-		return 0, ErrQueryError
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
+				return 0, ErrDuplicate
+			}
+		}
+		return 0, fmt.Errorf("failed to create folder for user %d: %w", folder.UserID, err)
 	}
-
 	return folderID, nil
 }
 
@@ -59,7 +69,7 @@ func (r *Repository) GetFolderByID(ctx context.Context, folderID int64) (*models
 		return nil, ErrFolderNotFound
 	}
 	if err != nil {
-		return nil, ErrQueryError
+		return nil, fmt.Errorf("failed to get folder by id %d: %w", folderID, err)
 	}
 
 	return &folder, nil
@@ -74,12 +84,18 @@ func (r *Repository) UpdateFolderName(ctx context.Context, folderID int64, newNa
 
 	result, err := r.db.ExecContext(ctx, query, newName, folderID)
 	if err != nil {
-		return ErrQueryError
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == UniqueViolation {
+				return ErrDuplicate
+			}
+		}
+		return fmt.Errorf("failed to update folder name for folder %d: %w", folderID, err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return ErrQueryError
+		return fmt.Errorf("failed to get rows affected for folder %d: %w", folderID, err)
 	}
 
 	if rowsAffected == 0 {
@@ -109,7 +125,7 @@ func (r *Repository) GetFolderByName(ctx context.Context, userID int64, name str
 		return nil, ErrFolderNotFound
 	}
 	if err != nil {
-		return nil, ErrQueryError
+		return nil, fmt.Errorf("failed to get folder by name '%s' for user %d: %w", name, userID, err)
 	}
 
 	return &folder, nil
@@ -125,7 +141,7 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 	var count int
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
 	if err != nil {
-		return 0, ErrQueryError
+		return 0, fmt.Errorf("failed to count folders for user %d: %w", userID, err)
 	}
 
 	return count, nil
@@ -160,7 +176,7 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 
 	rows, err := r.db.QueryContext(ctx, query, folderID, limit, offset)
 	if err != nil {
-		return nil, ErrQueryError
+		return nil, fmt.Errorf("failed to query emails from folder %d: %w", folderID, err)
 	}
 	defer rows.Close()
 

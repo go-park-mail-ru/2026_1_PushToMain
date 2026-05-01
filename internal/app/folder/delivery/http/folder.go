@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
+	"github.com/gorilla/mux"
 )
 
 type Service interface {
@@ -20,6 +21,10 @@ type Service interface {
 	AddEmailsInFolder(ctx context.Context, input service.AddEmailsInFolderInput) error
 	DeleteEmailsFromFolder(ctx context.Context, input service.DeleteEmailsFromFolderInput) error
 }
+
+const MaxFolderNameLength = 255
+
+var validFolderName = regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9\s\-_]+$`)
 
 type CreateNewFolderRequest struct {
 	FolderName string `json:"folder_name"`
@@ -45,8 +50,6 @@ type CreateNewFolderResponse struct {
 // @Router       /api/v1/folder/new [post]
 func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("create folder request received")
-
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("Failed to get claims: %v", err)
@@ -60,11 +63,11 @@ func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) 
 		response.BadRequest(w)
 		return
 	}
-
-	if req.FolderName == "" {
+	if !req.Validate() {
 		logger.Warnf("Validation failed, user_id=%d: invalid format", payload.UserId)
+		response.BadRequest(w)
+		return
 	}
-
 	result, err := handler.service.CreateNewFolder(r.Context(), service.CreateNewFolderInput{
 		UserId:     payload.UserId,
 		FolderName: req.FolderName,
@@ -86,6 +89,17 @@ func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) 
 		response.InternalError(w)
 		return
 	}
+}
+
+func (req *CreateNewFolderRequest) Validate() bool {
+
+	if req.FolderName == "" || len(req.FolderName) > MaxFolderNameLength {
+		return false
+	}
+	if !validFolderName.MatchString(req.FolderName) {
+		return false
+	}
+	return true
 }
 
 type ChangeFolderNameRequest struct {
@@ -110,8 +124,6 @@ type ChangeFolderNameRequest struct {
 // @Router       /api/v1/folder/{id}/name [put]
 func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("change folder name request received")
-
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
 		logger.Errorf("Failed to get claims: %v", err)
@@ -119,15 +131,20 @@ func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+	vars := mux.Vars(r)
+	folderIDStr := vars["folderID"]
+	if folderIDStr == "" {
+		logger.Warnf("Missing folder ID")
 		response.BadRequest(w)
 		return
 	}
 
-	folderIDStr := pathParts[4]
 	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		logger.Warnf("Invalid folder ID: %s", folderIDStr)
+		response.BadRequest(w)
+		return
+	}
 
 	var req ChangeFolderNameRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -136,8 +153,10 @@ func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if req.FolderName == "" {
+	if !req.Validate() {
 		logger.Warnf("Validation failed, user_id=%d: invalid format", payload.UserId)
+		response.BadRequest(w)
+		return
 	}
 
 	err = handler.service.ChangeFolderName(r.Context(), service.ChangeFolderNameInput{
@@ -154,6 +173,17 @@ func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request)
 	logger.Debugf("Folder created successfully: user_id=%d",
 		payload.UserId)
 	w.WriteHeader(http.StatusOK)
+}
+
+func (req *ChangeFolderNameRequest) Validate() bool {
+
+	if req.FolderName == "" || len(req.FolderName) > MaxFolderNameLength {
+		return false
+	}
+	if !validFolderName.MatchString(req.FolderName) {
+		return false
+	}
+	return true
 }
 
 type EmailResponse struct {
@@ -193,7 +223,6 @@ type GetEmailsFromFolderResponse struct {
 // @Router       /api/v1/folder/{id} [get]
 func (handler *Handler) GetEmailsFromFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof(" get email from folder request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -202,29 +231,22 @@ func (handler *Handler) GetEmailsFromFolder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+	vars := mux.Vars(r)
+	folderIDStr := vars["folderID"]
+	if folderIDStr == "" {
+		logger.Warnf("Missing folder ID")
 		response.BadRequest(w)
 		return
 	}
 
-	folderIDStr := pathParts[4]
 	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
-
-	limit := 20
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
-			limit = l
-		}
+	if err != nil {
+		logger.Warnf("Invalid folder ID: %s", folderIDStr)
+		response.BadRequest(w)
+		return
 	}
 
-	offset := 0
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
+	limit, offset := GetLimitAndOffset(r)
 
 	result, err := handler.service.GetEmailsFromFolder(r.Context(), service.GetEmailsFromFolderInput{
 		UserID:   payload.UserId,
@@ -292,7 +314,6 @@ type AddEmailsInFolderRequest struct {
 // @Router       /api/v1/folder/{id}/add [post]
 func (handler *Handler) AddEmailsInFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("add emails in folder name request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -301,15 +322,20 @@ func (handler *Handler) AddEmailsInFolder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+	vars := mux.Vars(r)
+	folderIDStr := vars["folderID"]
+	if folderIDStr == "" {
+		logger.Warnf("Missing folder ID")
 		response.BadRequest(w)
 		return
 	}
 
-	folderIDStr := pathParts[4]
 	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		logger.Warnf("Invalid folder ID: %s", folderIDStr)
+		response.BadRequest(w)
+		return
+	}
 
 	var req AddEmailsInFolderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -355,7 +381,6 @@ type DeleteEmailsFromFolderRequest struct {
 // @Router       /api/v1/folder/{id}/delete [delete]
 func (handler *Handler) DeleteEmailsFromFolder(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("delete emails in folder name request received")
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
@@ -364,15 +389,20 @@ func (handler *Handler) DeleteEmailsFromFolder(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+	vars := mux.Vars(r)
+	folderIDStr := vars["folderID"]
+	if folderIDStr == "" {
+		logger.Warnf("Missing folder ID")
 		response.BadRequest(w)
 		return
 	}
 
-	folderIDStr := pathParts[4]
 	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		logger.Warnf("Invalid folder ID: %s", folderIDStr)
+		response.BadRequest(w)
+		return
+	}
 
 	var req DeleteEmailsFromFolderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -395,4 +425,21 @@ func (handler *Handler) DeleteEmailsFromFolder(w http.ResponseWriter, r *http.Re
 	logger.Debugf("emails deleted successfully: user_id=%d",
 		payload.UserId)
 	w.WriteHeader(http.StatusOK)
+}
+
+func GetLimitAndOffset(r *http.Request) (limit, offset int) {
+	limit = 20
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	offset = 0
+	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+	return limit, offset
 }

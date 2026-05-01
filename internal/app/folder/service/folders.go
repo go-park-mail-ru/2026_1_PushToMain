@@ -3,8 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
-	"regexp"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/models"
@@ -12,9 +10,6 @@ import (
 )
 
 var (
-	ErrFolderNameEmpty     = errors.New("folder name cannot be empty")
-	ErrFolderNameTooLong   = errors.New("folder name too long (max 255 characters)")
-	ErrFolderNameInvalid   = errors.New("folder name contains invalid characters")
 	ErrFolderAlreadyExists = errors.New("folder with this name already exists")
 	ErrMaxFoldersReached   = errors.New("maximum number of folders reached (max 10 custom folders)")
 	ErrFolderNotFound      = errors.New("folder not found")
@@ -22,10 +17,7 @@ var (
 	ErrEmptyEmailsList     = errors.New("no emails to add error")
 )
 
-const (
-	MaxFolderNameLength = 255
-	MaxCustomFolders    = 10
-)
+const MaxCustomFolders = 10
 
 type Repository interface {
 	CreateFolder(ctx context.Context, folder models.Folder) (int64, error)
@@ -59,33 +51,13 @@ type CreateNewFolderResult struct {
 }
 
 func (s *Service) CreateNewFolder(ctx context.Context, input CreateNewFolderInput) (*CreateNewFolderResult, error) {
-	if input.FolderName == "" {
-		return nil, ErrFolderNameEmpty
-	}
-	if len(input.FolderName) > MaxFolderNameLength {
-		return nil, ErrFolderNameTooLong
-	}
-	validName := regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9\s\-_]+$`)
-	if !validName.MatchString(input.FolderName) {
-		return nil, ErrFolderNameInvalid
-	}
-
 	count, err := s.repo.CountUserFolders(ctx, input.UserId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count user folders: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 
 	if count >= MaxCustomFolders {
 		return nil, ErrMaxFoldersReached
-	}
-
-	existing, err := s.repo.GetFolderByName(ctx, input.UserId, input.FolderName)
-	err = MapRepositoryError(err)
-	if err != nil && !errors.Is(err, ErrFolderNotFound) {
-		return nil, fmt.Errorf("failed to check existing folder: %w", err)
-	}
-	if existing != nil {
-		return nil, ErrFolderAlreadyExists
 	}
 
 	folder := models.Folder{
@@ -95,7 +67,7 @@ func (s *Service) CreateNewFolder(ctx context.Context, input CreateNewFolderInpu
 
 	folderID, err := s.repo.CreateFolder(ctx, folder)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create folder: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 
 	return &CreateNewFolderResult{
@@ -110,40 +82,18 @@ type ChangeFolderNameInput struct {
 }
 
 func (s *Service) ChangeFolderName(ctx context.Context, input ChangeFolderNameInput) error {
-	if input.FolderName == "" {
-		return ErrFolderNameEmpty
-	}
-
-	if len(input.FolderName) > MaxFolderNameLength {
-		return ErrFolderNameTooLong
-	}
-
-	validName := regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9\s\-_]+$`)
-	if !validName.MatchString(input.FolderName) {
-		return ErrFolderNameInvalid
-	}
-
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
-		return fmt.Errorf("failed to get folder: %w", err)
+		return MapRepositoryError(err)
 	}
 
 	if folder.UserID != input.UserID {
 		return ErrAccessDenied
 	}
 
-	existingFolder, err := s.repo.GetFolderByName(ctx, input.UserID, input.FolderName)
-	err = MapRepositoryError(err)
-	if err != nil && !errors.Is(err, ErrFolderNotFound) {
-		return fmt.Errorf("failed to check existing folder: %w", err)
-	}
-	if existingFolder != nil && existingFolder.ID != input.FolderID {
-		return ErrFolderAlreadyExists
-	}
-
 	err = s.repo.UpdateFolderName(ctx, input.FolderID, input.FolderName)
 	if err != nil {
-		return fmt.Errorf("failed to update folder name: %w", err)
+		return MapRepositoryError(err)
 	}
 
 	return nil
@@ -178,16 +128,9 @@ type EmailFromFolderResult struct {
 }
 
 func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFolderInput) (*GetEmailsFromFolderResult, error) {
-	if input.Limit <= 0 || input.Limit > 100 {
-		input.Limit = 20
-	}
-	if input.Offset < 0 {
-		input.Offset = 0
-	}
-
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get folder: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 	if folder.UserID != input.UserID {
 		return nil, ErrAccessDenied
@@ -195,17 +138,17 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 
 	emails, err := s.repo.GetEmailsFromFolder(ctx, input.FolderID, input.Limit, input.Offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get emails from folder: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 
 	total, err := s.repo.CountEmailsInFolder(ctx, input.FolderID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count emails in folder: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 
 	unreadCount, err := s.repo.CountUnreadEmailsInFolder(ctx, input.FolderID, input.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count unread emails: %w", err)
+		return nil, MapRepositoryError(err)
 	}
 
 	resultEmails := make([]EmailFromFolderResult, len(emails))
@@ -246,7 +189,7 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
-		return fmt.Errorf("failed to get folder: %w", err)
+		return MapRepositoryError(err)
 	}
 	if folder.UserID != input.UserID {
 		return ErrAccessDenied
@@ -255,14 +198,14 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 	for _, emailID := range input.EmailsID {
 		hasAccess, err := s.repo.CheckEmailAccess(ctx, emailID, input.UserID)
 		if err != nil {
-			return fmt.Errorf("failed to check email access for email %d: %w", emailID, err)
+			return MapRepositoryError(err)
 		}
 		if !hasAccess {
-			return fmt.Errorf("email %d not found or access denied", emailID)
+			return MapRepositoryError(err)
 		}
 
 		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, emailID); err != nil {
-			return fmt.Errorf("failed to add email %d to folder: %w", emailID, err)
+			return MapRepositoryError(err)
 		}
 	}
 
@@ -282,7 +225,7 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 
 	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
 	if err != nil {
-		return fmt.Errorf("failed to get folder: %w", err)
+		return MapRepositoryError(err)
 	}
 	if folder.UserID != input.UserID {
 		return ErrAccessDenied
@@ -291,7 +234,7 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 	// Удаляем каждое письмо из папки
 	for _, emailID := range input.EmailsID {
 		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, emailID); err != nil {
-			return fmt.Errorf("failed to delete email %d from folder: %w", emailID, err)
+			return MapRepositoryError(err)
 		}
 	}
 
@@ -300,6 +243,8 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 
 func MapRepositoryError(err error) error {
 	switch {
+	case errors.Is(err, repository.ErrDuplicate):
+		return ErrFolderAlreadyExists
 	case errors.Is(err, repository.ErrFolderNotFound):
 		return ErrFolderNotFound
 	default:
