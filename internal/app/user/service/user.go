@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/repository/db"
@@ -36,7 +37,7 @@ type DbRepository interface {
 	UpdateAvatar(ctx context.Context, userID int64, imagePath string) error
 	FindByID(ctx context.Context, userID int64) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
-	UpdateProfile(ctx context.Context, userID int64, name, surname string) error
+	UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error
 }
 
 type S3Repository interface {
@@ -88,6 +89,8 @@ type GetMeResult struct {
 	Name      string
 	Surname   string
 	ImagePath string
+	IsMale    *bool
+	Birthdate *time.Time
 }
 
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
@@ -101,17 +104,21 @@ func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error)
 		Name:      user.Name,
 		Surname:   user.Surname,
 		ImagePath: user.ImagePath,
+		IsMale:    user.IsMale,
+		Birthdate: user.Birthdate,
 	}, nil
 }
 
 type UpdateProfileInput struct {
-	UserID  int64
-	Name    string
-	Surname string
+	UserID    int64
+	Name      string
+	Surname   string
+	IsMale    *bool
+	Birthdate *time.Time
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) error {
-	err := s.userDB.UpdateProfile(ctx, input.UserID, input.Name, input.Surname)
+	err := s.userDB.UpdateProfile(ctx, input.UserID, input.Name, input.Surname, input.IsMale, input.Birthdate)
 	if err != nil {
 		return MapRepositoryError(err)
 	}

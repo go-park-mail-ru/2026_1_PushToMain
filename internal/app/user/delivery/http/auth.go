@@ -248,11 +248,6 @@ func (req *SignInRequest) Validate() bool {
 	return true
 }
 
-type UpdateProfileRequest struct {
-	Name    string `json:"name"`
-	Surname string `json:"surname"`
-}
-
 // @Summary      Выход
 // @Description  Завершает сессию пользователя, сбрасывает сессионную куку
 // @Tags         auth

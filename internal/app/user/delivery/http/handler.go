@@ -42,6 +42,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/profile/me", h.GetMe).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/password", h.UpdatePassword).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/profile/change", h.UpdateProfile).Methods(http.MethodPut, http.MethodOptions)
+
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {

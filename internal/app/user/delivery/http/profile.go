@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -19,6 +20,9 @@ type GetMeResponse struct {
 	Name      string `json:"name"`
 	Surname   string `json:"surname"`
 	ImagePath string `json:"image_path"`
+
+	IsMale    *bool      `json:"is_male,omitempty"`
+	Birthdate *time.Time `json:"birthdate,omitempty"`
 }
 
 func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +52,8 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		Name:      result.Name,
 		Surname:   result.Surname,
 		ImagePath: result.ImagePath,
+		IsMale:    result.IsMale,
+		Birthdate: result.Birthdate,
 	}); err != nil {
 		logger.Errorf("failed to encode response: %v", err)
 		response.InternalError(w)
@@ -105,6 +111,13 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type UpdateProfileRequest struct {
+	Name      string     `json:"name"`
+	Surname   string     `json:"surname"`
+	Birthdate *time.Time `json:"birthdate"` // ISO-8601 формат 2000-02-20
+	IsMale    *bool      `json:"is_male"`
+}
+
 // @Summary      Обновить профиль пользователя
 // @Description  Обновляет имя и фамилию авторизованного пользователя
 // @Tags         auth
@@ -141,16 +154,18 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" && req.Surname == "" {
+	if req.Name == "" || req.Surname == "" {
 		logger.Warnf("Name and surname are empty")
 		response.BadRequest(w)
 		return
 	}
 
 	err = h.service.UpdateProfile(r.Context(), service.UpdateProfileInput{
-		UserID:  payload.UserId,
-		Name:    req.Name,
-		Surname: req.Surname,
+		UserID:    payload.UserId,
+		Name:      req.Name,
+		Surname:   req.Surname,
+		IsMale:    req.IsMale,
+		Birthdate: req.Birthdate,
 	})
 	if err != nil {
 		logger.Errorf("Failed to update profile: %v", err)
@@ -160,7 +175,6 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	logger.Infof("Profile updated successfully, user_id=%d", payload.UserId)
 
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "profile updated successfully",
