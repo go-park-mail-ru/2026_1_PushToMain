@@ -187,6 +187,13 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
 	if err != nil {
 		return nil, ErrQueryError
 	}
+
+	folders, err := r.GetUserFolders(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folders for user %d: %w", userID, err)
+	}
+	user.Folders = folders
+
 	return user, nil
 }
 
@@ -209,4 +216,34 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 		return ErrUserNotFound
 	}
 	return nil
+}
+
+func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models.Folder, error) {
+	query := `
+        SELECT id, name
+        FROM folders
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+    `
+
+	rows, err := r.userDb.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query folders: %w", err)
+	}
+	defer rows.Close()
+
+	var folders []models.Folder
+	for rows.Next() {
+		var f models.Folder
+		if err := rows.Scan(&f.ID, &f.Name); err != nil {
+			return nil, fmt.Errorf("failed to scan folder: %w", err)
+		}
+		folders = append(folders, f)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return folders, nil
 }

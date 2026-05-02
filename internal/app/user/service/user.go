@@ -83,6 +83,11 @@ type UpdatePasswordInput struct {
 	NewPassword string
 }
 
+type Folder struct {
+	ID   int64
+	Name string
+}
+
 type GetMeResult struct {
 	UserID    int64
 	Email     string
@@ -91,12 +96,20 @@ type GetMeResult struct {
 	ImagePath string
 	IsMale    *bool
 	Birthdate *time.Time
+	Folders   []Folder
 }
 
 func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error) {
 	user, err := s.userDB.FindByID(ctx, userID)
 	if err != nil {
 		return nil, MapRepositoryError(err)
+	}
+	folders := make([]Folder, len(user.Folders))
+	for i, f := range user.Folders {
+		folders[i] = Folder{
+			ID:   f.ID,
+			Name: f.Name,
+		}
 	}
 	return &GetMeResult{
 		UserID:    user.ID,
@@ -106,6 +119,7 @@ func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error)
 		ImagePath: user.ImagePath,
 		IsMale:    user.IsMale,
 		Birthdate: user.Birthdate,
+		Folders:   folders,
 	}, nil
 }
 
