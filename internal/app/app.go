@@ -90,7 +90,6 @@ func (app *App) Run(configPath string) {
 	emailRepo := emailRepo.New(db)
 	emailService := emailService.New(
 		emailRepo,
-		folderRepo, // используется для перемещения письма в кастомную папку (PUT /emails/{id}/folder)
 		userService,
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
 	)

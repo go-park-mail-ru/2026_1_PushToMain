@@ -6,12 +6,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
-	folderModels "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/folder/models"
 	userService "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service"
 )
 
@@ -24,7 +22,6 @@ var (
 	ErrConflict         = errors.New("conflict")
 	ErrBadRequest       = errors.New("bad request")
 	ErrInvalidFolder    = errors.New("invalid folder tag")
-	ErrFolderNotFound   = errors.New("folder not found")
 	ErrDraftNotReady    = errors.New("draft is not ready to be sent")
 	ErrDraftValidation  = errors.New("draft must contain at least one of: header, body, receivers")
 	ErrDraftsLimit      = errors.New("drafts limit reached")
@@ -72,31 +69,23 @@ type Repository interface {
 	MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error
 }
 
-type FolderRepository interface {
-	GetFolderByName(ctx context.Context, userID int64, name string) (*folderModels.Folder, error)
-	AddEmailToFolder(ctx context.Context, folderID, emailID int64) error
-}
-
 type DraftsConfig struct {
 	MaxPerUser int
 }
 
 type Service struct {
 	repo        Repository
-	folderRepo  FolderRepository
 	userService *userService.Service
 	drafts      DraftsConfig
 }
 
 func New(
 	repo Repository,
-	folderRepo FolderRepository,
 	userService *userService.Service,
 	drafts DraftsConfig,
 ) *Service {
 	return &Service{
 		repo:        repo,
-		folderRepo:  folderRepo,
 		userService: userService,
 		drafts:      drafts,
 	}
@@ -469,7 +458,6 @@ const (
 	FolderTagSpam     = "spam"
 	FolderTagFavorite = "favorite"
 	FolderTagTrash    = "trash"
-	customFolderPfx   = "folder-"
 )
 
 type ChangeFolderInput struct {
@@ -503,17 +491,7 @@ func (s *Service) ChangeFolder(ctx context.Context, in ChangeFolderInput) error 
 		return nil
 
 	default:
-		if !strings.HasPrefix(in.Folder, customFolderPfx) {
-			return ErrInvalidFolder
-		}
-		folder, err := s.folderRepo.GetFolderByName(ctx, in.UserID, in.Folder)
-		if err != nil {
-			return ErrFolderNotFound
-		}
-		if err := s.folderRepo.AddEmailToFolder(ctx, folder.ID, in.EmailID); err != nil {
-			return MapRepositoryError(err)
-		}
-		return nil
+		return ErrInvalidFolder
 	}
 }
 

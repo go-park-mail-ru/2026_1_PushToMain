@@ -69,7 +69,6 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 		response.StatusConflict(w)
 	case errors.Is(err, service.ErrUserNotFound),
 		errors.Is(err, service.ErrEmailNotFound),
-		errors.Is(err, service.ErrFolderNotFound),
 		errors.Is(err, service.ErrNoValidReceivers):
 		response.NotFound(w)
 	case errors.Is(err, service.ErrAccessDenied):
