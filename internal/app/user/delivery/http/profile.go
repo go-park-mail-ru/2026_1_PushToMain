@@ -14,12 +14,17 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 )
 
+type Folder struct {
+	ID   int64  `json:"folder_id"`
+	Name string `json:"folder_name"`
+}
 type GetMeResponse struct {
-	ID        int64  `json:"id"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	Surname   string `json:"surname"`
-	ImagePath string `json:"image_path"`
+	ID        int64    `json:"id"`
+	Email     string   `json:"email"`
+	Name      string   `json:"name"`
+	Surname   string   `json:"surname"`
+	ImagePath string   `json:"image_path"`
+	Folders   []Folder `json:"folder"`
 
 	IsMale    *bool      `json:"is_male,omitempty"`
 	Birthdate *time.Time `json:"birthdate,omitempty"`
@@ -46,6 +51,14 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	folders := make([]Folder, len(result.Folders))
+	for i, f := range result.Folders {
+		folders[i] = Folder{
+			ID:   f.ID,
+			Name: f.Name,
+		}
+	}
+
 	if err := json.NewEncoder(w).Encode(GetMeResponse{
 		ID:        result.UserID,
 		Email:     result.Email,
@@ -54,6 +67,7 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		ImagePath: result.ImagePath,
 		IsMale:    result.IsMale,
 		Birthdate: result.Birthdate,
+		Folders:   folders,
 	}); err != nil {
 		logger.Errorf("failed to encode response: %v", err)
 		response.InternalError(w)
