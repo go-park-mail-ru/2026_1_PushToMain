@@ -305,3 +305,26 @@ func (r *Repository) DeleteEmailFromFolder(ctx context.Context, folderID, emailI
 
 	return nil
 }
+
+func (r *Repository) DeleteFolder(ctx context.Context, folderID, userID int64) error {
+    query := `
+        DELETE FROM folders
+        WHERE id = $1 AND user_id = $2
+    `
+
+    result, err := r.db.ExecContext(ctx, query, folderID, userID)
+    if err != nil {
+        return fmt.Errorf("failed to delete folder: %w", err)
+    }
+
+    rowsAffected, err := result.RowsAffected()
+    if err != nil {
+        return fmt.Errorf("failed to get rows affected: %w", err)
+    }
+
+    if rowsAffected == 0 {
+        return ErrFolderNotFound
+    }
+
+    return nil
+}

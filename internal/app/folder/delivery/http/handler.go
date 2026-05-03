@@ -26,6 +26,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/folder/{folderID}", h.GetEmailsFromFolder).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/folder/{folderID}/add", h.AddEmailsInFolder).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/folder/{folderID}/delete", h.DeleteEmailsFromFolder).Methods(http.MethodDelete, http.MethodOptions)
+	private.HandleFunc("/folder/{folderID}", h.DeleteFolder).Methods(http.MethodDelete, http.MethodOptions)
 
 }
 

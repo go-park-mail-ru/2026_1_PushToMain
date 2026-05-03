@@ -31,6 +31,7 @@ type Repository interface {
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
 	AddEmailToFolder(ctx context.Context, folderID, emailID int64) error
 	DeleteEmailFromFolder(ctx context.Context, folderID, emailID int64) error
+	DeleteFolder(ctx context.Context, folderID, userID int64) error
 }
 
 type Service struct {
@@ -236,6 +237,28 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, emailID); err != nil {
 			return MapRepositoryError(err)
 		}
+	}
+
+	return nil
+}
+
+type DeleteFolderInput struct {
+	UserID   int64
+	FolderID int64
+}
+
+func (s *Service) DeleteFolder(ctx context.Context, input DeleteFolderInput) error {
+	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+	if folder.UserID != input.UserID {
+		return ErrAccessDenied
+	}
+
+	err = s.repo.DeleteFolder(ctx, input.FolderID, input.UserID)
+	if err != nil {
+		return MapRepositoryError(err)
 	}
 
 	return nil
