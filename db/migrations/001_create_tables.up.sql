@@ -63,7 +63,7 @@ CREATE TABLE folders (
     name TEXT NOT NULL,
 
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, name)
 );
 CREATE TABLE folder_emails (
