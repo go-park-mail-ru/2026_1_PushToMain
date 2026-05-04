@@ -53,8 +53,6 @@ func parsePagination(r *http.Request) (int, int) {
 	return limit, offset
 }
 
-// readIDsRequest — общий парсинг + валидация для всех массовых ручек.
-// Возвращает nil, если пакет невалидный (ответ уже отправлен внутри).
 func readIDsRequest(w http.ResponseWriter, r *http.Request) *IDsRequest {
 	logger := middleware.GetLogger(r.Context())
 	var req IDsRequest
@@ -71,8 +69,6 @@ func readIDsRequest(w http.ResponseWriter, r *http.Request) *IDsRequest {
 	return &req
 }
 
-// runBatch — общий шаблон: получить claims → распарсить ids → вызвать сервис → ответить.
-// fn делает только обращение к сервису, всё остальное — здесь.
 func runBatch(w http.ResponseWriter, r *http.Request, opName string,
 	fn func(ctx context.Context, in service.BatchInput) error) {
 	logger := middleware.GetLogger(r.Context())
