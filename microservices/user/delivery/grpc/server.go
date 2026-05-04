@@ -1,0 +1,57 @@
+package grpc
+
+import (
+	"context"
+
+	userService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service"
+	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+)
+
+type Server struct {
+	userpb.UnimplementedUserServiceServer
+	service *userService.Service
+}
+
+func New(service *userService.Service) *Server {
+	return &Server{
+		service: service,
+	}
+}
+
+func (s *Server) GetUserById(
+	ctx context.Context,
+	req *userpb.GetUserByIdRequest,
+) (*userpb.GetUserByIdResponse, error) {
+
+	user, err := s.service.GetMe(ctx, req.UserId)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	return &userpb.GetUserByIdResponse{
+		User: &userpb.User{
+			Id:        user.UserID,
+			Email:     user.Email,
+			Name:      user.Name,
+			Surname:   user.Surname,
+			ImagePath: user.ImagePath,
+			IsMale:    *user.IsMale,
+			Birthdate: user.Birthdate.String(),
+		},
+	}, nil
+}
+
+func (s *Server) UserExists(
+	ctx context.Context,
+	req *userpb.UserExistsRequest,
+) (*userpb.UserExistsResponse, error) {
+
+	_, err := s.service.GetMe(ctx, req.UserId)
+
+	return &userpb.UserExistsResponse{
+		Exists: err == nil,
+	}, nil
+}

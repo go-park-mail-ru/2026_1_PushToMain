@@ -1,0 +1,300 @@
+//go:generate mockgen -destination=../../../../../mocks/app/user/mock_user_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http Service
+
+package http
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"regexp"
+	"strings"
+	"time"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service"
+)
+
+const sessionTokenCookie = "session_token"
+
+type Service interface {
+	SignUp(ctx context.Context, cmd service.SignUpInput) (string, error)
+	SignIn(ctx context.Context, cmd service.SignInInput) (string, error)
+	GenerateToken() (string, error)
+	UpdatePassword(ctx context.Context, input service.UpdatePasswordInput) error
+	UploadAvatar(ctx context.Context, cmd service.UploadAvatarInput) (string, error)
+	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
+	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
+}
+
+type SignUpRequest struct {
+	Name     string `json:"name"`
+	Surname  string `json:"surname"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type UpdatePasswordRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}
+
+var (
+	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
+	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
+)
+
+func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+
+	claims, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("failed to get claims from context: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	if claims.UserId <= 0 {
+		logger.Warnf("Invalid user ID in claims: %d", claims.UserId)
+		response.BadRequest(w)
+		return
+	}
+
+	var req UpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Errorf("failed to decode request: %v", err)
+		response.BadRequest(w)
+		return
+	}
+
+	if len(req.NewPassword) < 8 {
+		response.BadRequest(w)
+		return
+	}
+
+	err = handler.service.UpdatePassword(r.Context(), service.UpdatePasswordInput{
+		UserID:      claims.UserId,
+		OldPassword: req.OldPassword,
+		NewPassword: req.NewPassword,
+	})
+	if err != nil {
+		logger.Errorf("failed to update password for user %d: %v", claims.UserId, err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Infof("password updated for user %d", claims.UserId)
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+	}
+}
+
+// @Summary      Регистрация
+// @Description  Создаёт нового пользователя и устанавливает сессионную куку
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        input  body   SignUpRequest  true  "Данные для регистрации"
+// @Success      200    {object}  map[string]string
+// @Failure      400    {object}  response.ErrorResponse
+// @Failure      409    {object}  response.ErrorResponse
+// @Failure      500    {object}  response.ErrorResponse
+// @Router       /api/v1/auth/signup [post]
+func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
+	var req SignUpRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if !req.Validate() {
+		response.BadRequest(w)
+		return
+	}
+
+	token, err := handler.service.SignUp(r.Context(), service.SignUpInput{
+		Email:    req.Email,
+		Password: req.Password,
+		Name:     req.Name,
+		Surname:  req.Surname,
+	})
+	if err != nil {
+		parseCommonErrors(err, w)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    token,
+		Expires:  time.Now().Add(handler.cfg.TTL),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+		return
+	}
+}
+
+func (req *SignUpRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	if req.Name == "" {
+		return false
+	}
+
+	if !nameRegex.MatchString(req.Name) {
+		return false
+	}
+
+	if req.Surname == "" {
+		return false
+	}
+
+	if !surnameRegex.MatchString(req.Surname) {
+		return false
+	}
+
+	return true
+}
+
+type SignInRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+// @Summary      Вход
+// @Description  Аутентифицирует пользователя и устанавливает сессионную куку
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        input  body      SignInRequest  true  "Данные для входа"
+// @Success      200    {object}  map[string]string
+// @Failure      400    {object}  response.ErrorResponse
+// @Failure      401    {object}  response.ErrorResponse
+// @Failure      500    {object}  response.ErrorResponse
+// @Router       /api/v1/auth/signin [post]
+func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
+	var req SignInRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.BadRequest(w)
+		return
+	}
+
+	if !req.Validate() {
+		response.BadRequest(w)
+		return
+	}
+
+	token, err := handler.service.SignIn(r.Context(), service.SignInInput{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		parseCommonErrors(err, w)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    token,
+		Expires:  time.Now().Add(handler.cfg.TTL),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+		return
+	}
+}
+
+func (req *SignInRequest) Validate() bool {
+
+	if req.Email == "" {
+		return false
+	}
+
+	if !emailRegex.MatchString(req.Email) {
+		return false
+	}
+
+	if !strings.HasSuffix(req.Email, "@smail.ru") {
+		return false
+	}
+
+	if len(req.Password) < 8 {
+		return false
+	}
+
+	return true
+}
+
+// @Summary      Выход
+// @Description  Завершает сессию пользователя, сбрасывает сессионную куку
+// @Tags         auth
+// @Produce      json
+// @Success      200  {object}  map[string]string
+// @Failure      500  {object}  response.ErrorResponse
+// @Router       /api/v1/auth/logout [post]
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionTokenCookie,
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HttpOnly: true,
+		Path:     "/",
+	})
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "ok"}); err != nil {
+		response.InternalError(w)
+		return
+	}
+}
+
+type csrfResponse struct {
+	Token string `json:"csrf_token"`
+}
+
+func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
+	token, err := h.service.GenerateToken()
+	if err != nil {
+		http.Error(w, "failed to generate csrf", http.StatusInternalServerError)
+		return
+	}
+
+	// кладем в cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "csrf_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: false, // фронт должен читать
+		Secure:   false, // true в проде (https)
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// возвращаем в JSON
+	resp := csrfResponse{
+		Token: token,
+	}
+	json.NewEncoder(w).Encode(resp)
+}

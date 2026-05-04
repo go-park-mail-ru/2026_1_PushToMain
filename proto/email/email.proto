@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package email;
+
+option go_package = "./proto/email";
+
+service EmailService {
+    rpc GetEmailById(GetEmailByIdRequest) returns (GetEmailByIdResponse);
+    rpc CheckEmailAccess(CheckEmailAccessRequest) returns (CheckEmailAccessResponse);
+}
+
+message Email {
+    int64 id = 1;
+    int64 sender_id = 2;
+    string header = 3;
+    string body = 4;
+    string created_at = 5;
+}
+
+message GetEmailByIdRequest {
+    int64 email_id = 1;
+    int64 user_id = 2;
+}
+
+message GetEmailByIdResponse {
+    Email email = 1;
+}
+
+message CheckEmailAccessRequest {
+    int64 email_id = 1;
+    int64 user_id = 2;
+}
+
+message CheckEmailAccessResponse {
+    bool has_access = 1;
+}

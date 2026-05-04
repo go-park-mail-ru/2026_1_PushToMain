@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./proto/user";
+
+service UserService {
+    rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
+    rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsResponse);
+    rpc UserExists(UserExistsRequest) returns (UserExistsResponse);
+}
+
+message User {
+    int64 id = 1;
+    string email = 2;
+    string name = 3;
+    string surname = 4;
+    string image_path = 5;
+    bool is_male = 6;
+    string birthdate = 7;
+}
+
+message GetUserByIdRequest {
+    int64 user_id = 1;
+}
+
+message GetUserByIdResponse {
+    User user = 1;
+}
+
+message GetUsersByIdsRequest {
+    repeated int64 user_ids = 1;
+}
+
+message GetUsersByIdsResponse {
+    repeated User users = 1;
+}
+
+message UserExistsRequest {
+    int64 user_id = 1;
+}
+
+message UserExistsResponse {
+    bool exists = 1;
+}

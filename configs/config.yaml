@@ -50,3 +50,12 @@ avatar:
 
 drafts:
   max_per_user: 100
+
+grpc:
+  user_port: "50051"
+  email_port: "50052"
+  folder_port: "50053"
+
+grpc_clients:
+  user_service: "user-service:50051"
+  email_service: "email-service:50052"
