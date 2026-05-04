@@ -12,6 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	models "github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/models"
 	gomock "go.uber.org/mock/gomock"
@@ -115,15 +116,15 @@ func (mr *MockDbRepositoryMockRecorder) UpdatePassword(ctx, userID, passwordHash
 }
 
 // UpdateProfile mocks base method.
-func (m *MockDbRepository) UpdateProfile(ctx context.Context, userID int64, name, surname string) error {
+func (m *MockDbRepository) UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateProfile", ctx, userID, name, surname)
+	ret := m.ctrl.Call(m, "UpdateProfile", ctx, userID, name, surname, isMale, birthdate)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateProfile indicates an expected call of UpdateProfile.
-func (mr *MockDbRepositoryMockRecorder) UpdateProfile(ctx, userID, name, surname any) *gomock.Call {
+func (mr *MockDbRepositoryMockRecorder) UpdateProfile(ctx, userID, name, surname, isMale, birthdate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfile", reflect.TypeOf((*MockDbRepository)(nil).UpdateProfile), ctx, userID, name, surname)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProfile", reflect.TypeOf((*MockDbRepository)(nil).UpdateProfile), ctx, userID, name, surname, isMale, birthdate)
 }
