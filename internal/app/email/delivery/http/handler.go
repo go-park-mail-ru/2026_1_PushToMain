@@ -32,20 +32,18 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	// Spam
 	private.HandleFunc("/emails/spam", h.GetSpamEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/spam", h.Spam).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/unspam", h.Unspam).Methods(http.MethodPut, http.MethodOptions)
-
-	// Trash
 	private.HandleFunc("/emails/trash", h.GetTrashEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/trash", h.Trash).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/untrash", h.Untrash).Methods(http.MethodPut, http.MethodOptions)
 
-	// Favorite
+	private.HandleFunc("/emails/untrash", h.Untrash).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/unspam", h.Unspam).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/favorite", h.GetFavoriteEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/favorite", h.Favorite).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unfavorite", h.Unfavorite).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/spam-senders", h.UnmarkSpamSenders).Methods(http.MethodDelete, http.MethodOptions)
 
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
 
+	private.HandleFunc("/spam-senders", h.UnmarkSpamSenders).Methods(http.MethodDelete, http.MethodOptions)
 	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)

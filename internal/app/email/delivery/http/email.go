@@ -27,6 +27,7 @@ type Service interface {
 	// Spam / Trash листинг
 	GetSpamEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
 	GetTrashEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetFavoriteEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
 
 	// Массовые действия с письмами
 	Trash(ctx context.Context, cmd service.BatchInput) error

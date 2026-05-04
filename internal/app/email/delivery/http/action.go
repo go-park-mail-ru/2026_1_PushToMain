@@ -53,6 +53,8 @@ func parsePagination(r *http.Request) (int, int) {
 	return limit, offset
 }
 
+// readIDsRequest — общий парсинг + валидация для всех массовых ручек.
+// Возвращает nil, если пакет невалидный (ответ уже отправлен внутри).
 func readIDsRequest(w http.ResponseWriter, r *http.Request) *IDsRequest {
 	logger := middleware.GetLogger(r.Context())
 	var req IDsRequest
@@ -69,6 +71,8 @@ func readIDsRequest(w http.ResponseWriter, r *http.Request) *IDsRequest {
 	return &req
 }
 
+// runBatch — общий шаблон: получить claims → распарсить ids → вызвать сервис → ответить.
+// fn делает только обращение к сервису, всё остальное — здесь.
 func runBatch(w http.ResponseWriter, r *http.Request, opName string,
 	fn func(ctx context.Context, in service.BatchInput) error) {
 	logger := middleware.GetLogger(r.Context())
@@ -268,6 +272,37 @@ func (h *Handler) GetTrashEmails(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Errorf("GetTrashEmails failed: user_id=%d, err=%v", payload.UserId, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	writeEmailsList(w, r, result)
+}
+
+// @Summary      Получить избранные письма
+// @Tags         emails
+// @Produce      json
+// @Param        limit   query     int  false  "Кол-во записей (default 20, max 100)"
+// @Param        offset  query     int  false  "Смещение (default 0)"
+// @Success      200  {object}  GetEmailsResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/favorite [get]
+func (h *Handler) GetFavoriteEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get favorite emails request received")
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("GetFavoriteEmails: failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := h.service.GetFavoriteEmails(r.Context(), service.GetEmailsInput{
+		UserID: payload.UserId, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("GetFavoriteEmails failed: user_id=%d, err=%v", payload.UserId, err)
 		parseCommonErrors(err, w)
 		return
 	}

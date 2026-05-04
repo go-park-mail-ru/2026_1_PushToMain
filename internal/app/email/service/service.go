@@ -35,6 +35,7 @@ type Repository interface {
 	GetTrashEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetTrashEmailsCount(ctx context.Context, userID int64) (int, error)
 	GetUnreadTrashCount(ctx context.Context, userID int64) (int, error)
+	GetFavoriteEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 
 	SetStarredBatch(ctx context.Context, userID int64, emailIDs []int64, starred bool) error
 	SetTrashedBatch(ctx context.Context, userID int64, emailIDs []int64, trashed bool) error
