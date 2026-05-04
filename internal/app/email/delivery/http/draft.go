@@ -52,7 +52,6 @@ func draftToResponse(r *service.DraftResult) DraftResponse {
 }
 
 // @Summary      Создать черновик
-// @Description  Хотя бы одно из header/body/receivers должно быть непустым.
 // @Tags         drafts
 // @Accept       json
 // @Produce      json
@@ -70,12 +69,14 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("CreateDraft: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 
 	var req CreateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("CreateDraft: invalid body: %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -87,18 +88,18 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 		Receivers: req.Receivers,
 	})
 	if err != nil {
-		logger.Errorf("CreateDraft failed: %v", err)
+		logger.Errorf("CreateDraft failed: user_id=%d, err=%v", payload.UserId, err)
 		parseCommonErrors(err, w)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(draftToResponse(result)); err != nil {
-		logger.Errorf("encode failed: %v", err)
+		logger.Errorf("CreateDraft: encode failed: %v", err)
 	}
 }
 
-// @Summary      Обновить черновик (replace-семантика)
+// @Summary      Обновить черновик
 // @Tags         drafts
 // @Accept       json
 // @Produce      json
@@ -117,16 +118,19 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("UpdateDraft: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 	draftID, err := parsePathInt64(r, "id")
 	if err != nil || draftID <= 0 {
+		logger.Warnf("UpdateDraft: bad id: %v", err)
 		response.BadRequest(w)
 		return
 	}
 	var req UpdateDraftRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("UpdateDraft: invalid body: %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -139,12 +143,12 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 		Receivers: req.Receivers,
 	})
 	if err != nil {
-		logger.Errorf("UpdateDraft failed: %v", err)
+		logger.Errorf("UpdateDraft failed: user_id=%d, draft_id=%d, err=%v", payload.UserId, draftID, err)
 		parseCommonErrors(err, w)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(draftToResponse(result)); err != nil {
-		logger.Errorf("encode failed: %v", err)
+		logger.Errorf("UpdateDraft: encode failed: %v", err)
 	}
 }
 
@@ -161,13 +165,17 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/drafts/{id} [get]
 func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get draft by ID request received")
+
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("GetDraftByID: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 	draftID, err := parsePathInt64(r, "id")
 	if err != nil || draftID <= 0 {
+		logger.Warnf("GetDraftByID: bad id: %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -175,19 +183,19 @@ func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
 		UserID: payload.UserId, DraftID: draftID,
 	})
 	if err != nil {
-		logger.Errorf("GetDraftByID failed: %v", err)
+		logger.Errorf("GetDraftByID failed: user_id=%d, draft_id=%d, err=%v", payload.UserId, draftID, err)
 		parseCommonErrors(err, w)
 		return
 	}
 	if err := json.NewEncoder(w).Encode(draftToResponse(result)); err != nil {
-		logger.Errorf("encode failed: %v", err)
+		logger.Errorf("GetDraftByID: encode failed: %v", err)
 	}
 }
 
 // @Summary      Получить список черновиков
 // @Tags         drafts
 // @Produce      json
-// @Param        limit   query     int  false  "Количество записей (default 20, max 100)"
+// @Param        limit   query     int  false  "Кол-во записей (default 20, max 100)"
 // @Param        offset  query     int  false  "Смещение (default 0)"
 // @Success      200  {object}  GetDraftsResponse
 // @Failure      401  {object}  response.ErrorResponse
@@ -196,8 +204,11 @@ func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/drafts [get]
 func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get drafts request received")
+
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("GetDrafts: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -206,7 +217,7 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 		UserID: payload.UserId, Limit: limit, Offset: offset,
 	})
 	if err != nil {
-		logger.Errorf("GetDrafts failed: %v", err)
+		logger.Errorf("GetDrafts failed: user_id=%d, err=%v", payload.UserId, err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -218,36 +229,40 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 		Drafts: out, Limit: result.Limit, Offset: result.Offset, Total: result.Total,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Errorf("encode failed: %v", err)
+		logger.Errorf("GetDrafts: encode failed: %v", err)
 	}
 }
 
-// @Summary      Удалить черновик безвозвратно
+// @Summary      Удалить черновики
 // @Tags         drafts
-// @Param        id   path      int  true  "ID черновика"
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID черновиков"
 // @Success      204
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      401  {object}  response.ErrorResponse
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/drafts/{id} [delete]
-func (h *Handler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
+// @Router       /api/v1/drafts [delete]
+func (h *Handler) DeleteDrafts(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Delete drafts request received")
+
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("DeleteDrafts: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
-	draftID, err := parsePathInt64(r, "id")
-	if err != nil || draftID <= 0 {
-		response.BadRequest(w)
+	req := readIDsRequest(w, r)
+	if req == nil {
 		return
 	}
-	if err := h.service.DeleteDraft(r.Context(), service.DeleteDraftInput{
-		UserID: payload.UserId, DraftID: draftID,
+
+	if err := h.service.DeleteDrafts(r.Context(), service.DeleteDraftsInput{
+		UserID: payload.UserId, DraftIDs: req.IDs,
 	}); err != nil {
-		logger.Errorf("DeleteDraft failed: %v", err)
+		logger.Errorf("DeleteDrafts failed: user_id=%d, ids=%v, err=%v", payload.UserId, req.IDs, err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -266,13 +281,17 @@ func (h *Handler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/drafts/{id}/send [post]
 func (h *Handler) SendDraft(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Send draft request received")
+
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("SendDraft: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
 	draftID, err := parsePathInt64(r, "id")
 	if err != nil || draftID <= 0 {
+		logger.Warnf("SendDraft: bad id: %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -280,7 +299,7 @@ func (h *Handler) SendDraft(w http.ResponseWriter, r *http.Request) {
 		UserID: payload.UserId, DraftID: draftID,
 	})
 	if err != nil {
-		logger.Errorf("SendDraft failed: %v", err)
+		logger.Errorf("SendDraft failed: user_id=%d, draft_id=%d, err=%v", payload.UserId, draftID, err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -292,6 +311,6 @@ func (h *Handler) SendDraft(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: result.CreatedAt,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Errorf("encode failed: %v", err)
+		logger.Errorf("SendDraft: encode failed: %v", err)
 	}
 }

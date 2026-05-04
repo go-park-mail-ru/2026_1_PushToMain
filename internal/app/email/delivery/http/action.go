@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -12,16 +13,28 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type ChangeFolderRequest struct {
-	Folder string `json:"folder"`
-}
-
 func parsePathInt64(r *http.Request, key string) (int64, error) {
 	s, ok := mux.Vars(r)[key]
 	if !ok || s == "" {
 		return 0, errors.New("missing path param")
 	}
 	return strconv.ParseInt(s, 10, 64)
+}
+
+type IDsRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
+func (r IDsRequest) Validate() error {
+	if len(r.IDs) == 0 {
+		return errors.New("ids is required and must be non-empty")
+	}
+	for _, id := range r.IDs {
+		if id <= 0 {
+			return errors.New("ids must be positive")
+		}
+	}
+	return nil
 }
 
 func parsePagination(r *http.Request) (int, int) {
@@ -40,101 +53,173 @@ func parsePagination(r *http.Request) (int, int) {
 	return limit, offset
 }
 
-// @Summary      Изменить расположение письма (spam/favorite/trash/folder-N)
-// @Description  Помещает письмо в системную "папку" (флаг) или в кастомную папку (по name).
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param        id   path      int  true  "ID письма"
-// @Param        request body ChangeFolderRequest true "Папка"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/folder [put]
-func (h *Handler) ChangeFolder(w http.ResponseWriter, r *http.Request) {
+// readIDsRequest — общий парсинг + валидация для всех массовых ручек.
+// Возвращает nil, если пакет невалидный (ответ уже отправлен внутри).
+func readIDsRequest(w http.ResponseWriter, r *http.Request) *IDsRequest {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Change folder request received")
+	var req IDsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Warnf("Invalid request body: %v", err)
+		response.BadRequest(w)
+		return nil
+	}
+	if err := req.Validate(); err != nil {
+		logger.Warnf("Validation failed: %v", err)
+		response.BadRequest(w)
+		return nil
+	}
+	return &req
+}
+
+// runBatch — общий шаблон: получить claims → распарсить ids → вызвать сервис → ответить.
+// fn делает только обращение к сервису, всё остальное — здесь.
+func runBatch(w http.ResponseWriter, r *http.Request, opName string,
+	fn func(ctx context.Context, in service.BatchInput) error) {
+	logger := middleware.GetLogger(r.Context())
+	logger.Infof("%s request received", opName)
 
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("%s: failed to get claims: %v", opName, err)
 		response.InternalError(w)
 		return
 	}
 
-	emailID, err := parsePathInt64(r, "id")
-	if err != nil || emailID <= 0 {
-		response.BadRequest(w)
+	req := readIDsRequest(w, r)
+	if req == nil {
 		return
 	}
 
-	var req ChangeFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.BadRequest(w)
-		return
-	}
-	if req.Folder == "" {
-		response.BadRequest(w)
-		return
-	}
-
-	if err := h.service.ChangeFolder(r.Context(), service.ChangeFolderInput{
-		UserID:  payload.UserId,
-		EmailID: emailID,
-		Folder:  req.Folder,
-	}); err != nil {
-		logger.Errorf("ChangeFolder failed: %v", err)
+	if err := fn(r.Context(), service.BatchInput{UserID: payload.UserId, EmailIDs: req.IDs}); err != nil {
+		logger.Errorf("%s failed: user_id=%d, ids=%v, err=%v", opName, payload.UserId, req.IDs, err)
 		parseCommonErrors(err, w)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-// @Summary      Восстановить письмо из корзины
+// @Summary      Переместить письма в корзину
 // @Tags         emails
-// @Param        id   path      int  true  "ID письма"
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
 // @Success      200  "Success"
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/restore [put]
-func (h *Handler) RestoreFromTrash(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Restore email request received")
+// @Router       /api/v1/emails/trash [put]
+func (h *Handler) Trash(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Trash", h.service.Trash)
+}
 
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		response.InternalError(w)
-		return
-	}
+// @Summary      Вернуть письма из корзины
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/untrash [put]
+func (h *Handler) Untrash(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Untrash", h.service.Untrash)
+}
 
-	emailID, err := parsePathInt64(r, "id")
-	if err != nil || emailID <= 0 {
-		response.BadRequest(w)
-		return
-	}
+// @Summary      Добавить письма в избранное
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/favorite [put]
+func (h *Handler) Favorite(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Favorite", h.service.Favorite)
+}
 
-	if err := h.service.RestoreFromTrash(r.Context(), service.ChangeFolderInput{
-		UserID:  payload.UserId,
-		EmailID: emailID,
-	}); err != nil {
-		logger.Errorf("RestoreFromTrash failed: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+// @Summary      Убрать письма из избранного
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/unfavorite [put]
+func (h *Handler) Unfavorite(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Unfavorite", h.service.Unfavorite)
+}
+
+// @Summary      Пометить письма как спам
+// @Description  Помечает письма is_spam=true и добавляет отправителей в spam_senders.
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/spam [put]
+func (h *Handler) Spam(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Spam", h.service.Spam)
+}
+
+// @Summary      Снять метку спам с писем
+// @Description  Снимает is_spam с конкретных писем. Не удаляет отправителя из spam_senders.
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails/unspam [put]
+func (h *Handler) Unspam(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Unspam", h.service.Unspam)
+}
+
+// @Summary      Удалить отправителей из списка спамеров
+// @Description  Принимает email_id, по ним находит sender_id и удаляет их из spam_senders.
+// @Description  Дополнительно снимает is_spam со всех существующих писем от этих отправителей.
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем (для определения отправителей)"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/spam-senders [delete]
+func (h *Handler) UnmarkSpamSenders(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "UnmarkSpamSenders", h.service.UnmarkSpamSenders)
+}
+
+// @Summary      Удалить письма (двухэтапно)
+// @Description  Если письмо не в корзине — переместить в корзину; если уже в корзине — удалить физически.
+// @Description  Решение принимается отдельно для каждого письма из массива.
+// @Tags         emails
+// @Accept       json
+// @Param        request body IDsRequest true "Список ID писем"
+// @Success      200  "Success"
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/emails [delete]
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	runBatch(w, r, "Delete", h.service.Delete)
 }
 
 // @Summary      Получить письма из спама
 // @Tags         emails
 // @Produce      json
-// @Param        limit   query     int  false  "Количество записей (default 20, max 100)"
+// @Param        limit   query     int  false  "Кол-во записей (default 20, max 100)"
 // @Param        offset  query     int  false  "Смещение (default 0)"
 // @Success      200  {object}  GetEmailsResponse
 // @Failure      401  {object}  response.ErrorResponse
@@ -143,8 +228,10 @@ func (h *Handler) RestoreFromTrash(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/emails/spam [get]
 func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get spam emails request received")
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("GetSpamEmails: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -153,7 +240,7 @@ func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
 		UserID: payload.UserId, Limit: limit, Offset: offset,
 	})
 	if err != nil {
-		logger.Errorf("GetSpamEmails failed: %v", err)
+		logger.Errorf("GetSpamEmails failed: user_id=%d, err=%v", payload.UserId, err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -163,7 +250,7 @@ func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
 // @Summary      Получить письма из корзины
 // @Tags         emails
 // @Produce      json
-// @Param        limit   query     int  false  "Количество записей (default 20, max 100)"
+// @Param        limit   query     int  false  "Кол-во записей (default 20, max 100)"
 // @Param        offset  query     int  false  "Смещение (default 0)"
 // @Success      200  {object}  GetEmailsResponse
 // @Failure      401  {object}  response.ErrorResponse
@@ -172,8 +259,10 @@ func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/emails/trash [get]
 func (h *Handler) GetTrashEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
+	logger.Infof("Get trash emails request received")
 	payload, err := middleware.ClaimsFromContext(r.Context())
 	if err != nil {
+		logger.Errorf("GetTrashEmails: failed to get claims: %v", err)
 		response.InternalError(w)
 		return
 	}
@@ -182,7 +271,7 @@ func (h *Handler) GetTrashEmails(w http.ResponseWriter, r *http.Request) {
 		UserID: payload.UserId, Limit: limit, Offset: offset,
 	})
 	if err != nil {
-		logger.Errorf("GetTrashEmails failed: %v", err)
+		logger.Errorf("GetTrashEmails failed: user_id=%d, err=%v", payload.UserId, err)
 		parseCommonErrors(err, w)
 		return
 	}
@@ -206,14 +295,11 @@ func writeEmailsList(w http.ResponseWriter, r *http.Request, result *service.Get
 		}
 	}
 	resp := GetEmailsResponse{
-		Emails:      emails,
-		Limit:       result.Limit,
-		Offset:      result.Offset,
-		Total:       result.Total,
-		UnreadCount: result.UnreadCount,
+		Emails: emails, Limit: result.Limit, Offset: result.Offset,
+		Total: result.Total, UnreadCount: result.UnreadCount,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Errorf("Failed to encode response: %v", err)
+		logger.Errorf("writeEmailsList: encode failed: %v", err)
 		response.InternalError(w)
 	}
 }

@@ -24,23 +24,26 @@ type Service interface {
 	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
 	MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error
 	MarkEmailAsUnRead(ctx context.Context, cmd service.MarkAsReadInput) error
-	DeleteEmailForReceiver(ctx context.Context, cmd service.DeleteEmailInput) error
-	DeleteEmailForSender(ctx context.Context, cmd service.DeleteEmailInput) error
-
-	// Spam and junk
+	// Spam / Trash листинг
 	GetSpamEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
 	GetTrashEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
 
-	// Email actions
-	ChangeFolder(ctx context.Context, cmd service.ChangeFolderInput) error
-	RestoreFromTrash(ctx context.Context, cmd service.ChangeFolderInput) error
+	// Массовые действия с письмами
+	Trash(ctx context.Context, cmd service.BatchInput) error
+	Untrash(ctx context.Context, cmd service.BatchInput) error
+	Favorite(ctx context.Context, cmd service.BatchInput) error
+	Unfavorite(ctx context.Context, cmd service.BatchInput) error
+	Spam(ctx context.Context, cmd service.BatchInput) error
+	Unspam(ctx context.Context, cmd service.BatchInput) error
+	UnmarkSpamSenders(ctx context.Context, cmd service.BatchInput) error
+	Delete(ctx context.Context, cmd service.BatchInput) error
 
 	// Drafts
 	CreateDraft(ctx context.Context, cmd service.CreateDraftInput) (*service.DraftResult, error)
 	UpdateDraft(ctx context.Context, cmd service.UpdateDraftInput) (*service.DraftResult, error)
 	GetDraftByID(ctx context.Context, cmd service.GetDraftInput) (*service.DraftResult, error)
 	GetDrafts(ctx context.Context, cmd service.GetDraftsInput) (*service.GetDraftsResult, error)
-	DeleteDraft(ctx context.Context, cmd service.DeleteDraftInput) error
+	DeleteDrafts(ctx context.Context, cmd service.DeleteDraftsInput) error
 	SendDraft(ctx context.Context, cmd service.SendDraftInput) (*service.SendEmailResult, error)
 }
 
@@ -524,140 +527,6 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		response.InternalError(w)
 		return
 	}
-}
-
-type DeleteEmailRequest struct {
-	EmailID int64 `json:"email_id"`
-}
-
-// @Summary      Удалить письмо (для получателя)
-// @Description  Удаляет письмо из почтового ящика получателя (не удаляет само письмо)
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param        request body DeleteEmailRequest true "ID письма"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/delete [delete]
-func (handler *Handler) DeleteEmailForReceiver(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Delete email request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	var req DeleteEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	if req.EmailID <= 0 {
-		logger.Warnf("Invalid email ID: %d", req.EmailID)
-		response.BadRequest(w)
-		return
-	}
-
-	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	logger.Debugf("Deleting email for receiver, user_id=%d, email_id=%d",
-		payload.UserId, req.EmailID)
-
-	err = handler.service.DeleteEmailForReceiver(r.Context(), service.DeleteEmailInput{
-		UserID:  payload.UserId,
-		EmailID: req.EmailID,
-	})
-	if err != nil {
-		logger.Errorf("Failed to delete email: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-
-	logger.Debugf("Email deleted successfully, user_id=%d, email_id=%d",
-		payload.UserId, req.EmailID)
-
-	w.WriteHeader(http.StatusOK)
-}
-
-type DeleteMyEmailRequest struct {
-	EmailID int64 `json:"email_id"`
-}
-
-// @Summary      Удалить письмо (для отправителя)
-// @Description  Удаляет письмо из почтового ящика отправителя (не удаляет само письмо)
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param        request body DeleteEmailRequest true "ID письма"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/myemails/delete [delete]
-func (handler *Handler) DeleteEmailForSender(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Delete email request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	var req DeleteMyEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	if req.EmailID <= 0 {
-		logger.Warnf("Invalid email ID: %d", req.EmailID)
-		response.BadRequest(w)
-		return
-	}
-
-	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	logger.Debugf("Deleting email for sender, user_id=%d, email_id=%d",
-		payload.UserId, req.EmailID)
-
-	err = handler.service.DeleteEmailForSender(r.Context(), service.DeleteEmailInput{
-		UserID:  payload.UserId,
-		EmailID: req.EmailID,
-	})
-	if err != nil {
-		logger.Errorf("Failed to delete email: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-
-	logger.Debugf("Email deleted successfully, user_id=%d, email_id=%d",
-		payload.UserId, req.EmailID)
-
-	w.WriteHeader(http.StatusOK)
 }
 
 // @Summary      Отметить письмо как прочитанное
