@@ -19,23 +19,23 @@ func (s *Service) GetSpamEmails(ctx context.Context, in GetEmailsInput) (*GetEma
 }
 
 func (s *Service) Unspam(ctx context.Context, in BatchInput) error {
-    if err := in.validate(); err != nil {
-        return err
-    }
-    if err := s.repo.UnspamEmailsForReceiver(ctx, in.UserID, in.EmailIDs); err != nil {
-        return MapRepositoryError(err)
-    }
-    if err := s.repo.RemoveSpamSendersByReceiverEmails(ctx, in.UserID, in.EmailIDs); err != nil {
-        return MapRepositoryError(err)
-    }
-    return nil
+	if err := in.validate(); err != nil {
+		return err
+	}
+	if err := s.repo.UnspamEmailsForReceiver(ctx, in.UserID, in.EmailIDs); err != nil {
+		return MapRepositoryError(err)
+	}
+	if err := s.repo.RemoveSpamSendersByReceiverEmails(ctx, in.UserID, in.EmailIDs); err != nil {
+		return MapRepositoryError(err)
+	}
+	return nil
 }
 
 func (s *Service) Spam(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	if err := s.repo.MarkSendersAsSpamBatch(ctx, in.UserID, in.EmailIDs); err != nil {
+	if err := s.repo.SpamBatch(ctx, in.UserID, in.EmailIDs); err != nil {
 		return MapRepositoryError(err)
 	}
 	return nil

@@ -88,38 +88,7 @@ func (r *Repository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs
 	return nil
 }
 
-func (r *Repository) SetSpamBatch(ctx context.Context, userID int64, emailIDs []int64, spam bool) error {
-	if len(emailIDs) == 0 {
-		return nil
-	}
-	holders, idArgs := idsPlaceholders(emailIDs, 3)
-
-	var query string
-	if spam {
-		query = fmt.Sprintf(`
-			UPDATE user_emails
-			SET is_spam    = true,
-			    is_starred = false,
-			    is_deleted = false,
-			    updated_at = NOW()
-			WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
-		`, holders)
-	} else {
-		query = fmt.Sprintf(`
-			UPDATE user_emails
-			SET is_spam = false, updated_at = NOW()
-			WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
-		`, holders)
-	}
-
-	args := append([]any{userID, spam}, idArgs...)
-	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
-		return ErrQueryFail
-	}
-	return nil
-}
-
-func (r *Repository) MarkSendersAsSpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
+func (r *Repository) SpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
 	if len(emailIDs) == 0 {
 		return nil
 	}
@@ -135,27 +104,73 @@ func (r *Repository) MarkSendersAsSpamBatch(ctx context.Context, userID int64, e
 		}
 	}()
 
-	senderIDs, err := senderIDsForReceivedEmails(ctx, tx, userID, emailIDs)
+	holders, idArgs := idsPlaceholders(emailIDs, 2)
+	metaQuery := fmt.Sprintf(`
+        SELECT ue.email_id, ue.is_deleted, e.sender_id
+        FROM user_emails ue
+        JOIN emails e ON e.id = ue.email_id
+        WHERE ue.user_id = $1 AND ue.is_sender = false AND ue.email_id IN (%s)
+    `, holders)
+
+	rows, err := tx.QueryContext(ctx, metaQuery, append([]any{userID}, idArgs...)...)
 	if err != nil {
-		return err
+		return ErrQueryFail
 	}
-	if len(senderIDs) == 0 {
-		if err = tx.Commit(); err != nil {
-			return ErrTransactionFailed
+
+	type emailMeta struct {
+		emailID   int64
+		isDeleted bool
+		senderID  int64
+	}
+
+	found := make(map[int64]emailMeta)
+	for rows.Next() {
+		var m emailMeta
+		if err := rows.Scan(&m.emailID, &m.isDeleted, &m.senderID); err != nil {
+			rows.Close()
+			return ErrQueryFail
 		}
-		committed = true
-		return nil
+		found[m.emailID] = m
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return ErrQueryFail
 	}
 
-	if err = insertSpamSenders(ctx, tx, userID, senderIDs); err != nil {
+	senderSet := make(map[int64]struct{})
+	for _, id := range emailIDs {
+		m, ok := found[id]
+		if !ok {
+			return ErrMailNotFound
+		}
+		if m.isDeleted {
+			return ErrEmailInTrash
+		}
+		if m.senderID == userID {
+			return ErrCannotSpamSelf
+		}
+		senderSet[m.senderID] = struct{}{}
+	}
+
+	holders2, idArgs2 := idsPlaceholders(emailIDs, 2)
+	updateQuery := fmt.Sprintf(`
+        UPDATE user_emails
+        SET is_spam = true, is_starred = false, updated_at = NOW()
+        WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
+    `, holders2)
+	if _, err := tx.ExecContext(ctx, updateQuery, append([]any{userID}, idArgs2...)...); err != nil {
+		return ErrQueryFail
+	}
+
+	senderIDs := make([]int64, 0, len(senderSet))
+	for id := range senderSet {
+		senderIDs = append(senderIDs, id)
+	}
+	if err := insertSpamSenders(ctx, tx, userID, senderIDs); err != nil {
 		return err
 	}
 
-	if err = markEmailsFromSendersAsSpam(ctx, tx, userID, senderIDs); err != nil {
-		return err
-	}
-
-	if err = tx.Commit(); err != nil {
+	if err := tx.Commit(); err != nil {
 		return ErrTransactionFailed
 	}
 	committed = true

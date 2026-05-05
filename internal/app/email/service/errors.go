@@ -18,6 +18,8 @@ var (
 	ErrDraftNotReady    = errors.New("draft is not ready to be sent")
 	ErrDraftValidation  = errors.New("draft must contain at least one of: header, body, receivers")
 	ErrDraftsLimit      = errors.New("drafts limit reached")
+	ErrEmailInTrash     = errors.New("email is in trash, cannot be spammed")
+	ErrCannotSpamSelf   = errors.New("cannot spam self-sent email")
 )
 
 func MapRepositoryError(err error) error {
@@ -38,6 +40,10 @@ func MapRepositoryError(err error) error {
 		return ErrEmailNotFound
 	case errors.Is(err, repository.ErrAccessDenied):
 		return ErrAccessDenied
+	case errors.Is(err, repository.ErrEmailInTrash):
+		return ErrEmailInTrash
+	case errors.Is(err, repository.ErrCannotSpamSelf):
+		return ErrCannotSpamSelf
 	default:
 		return err
 	}

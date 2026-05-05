@@ -43,8 +43,7 @@ type Repository interface {
 
 	SetStarredBatch(ctx context.Context, userID int64, emailIDs []int64, starred bool) error
 	SetTrashedBatch(ctx context.Context, userID int64, emailIDs []int64, trashed bool) error
-	SetSpamBatch(ctx context.Context, userID int64, emailIDs []int64, spam bool) error
-	MarkSendersAsSpamBatch(ctx context.Context, userID int64, emailIDs []int64) error
+	SpamBatch(ctx context.Context, userID int64, emailIDs []int64) error
 	HardDeleteBatch(ctx context.Context, userID int64, emailIDs []int64) error
 
 	// Drafts

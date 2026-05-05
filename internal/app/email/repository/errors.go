@@ -23,6 +23,8 @@ var (
 	ErrForeignKey        = errors.New("related record not found")
 	ErrAccessDenied      = errors.New("have no access")
 	ErrDraftNotFound     = errors.New("draft not found")
+	ErrEmailInTrash      = errors.New("email is in trash")
+	ErrCannotSpamSelf    = errors.New("cannot spam self-sent email")
 )
 
 func mapPgError(err error) error {

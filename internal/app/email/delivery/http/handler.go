@@ -79,6 +79,9 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 		response.NotFound(w)
 	case errors.Is(err, service.ErrAccessDenied):
 		response.Forbidden(w)
+	case errors.Is(err, service.ErrEmailInTrash),
+		errors.Is(err, service.ErrCannotSpamSelf):
+		response.BadRequest(w)
 	default:
 		response.InternalError(w)
 	}
