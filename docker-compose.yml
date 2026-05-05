@@ -48,6 +48,7 @@ services:
   user-service:
     build:
       context: .
+      dockerfile: microservices/user/Dockerfile
     env_file:
       - .env
     volumes:
@@ -69,6 +70,7 @@ services:
   email-service:
     build:
       context: .
+      dockerfile: microservices/email/Dockerfile
     env_file:
       - .env
     volumes:
@@ -90,6 +92,7 @@ services:
   folder-service:
     build:
       context: .
+      dockerfile: microservices/folder/Dockerfile
     env_file:
       - .env
     volumes:
