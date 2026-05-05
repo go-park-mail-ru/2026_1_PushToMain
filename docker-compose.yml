@@ -1,5 +1,4 @@
 services:
-
   # =========================================
   # POSTGRES
   # =========================================
@@ -15,7 +14,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/pgdata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,7 +48,6 @@ services:
   user-service:
     build:
       context: .
-      dockerfile: Dockerfile.user
     env_file:
       - .env
     volumes:
@@ -70,7 +69,6 @@ services:
   email-service:
     build:
       context: .
-      dockerfile: Dockerfile.email
     env_file:
       - .env
     volumes:
@@ -92,7 +90,6 @@ services:
   folder-service:
     build:
       context: .
-      dockerfile: Dockerfile.folder
     env_file:
       - .env
     volumes:
