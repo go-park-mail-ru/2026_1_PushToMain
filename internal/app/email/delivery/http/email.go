@@ -241,8 +241,8 @@ type GetEmailsResponse struct {
 	UnreadCount int             `json:"unread_count"`
 }
 
-// @Summary      Получить письма пользователя
-// @Description  Возвращает список писем, в которых авторизованный пользователь указан получателем
+// @Summary      Получить входящие письма
+// @Description  Возвращает список писем, в которых авторизованный пользователь указан получателем.
 // @Tags         emails
 // @Produce      json
 // @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
@@ -253,7 +253,7 @@ type GetEmailsResponse struct {
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/emails [get]
+// @Router       /api/v1/emails/inbox [get]
 func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
@@ -350,19 +350,19 @@ type GetMyEmailsResponse struct {
 	Total  int               `json:"total"`
 }
 
-// @Summary      Получить письма отправленные пользователем
-// @Description  Возвращает список писем, в которых авторизованный пользователь указан отправителем
+// @Summary      Получить отправленные письма
+// @Description  Возвращает список писем, в которых авторизованный пользователь указан отправителем.
 // @Tags         emails
 // @Produce      json
 // @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
 // @Param        offset  query     int  false  "Смещение для пагинации (default: 0)"
-// @Success      200  {object}  GetEmailsResponse
+// @Success      200  {object}  GetMyEmailsResponse
 // @Failure      400  {object}  response.ErrorResponse
 // @Failure      401  {object}  response.ErrorResponse
 // @Failure      404  {object}  response.ErrorResponse
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
-// @Router       /api/v1/myemails [get]
+// @Router       /api/v1/emails/sent [get]
 func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 

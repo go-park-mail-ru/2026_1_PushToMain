@@ -24,11 +24,6 @@ func New(service Service, cfg Config) *Handler {
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {
-	private.HandleFunc("/emails", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
-	private.HandleFunc("/myemails", h.GetMyEmails).Methods(http.MethodGet, http.MethodOptions)
-	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
-	private.HandleFunc("/forward", h.ForwardEmail).Methods(http.MethodPost, http.MethodOptions)
-
 	// Trash
 	private.HandleFunc("/emails/trash", h.GetTrashEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/trash", h.Trash).Methods(http.MethodPut, http.MethodOptions)
@@ -42,6 +37,10 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	// Emails
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
 	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/inbox", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/sent", h.GetMyEmails).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
+	private.HandleFunc("/forward", h.ForwardEmail).Methods(http.MethodPost, http.MethodOptions)
 
 	// Read emails
 	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
