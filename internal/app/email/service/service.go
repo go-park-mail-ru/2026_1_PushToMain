@@ -37,6 +37,10 @@ type Repository interface {
 	GetUnreadTrashCount(ctx context.Context, userID int64) (int, error)
 	GetFavoriteEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 
+	// Spam
+	UnspamEmailsForReceiver(ctx context.Context, userID int64, emailIDs []int64) error
+	RemoveSpamSendersByReceiverEmails(ctx context.Context, userID int64, emailIDs []int64) error
+
 	SetStarredBatch(ctx context.Context, userID int64, emailIDs []int64, starred bool) error
 	SetTrashedBatch(ctx context.Context, userID int64, emailIDs []int64, trashed bool) error
 	SetSpamBatch(ctx context.Context, userID int64, emailIDs []int64, spam bool) error
