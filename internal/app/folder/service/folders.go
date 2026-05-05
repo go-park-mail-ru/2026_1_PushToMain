@@ -233,7 +233,6 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 		return ErrAccessDenied
 	}
 
-	// Удаляем каждое письмо из папки
 	for _, emailID := range input.EmailsID {
 		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, emailID); err != nil {
 			return MapRepositoryError(err)

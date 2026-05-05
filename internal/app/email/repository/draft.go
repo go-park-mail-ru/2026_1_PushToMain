@@ -18,10 +18,6 @@ func (r *Repository) CountDraftsByUser(ctx context.Context, userID int64) (int, 
 	return r.scanCount(ctx, query, userID)
 }
 
-// CreateDraft — три INSERT'а в одной транзакции:
-//  1. emails (тело черновика);
-//  2. user_emails (связь автор-черновик с is_draft=true);
-//  3. draft_receivers (адреса получателей как plain text).
 func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (int64, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -63,8 +59,6 @@ func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (int64
 	return emailID, nil
 }
 
-// UpdateDraft — replace-семантика: переписываем header/body, удаляем старых получателей,
-// вставляем новых. Всё в одной транзакции.
 func (r *Repository) UpdateDraft(ctx context.Context, draft models.Draft) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -230,8 +224,6 @@ func (r *Repository) DeleteDraftsBatch(ctx context.Context, userID int64, draftI
 	return nil
 }
 
-// MarkDraftAsSentTx — перевод черновика в "отправленное" состояние внутри транзакции отправки.
-// Чистит draft_receivers (они нужны были только для черновика).
 func (r *Repository) MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error {
 	res, err := tx.ExecContext(ctx, `
 		UPDATE user_emails

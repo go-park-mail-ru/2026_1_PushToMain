@@ -74,8 +74,6 @@ func (r *Repository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email mode
 	return id, nil
 }
 
-// AddEmailUserWithTx добавляет связь user<->email. Для отправителя — без проверки спама,
-// для получателя — c проверкой spam_senders.
 func (r *Repository) AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID, userID int64, isSender bool) error {
 	if isSender {
 		const q = `
@@ -88,7 +86,6 @@ func (r *Repository) AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID
 		return nil
 	}
 
-	// Для получателя: is_spam = true, если отправитель этого письма помечен у получателя как спамер.
 	const q = `
 		INSERT INTO user_emails (user_id, email_id, is_sender, is_spam)
 		SELECT $1, $2, false, EXISTS(
@@ -121,7 +118,6 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64
 	return nil
 }
 
-// GetEmailByID — детали письма + аватар отправителя + список адресов получателей.
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	const query = `
 		SELECT
@@ -153,7 +149,6 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	return &em, nil
 }
 
-// GetEmailsByReceiver — Inbox.
 func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
 	limit, offset = normPage(limit, offset)
 	const query = `
@@ -180,7 +175,6 @@ func (r *Repository) GetEmailsByReceiver(ctx context.Context, userID int64, limi
 	return r.queryEmailsList(ctx, query, userID, limit, offset)
 }
 
-// GetEmailsBySender — Sent.
 func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
 	limit, offset = normPage(limit, offset)
 	const query = `
@@ -206,7 +200,6 @@ func (r *Repository) GetEmailsBySender(ctx context.Context, userID int64, limit,
 	return r.queryEmailsList(ctx, query, userID, limit, offset)
 }
 
-// queryEmailsList — общий сканер для всех листинг-запросов одного шейпа.
 func (r *Repository) queryEmailsList(ctx context.Context, query string, args ...interface{}) ([]models.EmailWithMetadata, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -234,7 +227,6 @@ func (r *Repository) queryEmailsList(ctx context.Context, query string, args ...
 	return emails, nil
 }
 
-// scanCount — общий сканер для COUNT(*) запросов.
 func (r *Repository) scanCount(ctx context.Context, query string, args ...interface{}) (int, error) {
 	var count int
 	if err := r.db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {

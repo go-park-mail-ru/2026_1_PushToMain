@@ -46,7 +46,6 @@ func (s *Service) Delete(ctx context.Context, in BatchInput) error {
 			return MapRepositoryError(err)
 		}
 		if flags == nil {
-			// Письма у юзера нет ни как у получателя, ни как у отправителя — пропускаем.
 			continue
 		}
 		if flags.IsDeleted {
