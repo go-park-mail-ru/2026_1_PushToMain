@@ -39,6 +39,12 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/favorite", h.Favorite).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unfavorite", h.Unfavorite).Methods(http.MethodPut, http.MethodOptions)
 
+	// Read emails
+	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/{id}/unread", h.MarkEmailAsUnRead).Methods(http.MethodPut, http.MethodOptions)
+
 	// Emails
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
 	private.HandleFunc("/emails/inbox", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
@@ -46,12 +52,6 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/forward", h.ForwardEmail).Methods(http.MethodPost, http.MethodOptions)
-
-	// Read emails
-	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/{id}/unread", h.MarkEmailAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 
 	// Drafts
 	private.HandleFunc("/drafts", h.CreateDraft).Methods(http.MethodPost, http.MethodOptions)
