@@ -208,49 +208,6 @@ func (r *Repository) HardDeleteBatch(ctx context.Context, userID int64, emailIDs
 	return nil
 }
 
-func (r *Repository) UnmarkSendersAsSpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
-	if len(emailIDs) == 0 {
-		return nil
-	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ErrTransactionFailed
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
-
-	senderIDs, err := senderIDsForEmails(ctx, tx, emailIDs)
-	if err != nil {
-		return err
-	}
-	if len(senderIDs) == 0 {
-		if err = tx.Commit(); err != nil {
-			return ErrTransactionFailed
-		}
-		committed = true
-		return nil
-	}
-
-	if err = deleteSpamSenders(ctx, tx, userID, senderIDs); err != nil {
-		return err
-	}
-
-	if err = unmarkEmailsFromSendersAsSpam(ctx, tx, userID, senderIDs); err != nil {
-		return err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return ErrTransactionFailed
-	}
-	committed = true
-	return nil
-}
-
 func senderIDsForEmails(ctx context.Context, tx *sql.Tx, emailIDs []int64) ([]int64, error) {
 	holders, idArgs := idsPlaceholders(emailIDs, 1)
 	query := fmt.Sprintf(`

@@ -40,13 +40,3 @@ func (s *Service) Spam(ctx context.Context, in BatchInput) error {
 	}
 	return nil
 }
-
-func (s *Service) UnmarkSpamSenders(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.UnmarkSendersAsSpamBatch(ctx, in.UserID, in.EmailIDs); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
-}

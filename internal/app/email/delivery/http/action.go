@@ -170,7 +170,10 @@ func (h *Handler) Spam(w http.ResponseWriter, r *http.Request) {
 }
 
 // @Summary      Снять метку спам с писем
-// @Description  Снимает is_spam с конкретных писем. Не удаляет отправителя из spam_senders.
+// @Description  Снимает is_spam с указанных писем (только там, где текущий юзер — получатель)
+// @Description  и удаляет соответствующих отправителей из персонального списка spam_senders.
+// @Description  На остальные письма этих же отправителей, ранее помеченные спамом, не влияет —
+// @Description  они остаются в спаме до явного вызова unspam с их id.
 // @Tags         emails
 // @Accept       json
 // @Param        request body IDsRequest true "Список ID писем"
@@ -182,22 +185,6 @@ func (h *Handler) Spam(w http.ResponseWriter, r *http.Request) {
 // @Router       /api/v1/emails/unspam [put]
 func (h *Handler) Unspam(w http.ResponseWriter, r *http.Request) {
 	runBatch(w, r, "Unspam", h.service.Unspam)
-}
-
-// @Summary      Удалить отправителей из списка спамеров
-// @Description  Принимает email_id, по ним находит sender_id и удаляет их из spam_senders.
-// @Description  Дополнительно снимает is_spam со всех существующих писем от этих отправителей.
-// @Tags         emails
-// @Accept       json
-// @Param        request body IDsRequest true "Список ID писем (для определения отправителей)"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/spam-senders [delete]
-func (h *Handler) UnmarkSpamSenders(w http.ResponseWriter, r *http.Request) {
-	runBatch(w, r, "UnmarkSpamSenders", h.service.UnmarkSpamSenders)
 }
 
 // @Summary      Удалить письма (двухэтапно)
