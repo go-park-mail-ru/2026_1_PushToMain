@@ -30,6 +30,15 @@ func (s *Server) GetUserById(
 	if err != nil {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
+	var isMale bool
+	if user.IsMale != nil {
+		isMale = *user.IsMale
+	}
+
+	var birthdate string
+	if user.Birthdate != nil { // если *time.Time
+		birthdate = user.Birthdate.String()
+	}
 
 	return &userpb.GetUserByIdResponse{
 		User: &userpb.User{
@@ -38,8 +47,8 @@ func (s *Server) GetUserById(
 			Name:      user.Name,
 			Surname:   user.Surname,
 			ImagePath: user.ImagePath,
-			IsMale:    *user.IsMale,
-			Birthdate: user.Birthdate.String(),
+			IsMale:    isMale,
+			Birthdate: birthdate,
 		},
 	}, nil
 }

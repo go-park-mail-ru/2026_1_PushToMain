@@ -85,18 +85,16 @@ func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 
 	var req SendEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
+		logger.Errorf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
 
 	if !req.Validate() {
-		logger.Warnf("Validation failed, user_id=%d: %v", payload.UserId, req.Receivers)
+		logger.Errorf("Validation failed, user_id=%d: %v", payload.UserId, req.Receivers)
 		response.BadRequest(w)
 		return
 	}
-
-	logger.Warnf("Validation failed, user_id=%d: invalid receivers format", payload.UserId)
 
 	result, err := handler.service.SendEmail(r.Context(), service.SendEmailInput{
 		UserId:    payload.UserId,
@@ -168,7 +166,7 @@ func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	var req ForwardEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
+		logger.Errorf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
@@ -267,7 +265,7 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -375,7 +373,7 @@ func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -475,14 +473,14 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+		logger.Errorf("Invalid url %v", err)
 		response.BadRequest(w)
 		return
 	}
@@ -491,7 +489,7 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
-		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
+		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -554,14 +552,14 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+		logger.Errorf("Invalid url %v", err)
 
 		response.BadRequest(w)
 		return
@@ -570,7 +568,7 @@ func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) 
 	emailIDStr := pathParts[4]
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
-		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
+		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -618,14 +616,14 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 5 {
-		logger.Warnf("Invalid url %v", err)
+		logger.Errorf("Invalid url %v", err)
 
 		response.BadRequest(w)
 		return
@@ -634,7 +632,7 @@ func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request
 	emailIDStr := pathParts[4]
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
-		logger.Warnf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
+		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
 		response.BadRequest(w)
 		return
 	}
@@ -686,20 +684,20 @@ func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request)
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	var req MarkEmailsAsReadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
+		logger.Errorf("Invalid request body: %v", err)
 		response.BadRequest(w)
 		return
 	}
 
 	if len(req.EmailIDs) == 0 {
-		logger.Warnf("Email IDs array is empty")
+		logger.Errorf("Email IDs array is empty")
 		response.BadRequest(w)
 		return
 	}
@@ -745,20 +743,20 @@ func (handler *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Reques
 	}
 
 	if payload.UserId <= 0 {
-		logger.Warnf("Invalid user ID: %d", payload.UserId)
+		logger.Errorf("Invalid user ID: %d", payload.UserId)
 		response.BadRequest(w)
 		return
 	}
 
 	var req MarkEmailsAsReadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
+		logger.Errorf("Invalid request body: %v", err)
 		response.BadRequest(w)
 		return
 	}
 
 	if len(req.EmailIDs) == 0 {
-		logger.Warnf("Email IDs array is empty")
+		logger.Errorf("Email IDs array is empty")
 		response.BadRequest(w)
 		return
 	}

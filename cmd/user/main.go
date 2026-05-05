@@ -10,7 +10,7 @@ import (
 
 // @title           Smail API
 // @version         1.0
-// @host            localhost:8087
+// @host            localhost:8081
 // @BasePath        /
 func main() {
 	var configPath string
