@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -37,6 +38,9 @@ func New(configPath string) *App {
 	app := App{}
 
 	cfg, err := Load(configPath)
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
 
 	app.Logger, err = logger.New(&cfg.Logger)
 	if err != nil {

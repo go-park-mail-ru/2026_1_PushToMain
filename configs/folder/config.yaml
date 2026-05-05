@@ -29,11 +29,11 @@ logger:
   error_output_path: stderr
 
 postgres:
-  host: folder-postgres
+  host: postgres
   port: 5432
   user: postgres
   password: postgres
-  dbname: folders_db
+  dbname: smail_db
   sslmode: disable
   migrations_path: "file://db/migrations"
 
