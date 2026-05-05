@@ -278,6 +278,77 @@ func (r *Repository) MarkEmailAsUnRead(ctx context.Context, emailID, userID int6
 	return r.toggleReadFlag(ctx, emailID, userID, false)
 }
 
+func (r *Repository) GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) ([]models.EmailWithMetadata, error) {
+	if len(emailIDs) == 0 {
+		return []models.EmailWithMetadata{}, nil
+	}
+
+	placeholders := make([]string, len(emailIDs))
+	args := make([]interface{}, len(emailIDs)+1)
+
+	args[0] = userID
+	for i, id := range emailIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args[i+1] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT
+			e.id, e.sender_id, e.header, e.body, e.created_at,
+			ue.is_read, ue.is_starred, ue.is_spam, ue.is_deleted,
+			ue.created_at AS received_at,
+			COALESCE((
+				SELECT array_agg(ru.email ORDER BY ru.id)
+				FROM user_emails rue
+				JOIN users ru ON rue.user_id = ru.id
+				WHERE rue.email_id = e.id AND rue.is_sender = false
+			), '{}'::text[]) AS receivers_emails
+		FROM emails e
+		JOIN user_emails ue ON ue.email_id = e.id
+		WHERE ue.user_id = $1
+		  AND e.id IN (%s)
+		  AND ue.is_deleted = false
+	`, strings.Join(placeholders, ","))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	defer rows.Close()
+
+	var emails []models.EmailWithMetadata
+
+	for rows.Next() {
+		var em models.EmailWithMetadata
+		var receiversStr string
+
+		if err := rows.Scan(
+			&em.ID,
+			&em.SenderID,
+			&em.Header,
+			&em.Body,
+			&em.CreatedAt,
+			&em.IsRead,
+			&em.IsStarred,
+			&em.IsSpam,
+			&em.IsDeleted,
+			&em.ReceivedAt,
+			&receiversStr,
+		); err != nil {
+			return nil, ErrQueryFail
+		}
+
+		em.ReceiversEmails = parsePgTextArray(receiversStr)
+		emails = append(emails, em)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrQueryFail
+	}
+
+	return emails, nil
+}
+
 func (r *Repository) toggleReadFlag(ctx context.Context, emailID, userID int64, read bool) error {
 	const query = `
 		UPDATE user_emails

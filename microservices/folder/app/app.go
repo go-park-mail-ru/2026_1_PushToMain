@@ -15,11 +15,13 @@ import (
 
 	folderHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/delivery/http"
 	folderRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/repository"
-	folderService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
+
+	emailClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/email"
 )
 
 const shutdownMaxTime = 5 * time.Second
@@ -58,7 +60,23 @@ func (app *App) Run(configPath string) {
 	}
 
 	folderRepo := folderRepo.New(db)
-	folderService := folderService.New(folderRepo)
+	grpcEmailClient, err := emailClient.New(
+		app.Config.GRPCClients.EmailService,
+	)
+
+	if err != nil {
+		app.Logger.Fatalf(
+			"failed to init email grpc client: %v",
+			err,
+		)
+	}
+
+	defer grpcEmailClient.Close()
+
+	folderService := service.New(
+		folderRepo,
+		grpcEmailClient,
+	)
 	folderHandler := folderHttp.New(folderService)
 
 	router := mux.NewRouter()

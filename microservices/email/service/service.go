@@ -29,6 +29,7 @@ type Repository interface {
 	AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID, userID int64, isSender bool) error
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*models.User, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error)
+	GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) ([]models.EmailWithMetadata, error)
 	GetUserEmailFlags(ctx context.Context, emailID, userID int64, isSender bool) (*models.UserEmail, error)
 	CheckUserEmailExists(ctx context.Context, emailID, userID int64) (bool, error)
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) error

@@ -285,6 +285,71 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	}, nil
 }
 
+type GetEmailsByIDsResult struct {
+	Emails      []EmailResult
+	UnreadCount int
+}
+
+func (s *Service) GetEmailsByIDs(
+	ctx context.Context,
+	emailIDs []int64,
+	userID int64,
+) (*GetEmailsByIDsResult, error) {
+
+	if len(emailIDs) == 0 {
+		return &GetEmailsByIDsResult{
+			Emails:      []EmailResult{},
+			UnreadCount: 0,
+		}, nil
+	}
+
+	emails, err := s.repo.GetEmailsByIDs(ctx, emailIDs, userID)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+
+	// считаем unread вручную
+	unread := 0
+	for _, e := range emails {
+		if !e.IsRead {
+			unread++
+		}
+	}
+
+	// build response (как у buildEmailsResult)
+	out := make([]EmailResult, len(emails))
+
+	for i, em := range emails {
+		user, err := s.userClient.GetUserByID(ctx, em.SenderID)
+		if err != nil {
+			return nil, MapRepositoryError(err)
+		}
+
+		out[i] = EmailResult{
+			ID:            em.ID,
+			SenderID:      em.SenderID,
+			SenderEmail:   user.Email,
+			SenderName:    user.Name,
+			SenderSurname: user.Surname,
+			ReceiverList:  em.ReceiversEmails,
+			Header:        em.Header,
+			Body:          em.Body,
+			CreatedAt:     em.CreatedAt,
+			IsRead:        em.IsRead,
+			IsStarred:     em.IsStarred,
+		}
+	}
+
+	return &GetEmailsByIDsResult{
+		Emails:      out,
+		UnreadCount: unread,
+	}, nil
+}
+
+func (s *Service) CheckEmailAccess(ctx context.Context, in GetEmailInput) error {
+	return s.repo.CheckEmailAccess(ctx, in.EmailID, in.UserID)
+}
+
 func (s *Service) ResolveReceivers(ctx context.Context, receiverEmails []string) ([]int64, error) {
 	if len(receiverEmails) == 0 {
 		return nil, ErrNoValidReceivers

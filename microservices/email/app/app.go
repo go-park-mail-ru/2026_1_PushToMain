@@ -20,6 +20,14 @@ import (
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 	"github.com/gorilla/mux"
+
+	"net"
+
+	grpcDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/grpc"
+
+	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
+
+	"google.golang.org/grpc"
 )
 
 const shutdownMaxTime = 5 * time.Second
@@ -75,6 +83,43 @@ func (app *App) Run(configPath string) {
 		grpcUserClient,
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
 	)
+	grpcServer := grpc.NewServer()
+
+	emailGrpcHandler := grpcDelivery.New(
+		emailService,
+	)
+
+	emailpb.RegisterEmailServiceServer(
+		grpcServer,
+		emailGrpcHandler,
+	)
+
+	lis, err := net.Listen(
+		"tcp",
+		":"+app.Config.GRPC.EmailPort,
+	)
+
+	if err != nil {
+		app.Logger.Fatalf(
+			"grpc listen error: %v",
+			err,
+		)
+	}
+
+	go func() {
+
+		app.Logger.Infof(
+			"grpc started on %s",
+			app.Config.GRPC.EmailPort,
+		)
+
+		if err := grpcServer.Serve(lis); err != nil {
+			app.Logger.Fatalf(
+				"grpc serve error: %v",
+				err,
+			)
+		}
+	}()
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
 

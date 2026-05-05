@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/repository"
+	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
 )
 
 var (
@@ -25,20 +26,40 @@ type Repository interface {
 	CountUserFolders(ctx context.Context, userID int64) (int, error)
 	GetFolderByID(ctx context.Context, folderID int64) (*models.Folder, error)
 	UpdateFolderName(ctx context.Context, folderID int64, newName string) error
-	GetEmailsFromFolder(ctx context.Context, folderID int64, limit, offset int) ([]models.EmailFromFolder, error)
 	CountEmailsInFolder(ctx context.Context, folderID int64) (int, error)
-	CountUnreadEmailsInFolder(ctx context.Context, folderID, userID int64) (int, error)
-	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
 	AddEmailToFolder(ctx context.Context, folderID, emailID int64) error
 	DeleteEmailFromFolder(ctx context.Context, folderID, emailID int64) error
+	GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error)
 }
 
 type Service struct {
-	repo Repository
+	repo        Repository
+	emailClient EmailClient
+}
+type EmailClient interface {
+	GetEmailByID(
+		ctx context.Context,
+		emailID,
+		userID int64,
+	) (*emailpb.Email, error)
+
+	CheckEmailAccess(
+		ctx context.Context,
+		emailID,
+		userID int64,
+	) (bool, error)
+	GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) (*emailpb.GetEmailsByIdsResponse, error)
 }
 
-func New(repo Repository) *Service {
-	return &Service{repo: repo}
+func New(
+	repo Repository,
+	emailClient EmailClient,
+) *Service {
+
+	return &Service{
+		repo:        repo,
+		emailClient: emailClient,
+	}
 }
 
 type CreateNewFolderInput struct {
@@ -128,40 +149,66 @@ type EmailFromFolderResult struct {
 }
 
 func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFolderInput) (*GetEmailsFromFolderResult, error) {
-	folder, err := s.repo.GetFolderByID(ctx, input.FolderID)
+
+	folder, err := s.repo.GetFolderByID(
+		ctx,
+		input.FolderID,
+	)
+
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	if folder.UserID != input.UserID {
 		return nil, ErrAccessDenied
 	}
 
-	emails, err := s.repo.GetEmailsFromFolder(ctx, input.FolderID, input.Limit, input.Offset)
+	emailIDs, err := s.repo.GetFolderEmailIDs(
+		ctx,
+		input.FolderID,
+		input.Limit,
+		input.Offset,
+	)
+
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
 
-	total, err := s.repo.CountEmailsInFolder(ctx, input.FolderID)
+	emailResp, err := s.emailClient.GetEmailsByIDs(
+		ctx,
+		emailIDs,
+		input.UserID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	total, err := s.repo.CountEmailsInFolder(
+		ctx,
+		input.FolderID,
+	)
+
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
 
-	unreadCount, err := s.repo.CountUnreadEmailsInFolder(ctx, input.FolderID, input.UserID)
-	if err != nil {
-		return nil, MapRepositoryError(err)
-	}
+	resultEmails := make(
+		[]EmailFromFolderResult,
+		len(emailResp.Emails),
+	)
 
-	resultEmails := make([]EmailFromFolderResult, len(emails))
-	for i, email := range emails {
+	for i, email := range emailResp.Emails {
+
 		resultEmails[i] = EmailFromFolderResult{
-			ID:            email.ID,
+			ID:            email.Id,
 			SenderEmail:   email.SenderEmail,
 			SenderName:    email.SenderName,
 			SenderSurname: email.SenderSurname,
 			ReceiverList:  email.ReceiverList,
 			Header:        email.Header,
 			Body:          email.Body,
-			CreatedAt:     email.CreatedAt,
+			CreatedAt:     email.CreatedAt.AsTime(),
 			IsRead:        email.IsRead,
 		}
 	}
@@ -171,7 +218,7 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 		Limit:       input.Limit,
 		Offset:      input.Offset,
 		Total:       total,
-		UnreadCount: unreadCount,
+		UnreadCount: int(emailResp.UnreadCount),
 	}, nil
 }
 
@@ -196,7 +243,7 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 	}
 
 	for _, emailID := range input.EmailsID {
-		hasAccess, err := s.repo.CheckEmailAccess(ctx, emailID, input.UserID)
+		hasAccess, err := s.emailClient.CheckEmailAccess(ctx, emailID, input.UserID)
 		if err != nil {
 			return MapRepositoryError(err)
 		}

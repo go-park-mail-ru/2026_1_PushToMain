@@ -1,0 +1,58 @@
+# dev config
+
+port: 8081
+
+jwt:
+  secret: super-secret-key
+  expire_hours: 24
+
+cors:
+  allowed_origins:
+    - https://e-smail.ru
+
+  allowed_methods:
+    - POST
+    - GET
+    - OPTIONS
+    - PUT
+    - DELETE
+
+  allowed_headers:
+    - Content-Type
+    - Authorization
+    - X-CSRF-Token
+
+logger:
+  level: debug
+  environment: development
+  output_path: stdout
+  error_output_path: stderr
+
+postgres:
+  host: user-postgres
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: users_db
+  sslmode: disable
+  migrations_path: "file://db/migrations"
+
+minio:
+  endpoint: "http://minio:9000"
+  region: "us-east-1"
+  sslmode: false
+  access_key: ""
+  secret_key: ""
+
+avatar:
+  max_size_mb: 5
+
+  allowed_types:
+    - image/jpeg
+    - image/png
+    - image/webp
+
+grpc:
+  user_port: "50051"
+
+grpc_clients: {}

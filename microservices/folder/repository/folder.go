@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 
 	"errors"
@@ -147,74 +146,6 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 	return count, nil
 }
 
-func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, limit, offset int) ([]models.EmailFromFolder, error) {
-	query := `
-		SELECT 
-			e.id,
-			u.email as sender_email,
-			u.name as sender_name,
-			u.surname as sender_surname,
-			COALESCE(
-				(SELECT json_agg(DISTINCT u2.email)
-				 FROM user_emails ue2
-				 JOIN users u2 ON ue2.user_id = u2.id
-				 WHERE ue2.email_id = e.id AND ue2.is_sender = false),
-				'[]'::json
-			) as receiver_list,
-			e.header,
-			e.body,
-			e.created_at,
-			ue.is_read
-		FROM folder_emails fe
-		JOIN emails e ON fe.email_id = e.id
-		JOIN users u ON e.sender_id = u.id
-		JOIN user_emails ue ON e.id = ue.email_id AND ue.user_id = u.id AND ue.is_sender = true
-		WHERE fe.folder_id = $1
-		ORDER BY fe.created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, folderID, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query emails from folder %d: %w", folderID, err)
-	}
-	defer rows.Close()
-
-	var emails []models.EmailFromFolder
-	for rows.Next() {
-		var email models.EmailFromFolder
-		var receiverListJSON []byte
-
-		err := rows.Scan(
-			&email.ID,
-			&email.SenderEmail,
-			&email.SenderName,
-			&email.SenderSurname,
-			&receiverListJSON,
-			&email.Header,
-			&email.Body,
-			&email.CreatedAt,
-			&email.IsRead,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		// Парсим JSON массив получателей
-		if err := json.Unmarshal(receiverListJSON, &email.ReceiverList); err != nil {
-			email.ReceiverList = []string{}
-		}
-
-		emails = append(emails, email)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return emails, nil
-}
-
 func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (int, error) {
 	query := `
 		SELECT COUNT(*)
@@ -229,42 +160,6 @@ func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (i
 	}
 
 	return count, nil
-}
-
-func (r *Repository) CountUnreadEmailsInFolder(ctx context.Context, folderID, userID int64) (int, error) {
-	query := `
-		SELECT COUNT(*)
-		FROM folder_emails fe
-		JOIN emails e ON fe.email_id = e.id
-		JOIN user_emails ue ON e.id = ue.email_id AND ue.user_id = $2 AND ue.is_sender = false
-		WHERE fe.folder_id = $1 AND ue.is_read = false
-	`
-
-	var count int
-	err := r.db.QueryRowContext(ctx, query, folderID, userID).Scan(&count)
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
-}
-
-func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error) {
-	query := `
-		SELECT EXISTS(
-			SELECT 1 
-			FROM user_emails ue
-			WHERE ue.email_id = $1 AND ue.user_id = $2
-		)
-	`
-
-	var exists bool
-	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&exists)
-	if err != nil {
-		return false, err
-	}
-
-	return exists, nil
 }
 
 // AddEmailsToFolder добавляет несколько писем в папку (батч вставка)
@@ -304,4 +199,45 @@ func (r *Repository) DeleteEmailFromFolder(ctx context.Context, folderID, emailI
 	}
 
 	return nil
+}
+
+func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error) {
+
+	query := `
+		SELECT email_id
+		FROM folder_emails
+		WHERE folder_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+		OFFSET $3
+	`
+
+	rows, err := r.db.QueryContext(
+		ctx,
+		query,
+		folderID,
+		limit,
+		offset,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var ids []int64
+
+	for rows.Next() {
+
+		var id int64
+
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+
+		ids = append(ids, id)
+	}
+
+	return ids, nil
 }

@@ -14,7 +14,7 @@ import (
 // @BasePath        /
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "config", "configs/config.yaml", "path to config file")
+	flag.StringVar(&configPath, "config", "configs/user/config.yaml", "path to config file")
 	flag.Parse()
 
 	application := app.New(configPath)

@@ -2,11 +2,14 @@ syntax = "proto3";
 
 package email;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "./proto/email";
 
 service EmailService {
     rpc GetEmailById(GetEmailByIdRequest) returns (GetEmailByIdResponse);
     rpc CheckEmailAccess(CheckEmailAccessRequest) returns (CheckEmailAccessResponse);
+    rpc GetEmailsByIds(GetEmailsByIdsRequest) returns (GetEmailsByIdsResponse);
 }
 
 message Email {
@@ -33,4 +36,33 @@ message CheckEmailAccessRequest {
 
 message CheckEmailAccessResponse {
     bool has_access = 1;
+}
+
+message FolderEmail {
+  int64 id = 1;
+
+  string sender_email = 2;
+  string sender_name = 3;
+  string sender_surname = 4;
+
+  repeated string receiver_list = 5;
+
+  string header = 6;
+  string body = 7;
+
+  google.protobuf.Timestamp created_at = 8;
+
+  bool is_read = 9;
+}
+
+message GetEmailsByIdsRequest {
+  repeated int64 email_ids = 1;
+
+  int64 user_id = 2;
+}
+
+message GetEmailsByIdsResponse {
+  repeated FolderEmail emails = 1;
+
+  int32 unread_count = 2;
 }
