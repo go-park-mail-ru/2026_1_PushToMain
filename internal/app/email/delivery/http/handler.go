@@ -36,9 +36,9 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	// Emails
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
-	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/inbox", h.GetEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/sent", h.GetMyEmails).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/{id}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/forward", h.ForwardEmail).Methods(http.MethodPost, http.MethodOptions)
 
