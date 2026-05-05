@@ -24,6 +24,11 @@ func New(service Service, cfg Config) *Handler {
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {
+	// Spam
+	private.HandleFunc("/emails/unspam", h.Unspam).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/spam", h.GetSpamEmails).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/spam", h.Spam).Methods(http.MethodPut, http.MethodOptions)
+
 	// Trash
 	private.HandleFunc("/emails/trash", h.GetTrashEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/trash", h.Trash).Methods(http.MethodPut, http.MethodOptions)
@@ -47,11 +52,6 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id}/unread", h.MarkEmailAsUnRead).Methods(http.MethodPut, http.MethodOptions)
-
-	// Spam
-	private.HandleFunc("/emails/unspam", h.Unspam).Methods(http.MethodPut, http.MethodOptions)
-	private.HandleFunc("/emails/spam", h.GetSpamEmails).Methods(http.MethodGet, http.MethodOptions)
-	private.HandleFunc("/emails/spam", h.Spam).Methods(http.MethodPut, http.MethodOptions)
 
 	// Drafts
 	private.HandleFunc("/drafts", h.CreateDraft).Methods(http.MethodPost, http.MethodOptions)
