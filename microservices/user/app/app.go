@@ -77,7 +77,9 @@ func (app *App) Run(configPath string) {
 	profileDbRepo := profileDbRepo.New(db)
 	profileS3Repo, err := profileS3Repo.New(s3Client)
 	if err != nil {
-		app.Logger.Fatalf("s3 storage init error: %v", err)
+		app.Logger.Errorf("avatar storage init error: %v", err)
+		app.Logger.Warn("avatar storage disabled")
+		profileS3Repo = nil // не fatal, продолжаем
 	}
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	grpcServer := grpc.NewServer()
