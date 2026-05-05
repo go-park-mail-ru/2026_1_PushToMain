@@ -69,7 +69,7 @@ func (r *Repository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs
 		}
 	}()
 
-	holders, idArgs := idsPlaceholders(emailIDs, 3)
+	holders, idArgs := idsPlaceholders(emailIDs, 2)
 
 	var updateQuery string
 	if trashed {
@@ -89,7 +89,7 @@ func (r *Repository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs
         `, holders)
 	}
 
-	args := append([]any{userID, trashed}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	if _, err := tx.ExecContext(ctx, updateQuery, args...); err != nil {
 		return ErrQueryFail
 	}
