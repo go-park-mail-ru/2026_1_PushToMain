@@ -189,9 +189,6 @@ func (r *Repository) GetDrafts(ctx context.Context, userID int64, limit, offset 
 	return drafts, nil
 }
 
-// DeleteDraftsBatch — массовое физическое удаление черновиков.
-// Черновик принадлежит одному юзеру, поэтому удаляем и user_emails, и emails.
-// Каскад в draft_receivers сработает по FK.
 func (r *Repository) DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error {
 	if len(draftIDs) == 0 {
 		return nil
@@ -208,19 +205,20 @@ func (r *Repository) DeleteDraftsBatch(ctx context.Context, userID int64, draftI
 		}
 	}()
 
-	holders, idArgs := idsPlaceholders(draftIDs, 2)
-	args := append([]interface{}{userID}, idArgs...)
+	holders1, idArgs := idsPlaceholders(draftIDs, 2)
+	args := append([]any{userID}, idArgs...)
 
 	q1 := fmt.Sprintf(`
 		DELETE FROM user_emails
 		WHERE user_id = $1 AND is_sender = true AND is_draft = true
 		  AND email_id IN (%s)
-	`, holders)
+	`, holders1)
 	if _, err = tx.ExecContext(ctx, q1, args...); err != nil {
 		return ErrQueryFail
 	}
 
-	q2 := fmt.Sprintf(`DELETE FROM emails WHERE id IN (%s)`, holders)
+	holders2, _ := idsPlaceholders(draftIDs, 1)
+	q2 := fmt.Sprintf(`DELETE FROM emails WHERE id IN (%s)`, holders2)
 	if _, err = tx.ExecContext(ctx, q2, idArgs...); err != nil {
 		return ErrQueryFail
 	}
@@ -261,7 +259,7 @@ func insertDraftReceivers(ctx context.Context, tx *sql.Tx, emailID int64, receiv
 		return nil
 	}
 	parts := make([]string, len(receivers))
-	args := make([]interface{}, 0, len(receivers)+1)
+	args := make([]any, 0, len(receivers)+1)
 	args = append(args, emailID)
 	for i, rcv := range receivers {
 		parts[i] = fmt.Sprintf("($1, $%d)", i+2)

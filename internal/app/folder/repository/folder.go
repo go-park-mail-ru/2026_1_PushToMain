@@ -169,9 +169,13 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID, userID i
 		FROM folder_emails fe
 		JOIN emails e ON fe.email_id = e.id
 		JOIN users u ON e.sender_id = u.id
-		JOIN user_emails viewer_ue ON e.id = viewer_ue.email_id
-			AND viewer_ue.user_id = $4
-			AND viewer_ue.is_deleted = false
+		JOIN LATERAL (
+			SELECT is_read, is_starred
+			FROM user_emails
+			WHERE email_id = e.id AND user_id = $4 AND is_deleted = false
+			ORDER BY is_sender ASC
+			LIMIT 1
+		) viewer_ue ON true
 		WHERE fe.folder_id = $1
 		ORDER BY fe.created_at DESC
 		LIMIT $2 OFFSET $3
