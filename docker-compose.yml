@@ -15,53 +15,69 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/pgdata
     healthcheck:
-      test:
-        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   # =========================================
-  # USER SERVICE
+  # MINIO
+  # =========================================
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    command: server --console-address ":9090" /data
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =========================================
+  # USER SERVICE  (HTTP :8081 | gRPC :50051)
   # =========================================
   user-service:
-    build: ./
+    build:
+      context: .
+      dockerfile: Dockerfile.user
     env_file:
       - .env
-    command:
-      [
-        "./smail",
-        "--config",
-        "./configs/user/config.yaml"
-      ]
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
     ports:
+      - "8081:8081"
       - "50051:50051"
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
     restart: unless-stopped
 
   # =========================================
-  # EMAIL SERVICE
+  # EMAIL SERVICE  (HTTP :8082 | gRPC :50052)
   # =========================================
   email-service:
-    build: ./
+    build:
+      context: .
+      dockerfile: Dockerfile.email
     env_file:
       - .env
-    command:
-      [
-        "./smail",
-        "--config",
-        "./configs/email/config.yaml"
-      ]
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
     ports:
+      - "8082:8082"
       - "50052:50052"
     depends_on:
       postgres:
@@ -71,22 +87,19 @@ services:
     restart: unless-stopped
 
   # =========================================
-  # FOLDER SERVICE
+  # FOLDER SERVICE  (HTTP :8083 | gRPC :50053)
   # =========================================
   folder-service:
-    build: ./
+    build:
+      context: .
+      dockerfile: Dockerfile.folder
     env_file:
       - .env
-    command:
-      [
-        "./smail",
-        "--config",
-        "./configs/folder/config.yaml"
-      ]
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
     ports:
+      - "8083:8083"
       - "50053:50053"
     depends_on:
       postgres:
@@ -94,21 +107,6 @@ services:
       email-service:
         condition: service_started
     restart: unless-stopped
-
-  # =========================================
-  # MINIO
-  # =========================================
-  minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    ports:
-      - "9090:9090"
-      - "9000:9000"
-    command: server --console-address ":9090" /data
-    volumes:
-      - minio_data:/data
 
 volumes:
   postgres_data:
