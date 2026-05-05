@@ -149,7 +149,7 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 
 func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, limit, offset int) ([]models.EmailFromFolder, error) {
 	query := `
-		SELECT 
+		SELECT
 			e.id,
 			u.email as sender_email,
 			u.name as sender_name,
@@ -195,6 +195,7 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 			&email.Body,
 			&email.CreatedAt,
 			&email.IsRead,
+			&email.IsFavorite,
 		)
 		if err != nil {
 			return nil, err
@@ -252,7 +253,7 @@ func (r *Repository) CountUnreadEmailsInFolder(ctx context.Context, folderID, us
 func (r *Repository) CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error) {
 	query := `
 		SELECT EXISTS(
-			SELECT 1 
+			SELECT 1
 			FROM user_emails ue
 			WHERE ue.email_id = $1 AND ue.user_id = $2
 		)

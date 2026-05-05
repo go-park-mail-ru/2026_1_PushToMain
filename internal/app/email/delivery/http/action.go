@@ -310,6 +310,7 @@ func writeEmailsList(w http.ResponseWriter, r *http.Request, result *service.Get
 			Body:          em.Body,
 			CreatedAt:     em.CreatedAt,
 			IsRead:        em.IsRead,
+			IsFavorite:    em.IsStarred,
 		}
 	}
 	resp := GetEmailsResponse{

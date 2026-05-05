@@ -20,4 +20,5 @@ type EmailFromFolder struct {
 	Body          string
 	CreatedAt     time.Time
 	IsRead        bool
+	IsFavorite    bool
 }

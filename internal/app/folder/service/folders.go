@@ -125,6 +125,7 @@ type EmailFromFolderResult struct {
 	Body          string
 	CreatedAt     time.Time
 	IsRead        bool
+	IsFavorite    bool
 }
 
 func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFolderInput) (*GetEmailsFromFolderResult, error) {
@@ -163,6 +164,7 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 			Body:          email.Body,
 			CreatedAt:     email.CreatedAt,
 			IsRead:        email.IsRead,
+			IsFavorite:    email.IsFavorite,
 		}
 	}
 
