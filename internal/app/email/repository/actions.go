@@ -41,53 +41,6 @@ func (r *Repository) SetStarredBatch(ctx context.Context, userID int64, emailIDs
 	return nil
 }
 
-func (r *Repository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs []int64, trashed bool) error {
-	if len(emailIDs) == 0 {
-		return nil
-	}
-
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ErrTransactionFailed
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
-
-	holders, idArgs := idsPlaceholders(emailIDs, 3)
-	updateQuery := fmt.Sprintf(`
-		UPDATE user_emails
-		SET is_deleted = $2, updated_at = NOW()
-		WHERE user_id = $1 AND email_id IN (%s)
-	`, holders)
-	args := append([]any{userID, trashed}, idArgs...)
-	if _, err := tx.ExecContext(ctx, updateQuery, args...); err != nil {
-		return ErrQueryFail
-	}
-
-	if trashed {
-		holders2, idArgs2 := idsPlaceholders(emailIDs, 2)
-		deleteQuery := fmt.Sprintf(`
-			DELETE FROM folder_emails
-			WHERE email_id IN (%s)
-			  AND folder_id IN (SELECT id FROM folders WHERE user_id = $1)
-		`, holders2)
-		args2 := append([]any{userID}, idArgs2...)
-		if _, err := tx.ExecContext(ctx, deleteQuery, args2...); err != nil {
-			return ErrQueryFail
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return ErrTransactionFailed
-	}
-	committed = true
-	return nil
-}
-
 func (r *Repository) SpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
 	if len(emailIDs) == 0 {
 		return nil

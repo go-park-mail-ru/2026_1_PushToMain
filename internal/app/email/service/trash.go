@@ -17,3 +17,23 @@ func (s *Service) GetTrashEmails(ctx context.Context, in GetEmailsInput) (*GetEm
 	}
 	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, total, unread)
 }
+
+func (s *Service) Trash(ctx context.Context, in BatchInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	if err := s.repo.SetTrashedBatch(ctx, in.UserID, in.EmailIDs, true); err != nil {
+		return MapRepositoryError(err)
+	}
+	return nil
+}
+
+func (s *Service) Untrash(ctx context.Context, in BatchInput) error {
+	if err := in.validate(); err != nil {
+		return err
+	}
+	if err := s.repo.SetTrashedBatch(ctx, in.UserID, in.EmailIDs, false); err != nil {
+		return MapRepositoryError(err)
+	}
+	return nil
+}
