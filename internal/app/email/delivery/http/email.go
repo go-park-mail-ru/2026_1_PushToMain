@@ -230,7 +230,7 @@ type EmailResponse struct {
 	Body          string    `json:"body"`
 	CreatedAt     time.Time `json:"created_at"`
 	IsRead        bool      `json:"is_read"`
-	IsFavorite    bool 		`json:"is_favorite"`
+	IsFavorite    bool      `json:"is_favorite"`
 }
 
 type GetEmailsResponse struct {

@@ -93,11 +93,24 @@ func (r *Repository) SetSpamBatch(ctx context.Context, userID int64, emailIDs []
 		return nil
 	}
 	holders, idArgs := idsPlaceholders(emailIDs, 3)
-	query := fmt.Sprintf(`
-		UPDATE user_emails
-		SET is_spam = $2, updated_at = NOW()
-		WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
-	`, holders)
+
+	var query string
+	if spam {
+		query = fmt.Sprintf(`
+			UPDATE user_emails
+			SET is_spam    = true,
+			    is_starred = false,
+			    is_deleted = false,
+			    updated_at = NOW()
+			WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
+		`, holders)
+	} else {
+		query = fmt.Sprintf(`
+			UPDATE user_emails
+			SET is_spam = false, updated_at = NOW()
+			WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
+		`, holders)
+	}
 
 	args := append([]any{userID, spam}, idArgs...)
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
@@ -204,11 +217,14 @@ func markEmailsFromSendersAsSpam(ctx context.Context, tx *sql.Tx, userID int64, 
 	holders, idArgs := idsPlaceholders(senderIDs, 2)
 	query := fmt.Sprintf(`
 		UPDATE user_emails
-		SET is_spam = true, updated_at = NOW()
-		WHERE user_id = $1 AND is_sender = false AND is_spam = false
-		  AND email_id IN (
-		      SELECT id FROM emails WHERE sender_id IN (%s)
-		  )
+		SET is_spam = true,
+		    is_starred = false,
+		    is_deleted = false,
+		    updated_at = NOW()
+		WHERE user_id = $1
+		  AND is_sender = false
+		  AND is_spam = false
+		  AND email_id IN (SELECT id FROM emails WHERE sender_id IN (%s))
 	`, holders)
 
 	args := append([]any{userID}, idArgs...)

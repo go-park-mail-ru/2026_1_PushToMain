@@ -22,10 +22,7 @@ func (r *Repository) GetFavoriteEmails(ctx context.Context, userID int64, limit,
 				), '{}'::text[]) AS receivers_emails
 			FROM user_emails ue
 			JOIN emails e ON ue.email_id = e.id
-			WHERE ue.user_id = $1
-			  AND ue.is_starred = true
-			  AND ue.is_deleted = false
-			  AND ue.is_draft = false
+			WHERE ue.user_id = $1 AND ue.is_starred = true
 			ORDER BY e.id, ue.updated_at DESC
 		) sub
 		ORDER BY received_at DESC
