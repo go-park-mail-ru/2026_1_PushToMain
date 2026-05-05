@@ -42,32 +42,18 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
-// AddEmailReceivers mocks base method.
-func (m *MockRepository) AddEmailReceivers(ctx context.Context, emailID int64, receiverIDs []int64) error {
+// AddEmailUserWithTx mocks base method.
+func (m *MockRepository) AddEmailUserWithTx(ctx context.Context, tx *sql.Tx, emailID, userID int64, isSender bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddEmailReceivers", ctx, emailID, receiverIDs)
+	ret := m.ctrl.Call(m, "AddEmailUserWithTx", ctx, tx, emailID, userID, isSender)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// AddEmailReceivers indicates an expected call of AddEmailReceivers.
-func (mr *MockRepositoryMockRecorder) AddEmailReceivers(ctx, emailID, receiverIDs any) *gomock.Call {
+// AddEmailUserWithTx indicates an expected call of AddEmailUserWithTx.
+func (mr *MockRepositoryMockRecorder) AddEmailUserWithTx(ctx, tx, emailID, userID, isSender any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEmailReceivers", reflect.TypeOf((*MockRepository)(nil).AddEmailReceivers), ctx, emailID, receiverIDs)
-}
-
-// AddEmailReceiversWithTx mocks base method.
-func (m *MockRepository) AddEmailReceiversWithTx(ctx context.Context, tx *sql.Tx, emailID int64, receiverIDs []int64) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddEmailReceiversWithTx", ctx, tx, emailID, receiverIDs)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// AddEmailReceiversWithTx indicates an expected call of AddEmailReceiversWithTx.
-func (mr *MockRepositoryMockRecorder) AddEmailReceiversWithTx(ctx, tx, emailID, receiverIDs any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEmailReceiversWithTx", reflect.TypeOf((*MockRepository)(nil).AddEmailReceiversWithTx), ctx, tx, emailID, receiverIDs)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddEmailUserWithTx", reflect.TypeOf((*MockRepository)(nil).AddEmailUserWithTx), ctx, tx, emailID, userID, isSender)
 }
 
 // BeginTx mocks base method.
@@ -114,32 +100,78 @@ func (mr *MockRepositoryMockRecorder) CheckUserEmailExists(ctx, emailID, userID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckUserEmailExists", reflect.TypeOf((*MockRepository)(nil).CheckUserEmailExists), ctx, emailID, userID)
 }
 
-// DeleteEmailForReceiver mocks base method.
-func (m *MockRepository) DeleteEmailForReceiver(ctx context.Context, emailID, userID int64) error {
+// CountDraftsByUser mocks base method.
+func (m *MockRepository) CountDraftsByUser(ctx context.Context, userID int64) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteEmailForReceiver", ctx, emailID, userID)
+	ret := m.ctrl.Call(m, "CountDraftsByUser", ctx, userID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountDraftsByUser indicates an expected call of CountDraftsByUser.
+func (mr *MockRepositoryMockRecorder) CountDraftsByUser(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountDraftsByUser", reflect.TypeOf((*MockRepository)(nil).CountDraftsByUser), ctx, userID)
+}
+
+// CreateDraft mocks base method.
+func (m *MockRepository) CreateDraft(ctx context.Context, draft models.Draft) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateDraft", ctx, draft)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateDraft indicates an expected call of CreateDraft.
+func (mr *MockRepositoryMockRecorder) CreateDraft(ctx, draft any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateDraft", reflect.TypeOf((*MockRepository)(nil).CreateDraft), ctx, draft)
+}
+
+// DeleteDraftsBatch mocks base method.
+func (m *MockRepository) DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteDraftsBatch", ctx, userID, draftIDs)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteEmailForReceiver indicates an expected call of DeleteEmailForReceiver.
-func (mr *MockRepositoryMockRecorder) DeleteEmailForReceiver(ctx, emailID, userID any) *gomock.Call {
+// DeleteDraftsBatch indicates an expected call of DeleteDraftsBatch.
+func (mr *MockRepositoryMockRecorder) DeleteDraftsBatch(ctx, userID, draftIDs any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEmailForReceiver", reflect.TypeOf((*MockRepository)(nil).DeleteEmailForReceiver), ctx, emailID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteDraftsBatch", reflect.TypeOf((*MockRepository)(nil).DeleteDraftsBatch), ctx, userID, draftIDs)
 }
 
-// DeleteEmailForSender mocks base method.
-func (m *MockRepository) DeleteEmailForSender(ctx context.Context, emailID, userID int64) error {
+// GetDraftByID mocks base method.
+func (m *MockRepository) GetDraftByID(ctx context.Context, draftID, userID int64) (*models.Draft, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteEmailForSender", ctx, emailID, userID)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "GetDraftByID", ctx, draftID, userID)
+	ret0, _ := ret[0].(*models.Draft)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// DeleteEmailForSender indicates an expected call of DeleteEmailForSender.
-func (mr *MockRepositoryMockRecorder) DeleteEmailForSender(ctx, emailID, userID any) *gomock.Call {
+// GetDraftByID indicates an expected call of GetDraftByID.
+func (mr *MockRepositoryMockRecorder) GetDraftByID(ctx, draftID, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteEmailForSender", reflect.TypeOf((*MockRepository)(nil).DeleteEmailForSender), ctx, emailID, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDraftByID", reflect.TypeOf((*MockRepository)(nil).GetDraftByID), ctx, draftID, userID)
+}
+
+// GetDrafts mocks base method.
+func (m *MockRepository) GetDrafts(ctx context.Context, userID int64, limit, offset int) ([]models.Draft, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDrafts", ctx, userID, limit, offset)
+	ret0, _ := ret[0].([]models.Draft)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetDrafts indicates an expected call of GetDrafts.
+func (mr *MockRepositoryMockRecorder) GetDrafts(ctx, userID, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDrafts", reflect.TypeOf((*MockRepository)(nil).GetDrafts), ctx, userID, limit, offset)
 }
 
 // GetEmailByID mocks base method.
@@ -202,6 +234,96 @@ func (mr *MockRepositoryMockRecorder) GetEmailsCount(ctx, userID any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetEmailsCount), ctx, userID)
 }
 
+// GetFavoriteEmails mocks base method.
+func (m *MockRepository) GetFavoriteEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFavoriteEmails", ctx, userID, limit, offset)
+	ret0, _ := ret[0].([]models.EmailWithMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetFavoriteEmails indicates an expected call of GetFavoriteEmails.
+func (mr *MockRepositoryMockRecorder) GetFavoriteEmails(ctx, userID, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFavoriteEmails", reflect.TypeOf((*MockRepository)(nil).GetFavoriteEmails), ctx, userID, limit, offset)
+}
+
+// GetSenderEmailsCount mocks base method.
+func (m *MockRepository) GetSenderEmailsCount(ctx context.Context, userID int64) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSenderEmailsCount", ctx, userID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSenderEmailsCount indicates an expected call of GetSenderEmailsCount.
+func (mr *MockRepositoryMockRecorder) GetSenderEmailsCount(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSenderEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetSenderEmailsCount), ctx, userID)
+}
+
+// GetSpamEmails mocks base method.
+func (m *MockRepository) GetSpamEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSpamEmails", ctx, userID, limit, offset)
+	ret0, _ := ret[0].([]models.EmailWithMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSpamEmails indicates an expected call of GetSpamEmails.
+func (mr *MockRepositoryMockRecorder) GetSpamEmails(ctx, userID, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSpamEmails", reflect.TypeOf((*MockRepository)(nil).GetSpamEmails), ctx, userID, limit, offset)
+}
+
+// GetSpamEmailsCount mocks base method.
+func (m *MockRepository) GetSpamEmailsCount(ctx context.Context, userID int64) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSpamEmailsCount", ctx, userID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSpamEmailsCount indicates an expected call of GetSpamEmailsCount.
+func (mr *MockRepositoryMockRecorder) GetSpamEmailsCount(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSpamEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetSpamEmailsCount), ctx, userID)
+}
+
+// GetTrashEmails mocks base method.
+func (m *MockRepository) GetTrashEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTrashEmails", ctx, userID, limit, offset)
+	ret0, _ := ret[0].([]models.EmailWithMetadata)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTrashEmails indicates an expected call of GetTrashEmails.
+func (mr *MockRepositoryMockRecorder) GetTrashEmails(ctx, userID, limit, offset any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTrashEmails", reflect.TypeOf((*MockRepository)(nil).GetTrashEmails), ctx, userID, limit, offset)
+}
+
+// GetTrashEmailsCount mocks base method.
+func (m *MockRepository) GetTrashEmailsCount(ctx context.Context, userID int64) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTrashEmailsCount", ctx, userID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetTrashEmailsCount indicates an expected call of GetTrashEmailsCount.
+func (mr *MockRepositoryMockRecorder) GetTrashEmailsCount(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTrashEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetTrashEmailsCount), ctx, userID)
+}
+
 // GetUnreadEmailsCount mocks base method.
 func (m *MockRepository) GetUnreadEmailsCount(ctx context.Context, userID int64) (int, error) {
 	m.ctrl.T.Helper()
@@ -217,19 +339,49 @@ func (mr *MockRepositoryMockRecorder) GetUnreadEmailsCount(ctx, userID any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnreadEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetUnreadEmailsCount), ctx, userID)
 }
 
-// GetUserEmailsCount mocks base method.
-func (m *MockRepository) GetUserEmailsCount(ctx context.Context, userID int64) (int, error) {
+// GetUnreadSpamCount mocks base method.
+func (m *MockRepository) GetUnreadSpamCount(ctx context.Context, userID int64) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserEmailsCount", ctx, userID)
+	ret := m.ctrl.Call(m, "GetUnreadSpamCount", ctx, userID)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetUserEmailsCount indicates an expected call of GetUserEmailsCount.
-func (mr *MockRepositoryMockRecorder) GetUserEmailsCount(ctx, userID any) *gomock.Call {
+// GetUnreadSpamCount indicates an expected call of GetUnreadSpamCount.
+func (mr *MockRepositoryMockRecorder) GetUnreadSpamCount(ctx, userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserEmailsCount", reflect.TypeOf((*MockRepository)(nil).GetUserEmailsCount), ctx, userID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnreadSpamCount", reflect.TypeOf((*MockRepository)(nil).GetUnreadSpamCount), ctx, userID)
+}
+
+// GetUnreadTrashCount mocks base method.
+func (m *MockRepository) GetUnreadTrashCount(ctx context.Context, userID int64) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUnreadTrashCount", ctx, userID)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUnreadTrashCount indicates an expected call of GetUnreadTrashCount.
+func (mr *MockRepositoryMockRecorder) GetUnreadTrashCount(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUnreadTrashCount", reflect.TypeOf((*MockRepository)(nil).GetUnreadTrashCount), ctx, userID)
+}
+
+// GetUserEmailFlags mocks base method.
+func (m *MockRepository) GetUserEmailFlags(ctx context.Context, emailID, userID int64, isSender bool) (*models.UserEmail, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserEmailFlags", ctx, emailID, userID, isSender)
+	ret0, _ := ret[0].(*models.UserEmail)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserEmailFlags indicates an expected call of GetUserEmailFlags.
+func (mr *MockRepositoryMockRecorder) GetUserEmailFlags(ctx, emailID, userID, isSender any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserEmailFlags", reflect.TypeOf((*MockRepository)(nil).GetUserEmailFlags), ctx, emailID, userID, isSender)
 }
 
 // GetUsersByEmails mocks base method.
@@ -245,6 +397,34 @@ func (m *MockRepository) GetUsersByEmails(ctx context.Context, emails []string) 
 func (mr *MockRepositoryMockRecorder) GetUsersByEmails(ctx, emails any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsersByEmails", reflect.TypeOf((*MockRepository)(nil).GetUsersByEmails), ctx, emails)
+}
+
+// HardDeleteBatch mocks base method.
+func (m *MockRepository) HardDeleteBatch(ctx context.Context, userID int64, emailIDs []int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HardDeleteBatch", ctx, userID, emailIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// HardDeleteBatch indicates an expected call of HardDeleteBatch.
+func (mr *MockRepositoryMockRecorder) HardDeleteBatch(ctx, userID, emailIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HardDeleteBatch", reflect.TypeOf((*MockRepository)(nil).HardDeleteBatch), ctx, userID, emailIDs)
+}
+
+// MarkDraftAsSentTx mocks base method.
+func (m *MockRepository) MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkDraftAsSentTx", ctx, tx, draftID, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkDraftAsSentTx indicates an expected call of MarkDraftAsSentTx.
+func (mr *MockRepositoryMockRecorder) MarkDraftAsSentTx(ctx, tx, draftID, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkDraftAsSentTx", reflect.TypeOf((*MockRepository)(nil).MarkDraftAsSentTx), ctx, tx, draftID, userID)
 }
 
 // MarkEmailAsRead mocks base method.
@@ -275,6 +455,20 @@ func (mr *MockRepositoryMockRecorder) MarkEmailAsUnRead(ctx, emailID, userID any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkEmailAsUnRead", reflect.TypeOf((*MockRepository)(nil).MarkEmailAsUnRead), ctx, emailID, userID)
 }
 
+// MarkSendersAsSpamBatch mocks base method.
+func (m *MockRepository) MarkSendersAsSpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MarkSendersAsSpamBatch", ctx, userID, emailIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MarkSendersAsSpamBatch indicates an expected call of MarkSendersAsSpamBatch.
+func (mr *MockRepositoryMockRecorder) MarkSendersAsSpamBatch(ctx, userID, emailIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MarkSendersAsSpamBatch", reflect.TypeOf((*MockRepository)(nil).MarkSendersAsSpamBatch), ctx, userID, emailIDs)
+}
+
 // SaveEmail mocks base method.
 func (m *MockRepository) SaveEmail(ctx context.Context, email models.Email) (int64, error) {
 	m.ctrl.T.Helper()
@@ -303,4 +497,74 @@ func (m *MockRepository) SaveEmailWithTx(ctx context.Context, tx *sql.Tx, email 
 func (mr *MockRepositoryMockRecorder) SaveEmailWithTx(ctx, tx, email any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveEmailWithTx", reflect.TypeOf((*MockRepository)(nil).SaveEmailWithTx), ctx, tx, email)
+}
+
+// SetSpamBatch mocks base method.
+func (m *MockRepository) SetSpamBatch(ctx context.Context, userID int64, emailIDs []int64, spam bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetSpamBatch", ctx, userID, emailIDs, spam)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetSpamBatch indicates an expected call of SetSpamBatch.
+func (mr *MockRepositoryMockRecorder) SetSpamBatch(ctx, userID, emailIDs, spam any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSpamBatch", reflect.TypeOf((*MockRepository)(nil).SetSpamBatch), ctx, userID, emailIDs, spam)
+}
+
+// SetStarredBatch mocks base method.
+func (m *MockRepository) SetStarredBatch(ctx context.Context, userID int64, emailIDs []int64, starred bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetStarredBatch", ctx, userID, emailIDs, starred)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetStarredBatch indicates an expected call of SetStarredBatch.
+func (mr *MockRepositoryMockRecorder) SetStarredBatch(ctx, userID, emailIDs, starred any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStarredBatch", reflect.TypeOf((*MockRepository)(nil).SetStarredBatch), ctx, userID, emailIDs, starred)
+}
+
+// SetTrashedBatch mocks base method.
+func (m *MockRepository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs []int64, trashed bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetTrashedBatch", ctx, userID, emailIDs, trashed)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetTrashedBatch indicates an expected call of SetTrashedBatch.
+func (mr *MockRepositoryMockRecorder) SetTrashedBatch(ctx, userID, emailIDs, trashed any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetTrashedBatch", reflect.TypeOf((*MockRepository)(nil).SetTrashedBatch), ctx, userID, emailIDs, trashed)
+}
+
+// UnmarkSendersAsSpamBatch mocks base method.
+func (m *MockRepository) UnmarkSendersAsSpamBatch(ctx context.Context, userID int64, emailIDs []int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnmarkSendersAsSpamBatch", ctx, userID, emailIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UnmarkSendersAsSpamBatch indicates an expected call of UnmarkSendersAsSpamBatch.
+func (mr *MockRepositoryMockRecorder) UnmarkSendersAsSpamBatch(ctx, userID, emailIDs any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnmarkSendersAsSpamBatch", reflect.TypeOf((*MockRepository)(nil).UnmarkSendersAsSpamBatch), ctx, userID, emailIDs)
+}
+
+// UpdateDraft mocks base method.
+func (m *MockRepository) UpdateDraft(ctx context.Context, draft models.Draft) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateDraft", ctx, draft)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateDraft indicates an expected call of UpdateDraft.
+func (mr *MockRepositoryMockRecorder) UpdateDraft(ctx, draft any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDraft", reflect.TypeOf((*MockRepository)(nil).UpdateDraft), ctx, draft)
 }

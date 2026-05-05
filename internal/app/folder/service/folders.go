@@ -25,7 +25,7 @@ type Repository interface {
 	CountUserFolders(ctx context.Context, userID int64) (int, error)
 	GetFolderByID(ctx context.Context, folderID int64) (*models.Folder, error)
 	UpdateFolderName(ctx context.Context, folderID int64, newName string) error
-	GetEmailsFromFolder(ctx context.Context, folderID int64, limit, offset int) ([]models.EmailFromFolder, error)
+	GetEmailsFromFolder(ctx context.Context, folderID, userID int64, limit, offset int) ([]models.EmailFromFolder, error)
 	CountEmailsInFolder(ctx context.Context, folderID int64) (int, error)
 	CountUnreadEmailsInFolder(ctx context.Context, folderID, userID int64) (int, error)
 	CheckEmailAccess(ctx context.Context, emailID, userID int64) (bool, error)
@@ -126,6 +126,7 @@ type EmailFromFolderResult struct {
 	Body          string
 	CreatedAt     time.Time
 	IsRead        bool
+	IsFavorite    bool
 }
 
 func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFolderInput) (*GetEmailsFromFolderResult, error) {
@@ -137,7 +138,7 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 		return nil, ErrAccessDenied
 	}
 
-	emails, err := s.repo.GetEmailsFromFolder(ctx, input.FolderID, input.Limit, input.Offset)
+	emails, err := s.repo.GetEmailsFromFolder(ctx, input.FolderID, input.UserID, input.Limit, input.Offset)
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
@@ -164,6 +165,7 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 			Body:          email.Body,
 			CreatedAt:     email.CreatedAt,
 			IsRead:        email.IsRead,
+			IsFavorite:    email.IsFavorite,
 		}
 	}
 
@@ -202,7 +204,7 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 			return MapRepositoryError(err)
 		}
 		if !hasAccess {
-			return MapRepositoryError(err)
+			return ErrAccessDenied
 		}
 
 		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, emailID); err != nil {

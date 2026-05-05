@@ -197,6 +197,7 @@ type EmailResponse struct {
 	Body          string    `json:"body"`
 	CreatedAt     time.Time `json:"created_at"`
 	IsRead        bool      `json:"is_read"`
+	IsFavorite    bool      `json:"is_favorite"`
 }
 
 type GetEmailsFromFolderResponse struct {
@@ -273,6 +274,7 @@ func (handler *Handler) GetEmailsFromFolder(w http.ResponseWriter, r *http.Reque
 			Body:          email.Body,
 			CreatedAt:     email.CreatedAt,
 			IsRead:        email.IsRead,
+			IsFavorite:    email.IsFavorite,
 		}
 	}
 

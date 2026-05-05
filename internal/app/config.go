@@ -13,8 +13,12 @@ import (
 )
 
 type AvatarConfig struct {
-    MaxSizeMB    int64    `mapstructure:"max_size_mb"`
-    AllowedTypes []string `mapstructure:"allowed_types"`
+	MaxSizeMB    int64    `mapstructure:"max_size_mb"`
+	AllowedTypes []string `mapstructure:"allowed_types"`
+}
+
+type DraftsConfig struct {
+	MaxPerUser int `mapstructure:"max_per_user"`
 }
 
 type Config struct {
@@ -27,6 +31,7 @@ type Config struct {
 	Db     postgres.Config       `mapstructure:"postgres"`
 	S3     minio.Config          `mapstructure:"minio"`
 	Avatar AvatarConfig          `mapstructure:"avatar"`
+	Drafts DraftsConfig          `mapstructure:"drafts"`
 }
 
 func Load(path string) (*Config, error) {

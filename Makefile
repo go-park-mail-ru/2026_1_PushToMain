@@ -36,7 +36,8 @@ bench:
 	go test ./... -bench=. -benchmem
 
 api:
-	swag init -g main.go --output docs --dir ./cmd,./internal/app/handler,./internal/app/models,./internal/pkg/response,./internal/pkg/middleware,./internal/pkg/utils
+	swag init -g main.go --output docs \
+		--dir ./cmd,./internal/app/email/delivery/http,./internal/app/email/models,./internal/app/folder/delivery/http,./internal/app/folder/models,./internal/app/user/delivery/http,./internal/app/user/models,./internal/pkg/response,./internal/pkg/middleware,./internal/pkg/utils
 
 docker-build:
 	docker-compose --env-file .env build
