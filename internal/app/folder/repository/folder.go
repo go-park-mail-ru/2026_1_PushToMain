@@ -147,7 +147,7 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 	return count, nil
 }
 
-func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, limit, offset int) ([]models.EmailFromFolder, error) {
+func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID, userID int64, limit, offset int) ([]models.EmailFromFolder, error) {
 	query := `
 		SELECT
 			e.id,
@@ -164,17 +164,20 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 			e.header,
 			e.body,
 			e.created_at,
-			ue.is_read
+			viewer_ue.is_read,
+			viewer_ue.is_starred
 		FROM folder_emails fe
 		JOIN emails e ON fe.email_id = e.id
 		JOIN users u ON e.sender_id = u.id
-		JOIN user_emails ue ON e.id = ue.email_id AND ue.user_id = u.id AND ue.is_sender = true
+		JOIN user_emails viewer_ue ON e.id = viewer_ue.email_id
+			AND viewer_ue.user_id = $4
+			AND viewer_ue.is_deleted = false
 		WHERE fe.folder_id = $1
 		ORDER BY fe.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, folderID, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, folderID, limit, offset, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query emails from folder %d: %w", folderID, err)
 	}
@@ -201,7 +204,6 @@ func (r *Repository) GetEmailsFromFolder(ctx context.Context, folderID int64, li
 			return nil, err
 		}
 
-		// Парсим JSON массив получателей
 		if err := json.Unmarshal(receiverListJSON, &email.ReceiverList); err != nil {
 			email.ReceiverList = []string{}
 		}
@@ -237,7 +239,9 @@ func (r *Repository) CountUnreadEmailsInFolder(ctx context.Context, folderID, us
 		SELECT COUNT(*)
 		FROM folder_emails fe
 		JOIN emails e ON fe.email_id = e.id
-		JOIN user_emails ue ON e.id = ue.email_id AND ue.user_id = $2 AND ue.is_sender = false
+		JOIN user_emails ue ON e.id = ue.email_id
+			AND ue.user_id = $2
+			AND ue.is_deleted = false
 		WHERE fe.folder_id = $1 AND ue.is_read = false
 	`
 

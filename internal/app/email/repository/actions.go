@@ -10,12 +10,12 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/models"
 )
 
-func idsPlaceholders(ids []int64, startFrom int) (string, []interface{}) {
+func idsPlaceholders(ids []int64, startFrom int) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
 	parts := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i, id := range ids {
 		parts[i] = fmt.Sprintf("$%d", startFrom+i)
 		args[i] = id
@@ -34,7 +34,7 @@ func (r *Repository) SetStarredBatch(ctx context.Context, userID int64, emailIDs
 		WHERE user_id = $1 AND email_id IN (%s)
 	`, holders)
 
-	args := append([]interface{}{userID, starred}, idArgs...)
+	args := append([]any{userID, starred}, idArgs...)
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
@@ -45,17 +45,46 @@ func (r *Repository) SetTrashedBatch(ctx context.Context, userID int64, emailIDs
 	if len(emailIDs) == 0 {
 		return nil
 	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return ErrTransactionFailed
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
 	holders, idArgs := idsPlaceholders(emailIDs, 3)
-	query := fmt.Sprintf(`
+	updateQuery := fmt.Sprintf(`
 		UPDATE user_emails
 		SET is_deleted = $2, updated_at = NOW()
 		WHERE user_id = $1 AND email_id IN (%s)
 	`, holders)
-
-	args := append([]interface{}{userID, trashed}, idArgs...)
-	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+	args := append([]any{userID, trashed}, idArgs...)
+	if _, err := tx.ExecContext(ctx, updateQuery, args...); err != nil {
 		return ErrQueryFail
 	}
+
+	if trashed {
+		holders2, idArgs2 := idsPlaceholders(emailIDs, 2)
+		deleteQuery := fmt.Sprintf(`
+			DELETE FROM folder_emails
+			WHERE email_id IN (%s)
+			  AND folder_id IN (SELECT id FROM folders WHERE user_id = $1)
+		`, holders2)
+		args2 := append([]any{userID}, idArgs2...)
+		if _, err := tx.ExecContext(ctx, deleteQuery, args2...); err != nil {
+			return ErrQueryFail
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ErrTransactionFailed
+	}
+	committed = true
 	return nil
 }
 
@@ -70,7 +99,7 @@ func (r *Repository) SetSpamBatch(ctx context.Context, userID int64, emailIDs []
 		WHERE user_id = $1 AND is_sender = false AND email_id IN (%s)
 	`, holders)
 
-	args := append([]interface{}{userID, spam}, idArgs...)
+	args := append([]any{userID, spam}, idArgs...)
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
@@ -98,8 +127,6 @@ func (r *Repository) MarkSendersAsSpamBatch(ctx context.Context, userID int64, e
 		return err
 	}
 	if len(senderIDs) == 0 {
-		// Нет писем, доступных текущему юзеру как получателю — нечего помечать.
-		// Не считаем ошибкой — клиент мог прислать id уже из спама.
 		if err = tx.Commit(); err != nil {
 			return ErrTransactionFailed
 		}
@@ -132,7 +159,7 @@ func senderIDsForReceivedEmails(ctx context.Context, tx *sql.Tx, userID int64, e
 		  AND e.id IN (%s)
 	`, holders)
 
-	args := append([]interface{}{userID}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	rows, err := tx.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, ErrQueryFail
@@ -155,7 +182,7 @@ func senderIDsForReceivedEmails(ctx context.Context, tx *sql.Tx, userID int64, e
 
 func insertSpamSenders(ctx context.Context, tx *sql.Tx, userID int64, senderIDs []int64) error {
 	parts := make([]string, len(senderIDs))
-	args := make([]interface{}, 0, len(senderIDs)+1)
+	args := make([]any, 0, len(senderIDs)+1)
 	args = append(args, userID)
 	for i, sid := range senderIDs {
 		parts[i] = fmt.Sprintf("($1, $%d)", i+2)
@@ -184,7 +211,7 @@ func markEmailsFromSendersAsSpam(ctx context.Context, tx *sql.Tx, userID int64, 
 		  )
 	`, holders)
 
-	args := append([]interface{}{userID}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
@@ -201,7 +228,7 @@ func (r *Repository) HardDeleteBatch(ctx context.Context, userID int64, emailIDs
 		WHERE user_id = $1 AND email_id IN (%s)
 	`, holders)
 
-	args := append([]interface{}{userID}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
@@ -243,7 +270,7 @@ func deleteSpamSenders(ctx context.Context, tx *sql.Tx, userID int64, senderIDs 
 		WHERE user_id = $1 AND sender_id IN (%s)
 	`, holders)
 
-	args := append([]interface{}{userID}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
@@ -261,7 +288,7 @@ func unmarkEmailsFromSendersAsSpam(ctx context.Context, tx *sql.Tx, userID int64
 		  	AND email_id IN (SELECT id FROM emails WHERE sender_id IN (%s))
 	`, holders)
 
-	args := append([]interface{}{userID}, idArgs...)
+	args := append([]any{userID}, idArgs...)
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ErrQueryFail
 	}
