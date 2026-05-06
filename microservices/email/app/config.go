@@ -2,8 +2,8 @@ package app
 
 import (
 	"fmt"
-	"strings"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
@@ -48,7 +48,7 @@ type Config struct {
 
 func Load(path string) (*Config, error) {
 
-	if err := initConfig(path); err != nil {
+	if err := app.Init(path); err != nil {
 		return nil, fmt.Errorf(
 			"error initializing config: %w",
 			err,
@@ -65,31 +65,4 @@ func Load(path string) (*Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func initConfig(path string) error {
-
-	viper.SetConfigType("yaml")
-
-	viper.SetConfigFile(path)
-
-	viper.AutomaticEnv()
-
-	viper.SetEnvKeyReplacer(
-		strings.NewReplacer(".", "_"),
-	)
-
-	if err := viper.ReadInConfig(); err != nil {
-		return fmt.Errorf(
-			"error reading config file: %w",
-			err,
-		)
-	}
-
-	fmt.Printf(
-		"Using config file: %s\n",
-		viper.ConfigFileUsed(),
-	)
-
-	return nil
 }

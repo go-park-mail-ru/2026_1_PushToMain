@@ -26,7 +26,7 @@ func InternalError(w http.ResponseWriter) {
 
 func StatusConflict(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusConflict)
-	fmt.Fprintf(w, `{ "error": "User already exsist" }`)
+	fmt.Fprintf(w, `{ "error" Already exsist" }`)
 }
 
 func Forbidden(w http.ResponseWriter) {
