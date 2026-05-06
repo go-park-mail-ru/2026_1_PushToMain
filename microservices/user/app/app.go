@@ -20,6 +20,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
 
@@ -79,7 +80,7 @@ func (app *App) Run(configPath string) {
 	if err != nil {
 		app.Logger.Errorf("avatar storage init error: %v", err)
 		app.Logger.Warn("avatar storage disabled")
-		profileS3Repo = nil // не fatal, продолжаем
+		profileS3Repo = nil
 	}
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
 	grpcServer := grpc.NewServer()
@@ -117,8 +118,12 @@ func (app *App) Run(configPath string) {
 		AllowedTypes:  app.Config.Avatar.AllowedTypes,
 	})
 
+	m := metrics.New("user", "backend")
+
 	router := mux.NewRouter()
+	router.Handle("/metrics", m.Handler())
 	router.Use(middleware.Logging(app.Logger))
+	router.Use(middleware.Metrics(m))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)

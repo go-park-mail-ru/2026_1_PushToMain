@@ -16,6 +16,7 @@ import (
 
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
@@ -111,7 +112,6 @@ func (app *App) Run(configPath string) {
 	}
 
 	go func() {
-
 		app.Logger.Infof(
 			"grpc started on %s",
 			app.Config.GRPC.EmailPort,
@@ -124,11 +124,16 @@ func (app *App) Run(configPath string) {
 			)
 		}
 	}()
+
 	emailHandler := emailHttp.New(emailService, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
 
+	m := metrics.New("email", "backend")
+
 	router := mux.NewRouter()
+	router.Handle("/metrics", m.Handler())
 	router.Use(middleware.Logging(app.Logger))
+	router.Use(middleware.Metrics(m))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)
