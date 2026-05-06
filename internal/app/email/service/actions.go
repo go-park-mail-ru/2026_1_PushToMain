@@ -1,6 +1,11 @@
 package service
 
-import "context"
+import (
+	"context"
+	"errors"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/repository"
+)
 
 type BatchInput struct {
 	UserID   int64
@@ -34,7 +39,7 @@ func (s *Service) Unfavorite(ctx context.Context, in BatchInput) error {
 	return nil
 }
 
-func (s *Service) Delete(ctx context.Context, in BatchInput) error {
+func (s *Service) Trash(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
@@ -70,13 +75,22 @@ func (s *Service) Delete(ctx context.Context, in BatchInput) error {
 }
 
 func (s *Service) findUserEmailFlags(ctx context.Context, emailID, userID int64) (*flagsView, error) {
-	if ue, err := s.repo.GetUserEmailFlags(ctx, emailID, userID, false); err == nil {
-		return &flagsView{IsDeleted: ue.IsDeleted}, nil
+	receiver, receiverErr := s.repo.GetUserEmailFlags(ctx, emailID, userID, false)
+	if receiverErr != nil && !errors.Is(receiverErr, repository.ErrMailNotFound) {
+		return nil, receiverErr
 	}
-	if ue, err := s.repo.GetUserEmailFlags(ctx, emailID, userID, true); err == nil {
-		return &flagsView{IsDeleted: ue.IsDeleted}, nil
+
+	sender, senderErr := s.repo.GetUserEmailFlags(ctx, emailID, userID, true)
+	if senderErr != nil && !errors.Is(senderErr, repository.ErrMailNotFound) {
+		return nil, senderErr
 	}
-	return nil, nil
+
+	if receiver == nil && sender == nil {
+		return nil, nil
+	}
+
+	isDeleted := (receiver != nil && receiver.IsDeleted) || (sender != nil && sender.IsDeleted)
+	return &flagsView{IsDeleted: isDeleted}, nil
 }
 
 type flagsView struct {

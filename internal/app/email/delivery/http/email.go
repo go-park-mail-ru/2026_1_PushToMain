@@ -36,7 +36,6 @@ type Service interface {
 	Unfavorite(ctx context.Context, cmd service.BatchInput) error
 	Spam(ctx context.Context, cmd service.BatchInput) error
 	Unspam(ctx context.Context, cmd service.BatchInput) error
-	Delete(ctx context.Context, cmd service.BatchInput) error
 
 	// Drafts
 	CreateDraft(ctx context.Context, cmd service.CreateDraftInput) (*service.DraftResult, error)

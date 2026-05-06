@@ -200,7 +200,7 @@ func (h *Handler) Unspam(w http.ResponseWriter, r *http.Request) {
 // @Security     CookieAuth
 // @Router       /api/v1/emails [delete]
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
-	runBatch(w, r, "Delete", h.service.Delete)
+	runBatch(w, r, "Delete", h.service.Trash)
 }
 
 // @Summary      Получить письма из спама
