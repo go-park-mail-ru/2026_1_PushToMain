@@ -1,0 +1,158 @@
+services:
+  # =========================================
+  # POSTGRES
+  # =========================================
+  postgres:
+    image: postgres:16.3
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DBNAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5430:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/pgdata
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =========================================
+  # MINIO
+  # =========================================
+  minio:
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    ports:
+      - "9000:9000"
+      - "9090:9090"
+    command: server --console-address ":9090" /data
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # =========================================
+  # USER SERVICE  (HTTP :8081 | gRPC :50051)
+  # =========================================
+  user-service:
+    build:
+      context: .
+      dockerfile: microservices/user/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8081:8081"
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tlnp | grep 50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    
+    restart: unless-stopped
+
+  # =========================================
+  # EMAIL SERVICE  (HTTP :8082 | gRPC :50052)
+  # =========================================
+  email-service:
+    build:
+      context: .
+      dockerfile: microservices/email/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8082:8082"
+      - "50052:50052"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # =========================================
+  # FOLDER SERVICE  (HTTP :8083 | gRPC :50053)
+  # =========================================
+  folder-service:
+    build:
+      context: .
+      dockerfile: microservices/folder/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8083:8083"
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      email-service:
+        condition: service_started
+    restart: unless-stopped
+  
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9091:9090"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./configs/grafana:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:
+  prometheus_data:
+  grafana_data:
