@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=../../../../../mocks/app/email/mock_email_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/email/delivery/http Service
+//go:generate mockgen -destination=../../../../mocks/app/email/mock_email_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http Service
 
 package handler
 
