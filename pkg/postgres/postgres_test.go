@@ -11,19 +11,20 @@ import (
 )
 
 func TestConfig_ToDSN(t *testing.T) {
-	cfg := &Config{
+	cfg := Config{
 		Host:     "localhost",
-		Port:     5034,
-		User:     "admin",
-		Password: "12345",
-		DBName:   "pqdb",
+		Port:     5432,
+		User:     "user",
+		Password: "pass",
+		DBName:   "db",
 		SSLMode:  "disable",
 	}
 
-	expected := "postgres://admin:12345@localhost:5034/pqdb?sslmode=disable"
-	actual := cfg.ToDSN()
-	if expected != actual {
-		t.Errorf("got %s, expected %s", actual, expected)
+	dsn := cfg.ToDSN()
+
+	expected := "postgres://user:pass@localhost:5432/db?sslmode=disable"
+	if dsn != expected {
+		t.Fatalf("expected %s, got %s", expected, dsn)
 	}
 }
 
@@ -33,11 +34,16 @@ func TestConfig_ToDSNPGX(t *testing.T) {
 		Port:     5432,
 		User:     "user",
 		Password: "pass",
-		DBName:   "testdb",
+		DBName:   "db",
 		SSLMode:  "disable",
 	}
-	expected := "pgx://user:pass@localhost:5432/testdb?sslmode=disable"
-	assert.Equal(t, expected, cfg.ToDSNPGX())
+
+	dsn := cfg.ToDSNPGX()
+
+	expected := "pgx://user:pass@localhost:5432/db?sslmode=disable"
+	if dsn != expected {
+		t.Fatalf("expected %s, got %s", expected, dsn)
+	}
 }
 
 func TestPing(t *testing.T) {
@@ -115,4 +121,26 @@ func TestNewWithOpener(t *testing.T) {
 		assert.Nil(t, db)
 		assert.EqualError(t, err, "cannot open database")
 	})
+}
+
+func TestNew(t *testing.T) {
+	cfg := Config{
+		Host:     "localhost",
+		Port:     5432,
+		User:     "user",
+		Password: "pass",
+		DBName:   "db",
+		SSLMode:  "disable",
+	}
+
+	db, err := New(cfg)
+
+	// sql.Open НЕ проверяет соединение → ошибки не будет
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if db == nil {
+		t.Fatal("expected db, got nil")
+	}
 }

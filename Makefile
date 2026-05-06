@@ -66,8 +66,8 @@ test:
 
 ## test-coverage: generate coverage report (excludes mocks)
 test-coverage:
-	@echo "Generating coverage profile (excluding mocks)..."
-	@go test -coverprofile=$(COVERAGE_FILE) $(shell go list ./... | grep -v /mocks)
+	@echo "Generating coverage profile (excluding mocks, proto, cmd, docs)..."
+	@go test -coverprofile=$(COVERAGE_FILE) $$(go list ./... | grep -v /mocks | grep -v /proto | grep -v /cmd | grep -v /docs)
 	@echo ""
 	@echo "==> Total coverage:"
 	@go tool cover -func=$(COVERAGE_FILE) | grep total
