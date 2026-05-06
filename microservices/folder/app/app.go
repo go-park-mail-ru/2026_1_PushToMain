@@ -18,11 +18,11 @@ import (
 	folderRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
 
+	emailClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/email"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/gorilla/mux"
-
-	emailClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/email"
 )
 
 const shutdownMaxTime = 5 * time.Second
@@ -83,8 +83,12 @@ func (app *App) Run(configPath string) {
 	)
 	folderHandler := folderHttp.New(folderService)
 
+	m := metrics.New("folder", "backend")
+
 	router := mux.NewRouter()
+	router.Handle("/metrics", m.Handler())
 	router.Use(middleware.Logging(app.Logger))
+	router.Use(middleware.Metrics(m))
 
 	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)

@@ -8,9 +8,14 @@ scrape_configs:
     static_configs:
       - targets: ["node_exporter:9100"]
 
-  - job_name: "app"
+  - job_name: "user-service"
     static_configs:
-      - targets:
-          - "app:8080"
-        labels:
-          group: "backend"
+      - targets: ["user-service:8081"]
+
+  - job_name: "email-service"
+    static_configs:
+      - targets: ["email-service:8082"]
+
+  - job_name: "folder-service"
+    static_configs:
+      - targets: ["folder-service:8083"]
