@@ -20,6 +20,7 @@ type Service interface {
 	GetEmailsFromFolder(ctx context.Context, input service.GetEmailsFromFolderInput) (*service.GetEmailsFromFolderResult, error)
 	AddEmailsInFolder(ctx context.Context, input service.AddEmailsInFolderInput) error
 	DeleteEmailsFromFolder(ctx context.Context, input service.DeleteEmailsFromFolderInput) error
+	DeleteFolder(ctx context.Context, input service.DeleteFolderInput) error
 }
 
 const MaxFolderNameLength = 255
@@ -442,4 +443,57 @@ func GetLimitAndOffset(r *http.Request) (limit, offset int) {
 		}
 	}
 	return limit, offset
+}
+
+// @Summary      Удалить папку
+// @Description  Удаляет кастомную папку пользователя
+// @Tags         folders
+// @Produce      json
+// @Param        id   path      int  true  "ID папки"
+// @Success      200  {object}  map[string]string
+// @Failure      400  {object}  response.ErrorResponse
+// @Failure      401  {object}  response.ErrorResponse
+// @Failure      403  {object}  response.ErrorResponse
+// @Failure      404  {object}  response.ErrorResponse
+// @Failure      500  {object}  response.ErrorResponse
+// @Security     CookieAuth
+// @Router       /api/v1/folder/{id} [delete]
+func (handler *Handler) DeleteFolder(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+
+	payload, err := middleware.ClaimsFromContext(r.Context())
+	if err != nil {
+		logger.Errorf("Failed to get claims: %v", err)
+		response.InternalError(w)
+		return
+	}
+
+	vars := mux.Vars(r)
+	folderIDStr := vars["folderID"]
+	if folderIDStr == "" {
+		logger.Errorf("Missing folder ID")
+		response.BadRequest(w)
+		return
+	}
+
+	folderID, err := strconv.ParseInt(folderIDStr, 10, 64)
+	if err != nil {
+		logger.Errorf("Invalid folder ID: %s", folderIDStr)
+		response.BadRequest(w)
+		return
+	}
+
+	err = handler.service.DeleteFolder(r.Context(), service.DeleteFolderInput{
+		UserID:   payload.UserId,
+		FolderID: folderID,
+	})
+	if err != nil {
+		logger.Errorf("Failed to delete folder: %v", err)
+		parseCommonErrors(err, w)
+		return
+	}
+
+	logger.Debugf("Folder deleted: user_id=%d, folder_id=%d", payload.UserId, folderID)
+
+	w.WriteHeader(http.StatusOK)
 }
