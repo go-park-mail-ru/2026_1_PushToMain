@@ -17,7 +17,7 @@ func TestResponses(t *testing.T) {
 		{"BadRequest", BadRequest, http.StatusBadRequest, "Bad request"},
 		{"Unauthorized", Unauthorized, http.StatusUnauthorized, "Unauthorized"},
 		{"InternalError", InternalError, http.StatusInternalServerError, "Internal server error"},
-		{"StatusConflict", StatusConflict, http.StatusConflict, "User already exsist"},
+		{"StatusConflict", StatusConflict, http.StatusConflict, "Already exsist"},
 		{"Forbidden", Forbidden, http.StatusForbidden, "Don't have access"},
 		{"NotFound", NotFound, http.StatusNotFound, "Not found"},
 	}
