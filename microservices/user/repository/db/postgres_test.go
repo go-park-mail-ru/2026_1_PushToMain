@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/models"
@@ -312,6 +313,9 @@ func TestRepository_FindByEmail(t *testing.T) {
 }
 
 func TestRepository_FindByID(t *testing.T) {
+	birth := time.Date(1995, 5, 15, 0, 0, 0, 0, time.UTC)
+	male := true
+
 	tests := []struct {
 		name        string
 		userID      int64
@@ -320,14 +324,22 @@ func TestRepository_FindByID(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name:   "success",
+			name:   "success with folders",
 			userID: 1,
 			mockSetup: func(mock sqlmock.Sqlmock) {
-				rows := sqlmock.NewRows([]string{"id", "email", "password_hash", "name", "surname", "image_path"}).
-					AddRow(1, "john@example.com", "hash", "John", "Doe", "/avatar.jpg")
-				mock.ExpectQuery(`SELECT id, email, password_hash, name, surname, image_path FROM users WHERE id = \$1`).
+				userRows := sqlmock.NewRows([]string{
+					"id", "email", "password_hash", "name", "surname", "image_path", "is_male", "birthdate",
+				}).AddRow(1, "john@example.com", "hash", "John", "Doe", "/avatar.jpg", true, birth)
+				mock.ExpectQuery(`SELECT id, email, password_hash, name, surname, image_path, is_male, birthdate FROM users WHERE id = \$1`).
 					WithArgs(int64(1)).
-					WillReturnRows(rows)
+					WillReturnRows(userRows)
+
+				folderRows := sqlmock.NewRows([]string{"id", "name"}).
+					AddRow(10, "inbox").
+					AddRow(11, "sent")
+				mock.ExpectQuery(`SELECT id, name FROM folders WHERE user_id = \$1 ORDER BY created_at ASC`).
+					WithArgs(int64(1)).
+					WillReturnRows(folderRows)
 			},
 			expected: &models.User{
 				ID:        1,
@@ -336,6 +348,12 @@ func TestRepository_FindByID(t *testing.T) {
 				Name:      "John",
 				Surname:   "Doe",
 				ImagePath: "/avatar.jpg",
+				IsMale:    &male,
+				Birthdate: &birth,
+				Folders: []models.Folder{
+					{ID: 10, Name: "inbox"},
+					{ID: 11, Name: "sent"},
+				},
 			},
 			expectedErr: nil,
 		},
@@ -351,7 +369,7 @@ func TestRepository_FindByID(t *testing.T) {
 			expectedErr: ErrUserNotFound,
 		},
 		{
-			name:   "query error",
+			name:   "user query error",
 			userID: 1,
 			mockSetup: func(mock sqlmock.Sqlmock) {
 				mock.ExpectQuery(`SELECT`).
@@ -359,6 +377,49 @@ func TestRepository_FindByID(t *testing.T) {
 			},
 			expected:    nil,
 			expectedErr: ErrQueryError,
+		},
+		{
+			name:   "folders query error",
+			userID: 2,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				userRows := sqlmock.NewRows([]string{
+					"id", "email", "password_hash", "name", "surname", "image_path", "is_male", "birthdate",
+				}).AddRow(2, "jane@example.com", "hash2", "Jane", "Doe", "/img.jpg", false, birth)
+				mock.ExpectQuery(`SELECT id, email, password_hash, name, surname, image_path, is_male, birthdate FROM users WHERE id = \$1`).
+					WithArgs(int64(2)).
+					WillReturnRows(userRows)
+
+				mock.ExpectQuery(`SELECT id, name FROM folders`).
+					WithArgs(int64(2)).
+					WillReturnError(errors.New("folders table missing"))
+			},
+			expected:    nil,
+			expectedErr: errors.New("failed to get folders for user 2"),
+		},
+		{
+			name:   "null is_male and birthdate",
+			userID: 3,
+			mockSetup: func(mock sqlmock.Sqlmock) {
+				userRows := sqlmock.NewRows([]string{
+					"id", "email", "password_hash", "name", "surname", "image_path", "is_male", "birthdate",
+				}).AddRow(3, "neo@example.com", "hash3", "Neo", "One", "/neo.jpg", nil, nil)
+				mock.ExpectQuery(`SELECT`).WithArgs(int64(3)).WillReturnRows(userRows)
+
+				folderRows := sqlmock.NewRows([]string{"id", "name"})
+				mock.ExpectQuery(`SELECT id, name FROM folders`).WithArgs(int64(3)).WillReturnRows(folderRows)
+			},
+			expected: &models.User{
+				ID:        3,
+				Email:     "neo@example.com",
+				Password:  "hash3",
+				Name:      "Neo",
+				Surname:   "One",
+				ImagePath: "/neo.jpg",
+				IsMale:    nil,
+				Birthdate: nil,
+				Folders:   nil,
+			},
+			expectedErr: nil,
 		},
 	}
 
@@ -372,11 +433,16 @@ func TestRepository_FindByID(t *testing.T) {
 			tt.mockSetup(mock)
 
 			user, err := repo.FindByID(context.Background(), tt.userID)
-			assert.Equal(t, tt.expected, user)
 			if tt.expectedErr != nil {
-				assert.ErrorIs(t, err, tt.expectedErr)
+				require.Error(t, err)
+				if tt.name == "folders query error" {
+					assert.Contains(t, err.Error(), "failed to get folders for user")
+				} else {
+					assert.ErrorIs(t, err, tt.expectedErr)
+				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, user)
 			}
 			assert.NoError(t, mock.ExpectationsWereMet())
 		})

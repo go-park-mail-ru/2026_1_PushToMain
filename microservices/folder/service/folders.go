@@ -1,3 +1,6 @@
+//go:generate mockgen -destination=../../../mocks/app/folder/mock_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service Repository
+//go:generate mockgen -destination=../../../mocks/app/folder/mock_email_client.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service EmailClient
+
 package service
 
 import (

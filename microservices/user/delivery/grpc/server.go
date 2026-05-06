@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 
-	userService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service"
 	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
 
 	"google.golang.org/grpc/codes"
@@ -12,12 +12,16 @@ import (
 
 type Server struct {
 	userpb.UnimplementedUserServiceServer
-	service *userService.Service
+	service Service
 }
 
-func New(service *userService.Service) *Server {
+type Service interface {
+	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
+}
+
+func New(svc Service) *Server {
 	return &Server{
-		service: service,
+		service: svc,
 	}
 }
 
