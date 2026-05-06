@@ -23,7 +23,7 @@
 - **Frontend-часть:** [Smail Frontend](https://github.com/frontend-park-mail-ru/2026_1_PushToMain)
 
 ## Реализация
-- [Ссылка на deploy](http://212.233.96.16:8000)
+- [Ссылка на deploy](https://e-smail.ru)
 
 ### Зачем мы разработали этот проект?
 
