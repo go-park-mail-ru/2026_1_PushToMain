@@ -14,6 +14,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
+	"github.com/gorilla/mux"
 )
 
 type Service interface {
@@ -478,14 +479,13 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Errorf("Invalid url %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDStr := pathParts[4]
+	vars := mux.Vars(r)
+ emailIDStr := vars["id"]
+ if emailIDStr == "" {
+  logger.Warnf("Missing email ID")
+  response.BadRequest(w)
+  return
+ }
 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
