@@ -480,12 +480,12 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vars := mux.Vars(r)
- emailIDStr := vars["id"]
- if emailIDStr == "" {
-  logger.Warnf("Missing email ID")
-  response.BadRequest(w)
-  return
- }
+	emailIDStr := vars["id"]
+	if emailIDStr == "" {
+		logger.Warnf("Missing email ID")
+		response.BadRequest(w)
+		return
+	}
 
 	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
 	if err != nil {
