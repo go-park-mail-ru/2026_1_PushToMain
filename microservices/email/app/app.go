@@ -135,7 +135,7 @@ func (app *App) Run(configPath string) {
 	router.Use(middleware.Logging(app.Logger))
 	router.Use(middleware.Metrics(m))
 
-	public := router.PathPrefix("/api/v1/email").Subrouter()
+	public := router.PathPrefix("/api/v1").Subrouter()
 	public.Use(middleware.Panic)
 	public.Use(middleware.CORS(app.Config.CORS))
 	public.Use(middleware.JSON)
