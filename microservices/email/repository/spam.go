@@ -2,52 +2,64 @@ package repository
 
 import (
 	"context"
-
-	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
+	"database/sql"
 )
 
-// GetSpamEmails — список писем в спаме у получателя.
-func (r *Repository) GetSpamEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
-	limit, offset = normPage(limit, offset)
+func (r *Repository) GetSpamEmailIDs(ctx context.Context, userID int64, limit int, offset int) ([]int64, error) {
 	const query = `
-		SELECT
-			e.id, e.sender_id, e.header, e.body, e.created_at,
-			ue.is_read, ue.is_starred, ue.is_spam, ue.is_deleted,
-			ue.created_at AS received_at,
-			COALESCE((
-				SELECT array_agg(ru.email ORDER BY ru.id)
-				FROM user_emails rue
-				JOIN users ru ON rue.user_id = ru.id
-				WHERE rue.email_id = e.id AND rue.is_sender = false
-			), '{}'::text[]) AS receivers_emails
-		FROM user_emails ue
-		JOIN emails e ON ue.email_id = e.id
-		WHERE ue.user_id = $1
-		  AND ue.is_sender = false
-		  AND ue.is_spam = true
-		  AND ue.is_deleted = false
-		  AND ue.is_draft = false
-		ORDER BY ue.created_at DESC
+		SELECT id
+		FROM user_emails
+		WHERE user_id = $1
+			AND is_spam = true
+			AND is_deleted = false
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
 	`
-	return r.queryEmailsList(ctx, query, userID, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	defer rows.Close()
+
+	ids := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, ErrQueryFail
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrQueryFail
+	}
+
+	return ids, nil
 }
 
-func (r *Repository) GetSpamEmailsCount(ctx context.Context, userID int64) (int, error) {
+func (r *Repository) InsertSpamSender(ctx context.Context, tx *sql.Tx, userID int64, senderID int64) error {
 	const query = `
-		SELECT COUNT(*) FROM user_emails
-		WHERE user_id = $1 AND is_sender = false
-		  AND is_spam = true AND is_deleted = false AND is_draft = false
+		INSERT INTO spam_senders
+		(user_id, sender_id)
+		VALUES ($1, $2)
 	`
-	return r.scanCount(ctx, query, userID)
+
+	if _, err := tx.ExecContext(ctx, query, userID, senderID); err != nil {
+		return ErrQueryFail
+	}
+
+	return nil
 }
 
-func (r *Repository) GetUnreadSpamCount(ctx context.Context, userID int64) (int, error) {
+func (r *Repository) DeleteSpamSender(ctx context.Context, tx *sql.Tx, userID int64, senderID int64) error {
 	const query = `
-		SELECT COUNT(*) FROM user_emails
-		WHERE user_id = $1 AND is_sender = false
-		  AND is_spam = true AND is_read = false
-		  AND is_deleted = false AND is_draft = false
+		DELETE FROM spam_senders
+		WHERE user_id = $1 AND sender_id = $2
 	`
-	return r.scanCount(ctx, query, userID)
+
+	if _, err := tx.ExecContext(ctx, query, userID, senderID); err != nil {
+		return ErrQueryFail
+	}
+
+	return nil
 }
