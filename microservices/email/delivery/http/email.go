@@ -252,7 +252,7 @@ type GetEmailsResponse struct {
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
 // @Router       /api/v1/emails [get]
-func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetInboxEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
 	logger.Infof("get email request received")
@@ -360,7 +360,7 @@ type GetMyEmailsResponse struct {
 // @Failure      500  {object}  response.ErrorResponse
 // @Security     CookieAuth
 // @Router       /api/v1/myemails [get]
-func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
+func (handler *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 
 	logger.Infof("get email request received")
