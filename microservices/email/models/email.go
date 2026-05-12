@@ -2,6 +2,11 @@ package models
 
 import "time"
 
+type MailboxStats struct {
+	Total  int
+	Unread int
+}
+
 type Email struct {
 	ID          int64
 	SenderID    int64

@@ -14,121 +14,73 @@ func (in BatchInput) validate() error {
 	return nil
 }
 
-func (s *Service) Trash(ctx context.Context, in BatchInput) error {
+func (s *Service) batchOperation(
+	ctx context.Context,
+	in BatchInput,
+	op func(ctx context.Context, userID int64, emailIDs []int64) error,
+) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	if err := s.repo.SetTrashedBatch(ctx, in.UserID, in.EmailIDs, true); err != nil {
+	if err := op(ctx, in.UserID, in.EmailIDs); err != nil {
 		return MapRepositoryError(err)
 	}
 	return nil
+}
+
+func (s *Service) Trash(ctx context.Context, in BatchInput) error {
+	return s.batchOperation(ctx, in, s.repo.TrashEmails)
 }
 
 func (s *Service) Untrash(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.SetTrashedBatch(ctx, in.UserID, in.EmailIDs, false); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
+	return s.batchOperation(ctx, in, s.repo.UntrashEmails)
 }
 
 func (s *Service) Favorite(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.SetStarredBatch(ctx, in.UserID, in.EmailIDs, true); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
+	return s.batchOperation(ctx, in, s.repo.StarEmails)
 }
 
 func (s *Service) Unfavorite(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.SetStarredBatch(ctx, in.UserID, in.EmailIDs, false); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
+	return s.batchOperation(ctx, in, s.repo.UnstarEmails)
 }
 
 func (s *Service) Spam(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.MarkSendersAsSpamBatch(ctx, in.UserID, in.EmailIDs); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
+	return s.batchOperation(ctx, in, s.repo.SpamEmails)
 }
 
 func (s *Service) Unspam(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.SetSpamBatch(ctx, in.UserID, in.EmailIDs, false); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
-}
-
-func (s *Service) UnmarkSpamSenders(ctx context.Context, in BatchInput) error {
-	if err := in.validate(); err != nil {
-		return err
-	}
-	if err := s.repo.UnmarkSendersAsSpamBatch(ctx, in.UserID, in.EmailIDs); err != nil {
-		return MapRepositoryError(err)
-	}
-	return nil
+	return s.batchOperation(ctx, in, s.repo.UnspamEmails)
 }
 
 func (s *Service) Delete(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-
-	var toSoft, toHard []int64
+	deletedIDs, err := s.repo.GetDeletedEmailIDs(ctx, in.UserID, in.EmailIDs)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+	deletedSet := make(map[int64]struct{}, len(deletedIDs))
+	for _, id := range deletedIDs {
+		deletedSet[id] = struct{}{}
+	}
+	var toTrash, toRemove []int64
 	for _, id := range in.EmailIDs {
-		flags, err := s.findUserEmailFlags(ctx, id, in.UserID)
-		if err != nil {
-			return MapRepositoryError(err)
-		}
-		if flags == nil {
-			// Письма у юзера нет ни как у получателя, ни как у отправителя — пропускаем.
-			continue
-		}
-		if flags.IsDeleted {
-			toHard = append(toHard, id)
+		if _, ok := deletedSet[id]; ok {
+			toRemove = append(toRemove, id)
 		} else {
-			toSoft = append(toSoft, id)
+			toTrash = append(toTrash, id)
 		}
 	}
-
-	if len(toSoft) > 0 {
-		if err := s.repo.SetTrashedBatch(ctx, in.UserID, toSoft, true); err != nil {
+	if len(toTrash) > 0 {
+		if err := s.repo.TrashEmails(ctx, in.UserID, toTrash); err != nil {
 			return MapRepositoryError(err)
 		}
 	}
-	if len(toHard) > 0 {
-		if err := s.repo.HardDeleteBatch(ctx, in.UserID, toHard); err != nil {
+	if len(toRemove) > 0 {
+		if err := s.repo.DeleteUserEmailsBatch(ctx, in.UserID, toRemove); err != nil {
 			return MapRepositoryError(err)
 		}
 	}
 	return nil
-}
-
-func (s *Service) findUserEmailFlags(ctx context.Context, emailID, userID int64) (*flagsView, error) {
-	if ue, err := s.repo.GetUserEmailFlags(ctx, emailID, userID, false); err == nil {
-		return &flagsView{IsDeleted: ue.IsDeleted}, nil
-	}
-	if ue, err := s.repo.GetUserEmailFlags(ctx, emailID, userID, true); err == nil {
-		return &flagsView{IsDeleted: ue.IsDeleted}, nil
-	}
-	return nil, nil
-}
-
-type flagsView struct {
-	IsDeleted bool
 }

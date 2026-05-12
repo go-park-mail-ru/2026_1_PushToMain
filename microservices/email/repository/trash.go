@@ -2,34 +2,27 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 )
 
-func (r *Repository) GetTrashEmailIDs(ctx context.Context, userID int64, limit, offset int) ([]int64, error) {
-	const query = `
-		SELECT email_id
-		FROM user_emails
-		WHERE user_id = $1 AND is_deleted = true
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
-	if err != nil {
-		return nil, ErrQueryFail
+func (r *Repository) DeleteUserEmailsBatch(ctx context.Context, userID int64, emailIDs []int64) error {
+	if len(emailIDs) == 0 {
+		return nil
 	}
-	defer rows.Close()
-
-	ids := make([]int64, 0)
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, ErrQueryFail
-		}
-		ids = append(ids, id)
+	parts := make([]string, len(emailIDs))
+	args := make([]any, 0, len(emailIDs)+1)
+	args = append(args, userID)
+	for i, id := range emailIDs {
+		parts[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, ErrQueryFail
+	query := fmt.Sprintf(`
+		DELETE FROM user_emails
+		WHERE user_id = $1 AND email_id IN (%s)
+	`, strings.Join(parts, ","))
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+		return ErrQueryFail
 	}
-
-	return ids, nil
+	return nil
 }
