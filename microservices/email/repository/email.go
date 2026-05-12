@@ -1,0 +1,223 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
+)
+
+func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error) {
+	const query = `
+		INSERT INTO emails
+			(sender_id, sender_email, header, body, is_draft)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
+	var id int64
+	err := tx.QueryRowContext(ctx, query,
+		email.SenderID, email.SenderEmail, email.Header, email.Body, email.IsDraft,
+	).Scan(&id)
+	if err != nil {
+		return 0, mapPgError(err)
+	}
+	return id, nil
+}
+
+func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
+	const query = `
+		SELECT
+			e.id, COALESCE(e.sender_id, 0), e.sender_email,
+			COALESCE(e.header, ''), COALESCE(e.body, ''),
+			e.is_draft, e.created_at, e.updated_at,
+			COALESCE(u.image_path, ''),
+			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
+		FROM emails e
+		LEFT JOIN users u ON u.id = e.sender_id
+		WHERE e.id = $1
+	`
+	var em models.EmailWithAvatar
+	var recipients string
+	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
+		&em.ID, &em.SenderID, &em.SenderEmail,
+		&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
+		&em.SenderImagePath, &recipients,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	em.Recipients = parsePgTextArray(recipients)
+	return &em, nil
+}
+
+func (r *Repository) CheckEmailAccess(ctx context.Context, userID, emailID int64) error {
+	const query = `
+		SELECT EXISTS (
+			SELECT 1 FROM user_emails
+			WHERE user_id = $1 AND email_id = $2
+		)
+	`
+	var ok bool
+	if err := r.db.QueryRowContext(ctx, query, userID, emailID).Scan(&ok); err != nil {
+		return ErrQueryFail
+	}
+	if !ok {
+		return ErrAccessDenied
+	}
+	return nil
+}
+
+func (r *Repository) queryUserMailbox(
+	ctx context.Context,
+	userID int64, limit, offset int,
+	condition string,
+) ([]models.EmailWithMetadata, error) {
+	query := fmt.Sprintf(`
+		SELECT
+			e.id, COALESCE(e.sender_id, 0), e.sender_email,
+			COALESCE(e.header, ''), COALESCE(e.body, ''),
+			e.is_draft, e.created_at, e.updated_at,
+			ue.is_read, ue.is_starred, ue.is_spam, ue.is_deleted, ue.created_at,
+			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
+		FROM emails e
+		JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1
+		WHERE %s
+		ORDER BY ue.created_at DESC
+		LIMIT $2 OFFSET $3
+	`, condition)
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	defer rows.Close()
+
+	out := make([]models.EmailWithMetadata, 0)
+	for rows.Next() {
+		var em models.EmailWithMetadata
+		var recipients string
+		if err := rows.Scan(
+			&em.ID, &em.SenderID, &em.SenderEmail,
+			&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
+			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
+			&recipients,
+		); err != nil {
+			return nil, ErrQueryFail
+		}
+		em.Recipients = parsePgTextArray(recipients)
+		out = append(out, em)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrQueryFail
+	}
+	return out, nil
+}
+
+func (r *Repository) GetInboxEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	return r.queryUserMailbox(ctx, userID, limit, offset,
+		"ue.is_deleted = false AND ue.is_spam = false")
+}
+
+func (r *Repository) GetSpamEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	return r.queryUserMailbox(ctx, userID, limit, offset,
+		"ue.is_spam = true AND ue.is_deleted = false")
+}
+
+func (r *Repository) GetTrashEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	return r.queryUserMailbox(ctx, userID, limit, offset, "ue.is_deleted = true")
+}
+
+func (r *Repository) GetFavoriteEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	return r.queryUserMailbox(ctx, userID, limit, offset,
+		"ue.is_starred = true AND ue.is_deleted = false")
+}
+
+func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	const query = `
+		SELECT
+			e.id, e.sender_id, e.sender_email,
+			COALESCE(e.header, ''), COALESCE(e.body, ''),
+			e.is_draft, e.created_at, e.updated_at,
+			COALESCE(ue.is_read, false), COALESCE(ue.is_starred, false),
+			COALESCE(ue.is_spam, false), COALESCE(ue.is_deleted, false),
+			e.created_at,
+			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
+		FROM emails e
+		LEFT JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1
+		WHERE e.sender_id = $1 AND e.is_draft = false
+		ORDER BY e.created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	defer rows.Close()
+
+	out := make([]models.EmailWithMetadata, 0)
+	for rows.Next() {
+		var em models.EmailWithMetadata
+		var recipients string
+		if err := rows.Scan(
+			&em.ID, &em.SenderID, &em.SenderEmail,
+			&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
+			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
+			&recipients,
+		); err != nil {
+			return nil, ErrQueryFail
+		}
+		em.Recipients = parsePgTextArray(recipients)
+		out = append(out, em)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrQueryFail
+	}
+	return out, nil
+}
+
+func (r *Repository) GetDeletedEmailIDs(ctx context.Context, userID int64, emailIDs []int64) ([]int64, error) {
+	if len(emailIDs) == 0 {
+		return []int64{}, nil
+	}
+	parts := make([]string, len(emailIDs))
+	args := make([]any, 0, len(emailIDs)+1)
+	args = append(args, userID)
+	for i, id := range emailIDs {
+		parts[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
+	}
+	query := fmt.Sprintf(`
+		SELECT email_id FROM user_emails
+		WHERE user_id = $1 AND is_deleted = true AND email_id IN (%s)
+	`, strings.Join(parts, ","))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, ErrQueryFail
+	}
+	defer rows.Close()
+
+	out := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, ErrQueryFail
+		}
+		out = append(out, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ErrQueryFail
+	}
+	return out, nil
+}

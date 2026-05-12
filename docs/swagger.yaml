@@ -1,53 +1,5 @@
 basePath: /
 definitions:
-  github_com_go-park-mail-ru_2026_1_PushToMain_internal_app_email_delivery_http.EmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      is_favorite:
-        type: boolean
-      is_read:
-        type: boolean
-      receiver_list:
-        items:
-          type: string
-        type: array
-      sender_email:
-        type: string
-      sender_name:
-        type: string
-      sender_surname:
-        type: string
-    type: object
-  github_com_go-park-mail-ru_2026_1_PushToMain_internal_app_folder_delivery_http.EmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      is_read:
-        type: boolean
-      receiver_list:
-        items:
-          type: string
-        type: array
-      sender_email:
-        type: string
-      sender_name:
-        type: string
-      sender_surname:
-        type: string
-    type: object
   handler.AddEmailsInFolderRequest:
     properties:
       emails_id:
@@ -60,17 +12,6 @@ definitions:
       folder_name:
         type: string
     type: object
-  handler.CreateDraftRequest:
-    properties:
-      body:
-        type: string
-      header:
-        type: string
-      receivers:
-        items:
-          type: string
-        type: array
-    type: object
   handler.CreateNewFolderRequest:
     properties:
       folder_name:
@@ -81,44 +22,17 @@ definitions:
       folder_id:
         type: integer
     type: object
+  handler.DeleteEmailRequest:
+    properties:
+      email_id:
+        type: integer
+    type: object
   handler.DeleteEmailsFromFolderRequest:
     properties:
       emails_id:
         items:
           type: integer
         type: array
-    type: object
-  handler.DraftResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      receivers:
-        items:
-          type: string
-        type: array
-      sender_id:
-        type: integer
-      updated_at:
-        type: string
-    type: object
-  handler.GetDraftsResponse:
-    properties:
-      drafts:
-        items:
-          $ref: '#/definitions/handler.DraftResponse'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
     type: object
   handler.GetEmailResponse:
     properties:
@@ -149,7 +63,7 @@ definitions:
     properties:
       emails:
         items:
-          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_PushToMain_internal_app_folder_delivery_http.EmailResponse'
+          $ref: '#/definitions/internal_app_folder_delivery_http.EmailResponse'
         type: array
       limit:
         type: integer
@@ -164,7 +78,7 @@ definitions:
     properties:
       emails:
         items:
-          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_PushToMain_internal_app_email_delivery_http.EmailResponse'
+          $ref: '#/definitions/internal_app_email_delivery_http.EmailResponse'
         type: array
       limit:
         type: integer
@@ -175,74 +89,11 @@ definitions:
       unread_count:
         type: integer
     type: object
-  handler.GetMyEmailsResponse:
-    properties:
-      emails:
-        items:
-          $ref: '#/definitions/handler.MyEmailResponse'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
-    type: object
-  handler.IDsRequest:
-    properties:
-      ids:
-        items:
-          type: integer
-        type: array
-    type: object
   handler.MarkEmailsAsReadRequest:
     properties:
       email_ids:
         items:
           type: integer
-        type: array
-    type: object
-  handler.MyEmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      is_read:
-        type: boolean
-      receivers_emails:
-        items:
-          type: string
-        type: array
-      sender_id:
-        type: integer
-    type: object
-  handler.SendEmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      email_id:
-        type: integer
-      from:
-        type: integer
-      header:
-        type: string
-    type: object
-  handler.UpdateDraftRequest:
-    properties:
-      body:
-        type: string
-      header:
-        type: string
-      receivers:
-        items:
-          type: string
         type: array
     type: object
   http.SignInRequest:
@@ -265,14 +116,55 @@ definitions:
     type: object
   http.UpdateProfileRequest:
     properties:
-      birthdate:
-        description: ISO-8601 формат 2000-02-20
-        type: string
-      is_male:
-        type: boolean
       name:
         type: string
       surname:
+        type: string
+    type: object
+  internal_app_email_delivery_http.EmailResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      header:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      receiver_list:
+        items:
+          type: string
+        type: array
+      sender_email:
+        type: string
+      sender_name:
+        type: string
+      sender_surname:
+        type: string
+    type: object
+  internal_app_folder_delivery_http.EmailResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      header:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      receiver_list:
+        items:
+          type: string
+        type: array
+      sender_email:
+        type: string
+      sender_name:
+        type: string
+      sender_surname:
         type: string
     type: object
   response.ErrorResponse:
@@ -377,48 +269,16 @@ paths:
       summary: Регистрация
       tags:
       - auth
-  /api/v1/drafts:
-    delete:
-      consumes:
-      - application/json
-      parameters:
-      - description: Список ID черновиков
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Удалить черновики
-      tags:
-      - drafts
+  /api/v1/emails:
     get:
+      description: Возвращает список писем, в которых авторизованный пользователь
+        указан получателем
       parameters:
-      - description: Кол-во записей (default 20, max 100)
+      - description: 'Количество записей на странице (default: 20, max: 100)'
         in: query
         name: limit
         type: integer
-      - description: Смещение (default 0)
+      - description: 'Смещение для пагинации (default: 0)'
         in: query
         name: offset
         type: integer
@@ -428,73 +288,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/handler.GetDraftsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить список черновиков
-      tags:
-      - drafts
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Черновик
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.CreateDraftRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/handler.DraftResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Создать черновик
-      tags:
-      - drafts
-  /api/v1/drafts/{id}:
-    get:
-      parameters:
-      - description: ID черновика
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.DraftResponse'
+            $ref: '#/definitions/handler.GetEmailsResponse'
         "400":
           description: Bad Request
           schema:
@@ -513,118 +307,7 @@ paths:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - CookieAuth: []
-      summary: Получить черновик по ID
-      tags:
-      - drafts
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: ID черновика
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Черновик
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.UpdateDraftRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.DraftResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Обновить черновик
-      tags:
-      - drafts
-  /api/v1/drafts/{id}/send:
-    post:
-      parameters:
-      - description: ID черновика
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.SendEmailResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отправить черновик
-      tags:
-      - drafts
-  /api/v1/emails:
-    delete:
-      consumes:
-      - application/json
-      description: |-
-        Если письмо не в корзине — переместить в корзину; если уже в корзине — удалить физически.
-        Решение принимается отдельно для каждого письма из массива.
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Удалить письма (двухэтапно)
+      summary: Получить письма пользователя
       tags:
       - emails
   /api/v1/emails/{id}:
@@ -742,47 +425,20 @@ paths:
       summary: Отметить письмо как непрочитанное
       tags:
       - emails
-  /api/v1/emails/favorite:
-    get:
-      parameters:
-      - description: Кол-во записей (default 20, max 100)
-        in: query
-        name: limit
-        type: integer
-      - description: Смещение (default 0)
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить избранные письма
-      tags:
-      - emails
-    put:
+  /api/v1/emails/delete:
+    delete:
       consumes:
       - application/json
+      description: Удаляет письмо из почтового ящика получателя (не удаляет само письмо)
       parameters:
-      - description: Список ID писем
+      - description: ID письма
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/handler.IDsRequest'
+          $ref: '#/definitions/handler.DeleteEmailRequest'
+      produces:
+      - application/json
       responses:
         "200":
           description: Success
@@ -794,41 +450,8 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Добавить письма в избранное
-      tags:
-      - emails
-  /api/v1/emails/inbox:
-    get:
-      description: Возвращает список писем, в которых авторизованный пользователь
-        указан получателем.
-      parameters:
-      - description: 'Количество записей на странице (default: 20, max: 100)'
-        in: query
-        name: limit
-        type: integer
-      - description: 'Смещение для пагинации (default: 0)'
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
@@ -841,7 +464,7 @@ paths:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - CookieAuth: []
-      summary: Получить входящие письма
+      summary: Удалить письмо (для получателя)
       tags:
       - emails
   /api/v1/emails/read:
@@ -882,201 +505,6 @@ paths:
       summary: Отметить письма как прочитанные
       tags:
       - emails
-  /api/v1/emails/sent:
-    get:
-      description: Возвращает список писем, в которых авторизованный пользователь
-        указан отправителем.
-      parameters:
-      - description: 'Количество записей на странице (default: 20, max: 100)'
-        in: query
-        name: limit
-        type: integer
-      - description: 'Смещение для пагинации (default: 0)'
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetMyEmailsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить отправленные письма
-      tags:
-      - emails
-  /api/v1/emails/spam:
-    get:
-      parameters:
-      - description: Кол-во записей (default 20, max 100)
-        in: query
-        name: limit
-        type: integer
-      - description: Смещение (default 0)
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить письма из спама
-      tags:
-      - emails
-    put:
-      consumes:
-      - application/json
-      description: Помечает письма is_spam=true и добавляет отправителей в spam_senders.
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Пометить письма как спам
-      tags:
-      - emails
-  /api/v1/emails/trash:
-    get:
-      parameters:
-      - description: Кол-во записей (default 20, max 100)
-        in: query
-        name: limit
-        type: integer
-      - description: Смещение (default 0)
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить письма из корзины
-      tags:
-      - emails
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Переместить письма в корзину
-      tags:
-      - emails
-  /api/v1/emails/unfavorite:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Убрать письма из избранного
-      tags:
-      - emails
   /api/v1/emails/unread:
     put:
       consumes:
@@ -1113,73 +541,6 @@ paths:
       security:
       - CookieAuth: []
       summary: Отметить письма как непрочитанные
-      tags:
-      - emails
-  /api/v1/emails/unspam:
-    put:
-      consumes:
-      - application/json
-      description: |-
-        Снимает is_spam с указанных писем (только там, где текущий юзер — получатель)
-        и удаляет соответствующих отправителей из персонального списка spam_senders.
-        На остальные письма этих же отправителей, ранее помеченные спамом, не влияет —
-        они остаются в спаме до явного вызова unspam с их id.
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Снять метку спам с писем
-      tags:
-      - emails
-  /api/v1/emails/untrash:
-    put:
-      consumes:
-      - application/json
-      parameters:
-      - description: Список ID писем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.IDsRequest'
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Вернуть письма из корзины
       tags:
       - emails
   /api/v1/folder/{id}:
@@ -1461,6 +822,90 @@ paths:
       summary: Переслать письмо
       tags:
       - emails
+  /api/v1/myemails:
+    get:
+      description: Возвращает список писем, в которых авторизованный пользователь
+        указан отправителем
+      parameters:
+      - description: 'Количество записей на странице (default: 20, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: 'Смещение для пагинации (default: 0)'
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetEmailsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Получить письма отправленные пользователем
+      tags:
+      - emails
+  /api/v1/myemails/delete:
+    delete:
+      consumes:
+      - application/json
+      description: Удаляет письмо из почтового ящика отправителя (не удаляет само
+        письмо)
+      parameters:
+      - description: ID письма
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.DeleteEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+      security:
+      - CookieAuth: []
+      summary: Удалить письмо (для отправителя)
+      tags:
+      - emails
   /api/v1/profile:
     put:
       consumes:
@@ -1508,7 +953,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_PushToMain_internal_app_email_delivery_http.EmailResponse'
+            $ref: '#/definitions/internal_app_email_delivery_http.EmailResponse'
         "400":
           description: Bad Request
           schema:
