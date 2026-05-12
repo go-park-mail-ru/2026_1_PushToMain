@@ -38,6 +38,7 @@ type DbRepository interface {
 	FindByID(ctx context.Context, userID int64) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
 	UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error
+	FindByEmails(ctx context.Context, emails []string) ([]models.User, error)
 }
 
 type S3Repository interface {
@@ -238,6 +239,45 @@ func (s *Service) GenerateToken() (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+type UserInfo struct {
+	ID        int64
+	Email     string
+	Name      string
+	Surname   string
+	ImagePath string
+	IsMale    bool
+	Birthdate string
+}
+
+func (s *Service) GetUsersByEmails(ctx context.Context, emails []string) ([]UserInfo, error) {
+	users, err := s.userDB.FindByEmails(ctx, emails)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+
+	out := make([]UserInfo, len(users))
+	for i, u := range users {
+		birthdate := ""
+		if u.Birthdate != nil {
+			birthdate = u.Birthdate.Format("2006-01-02")
+		}
+		isMale := false
+		if u.IsMale != nil {
+			isMale = *u.IsMale
+		}
+		out[i] = UserInfo{
+			ID:        u.ID,
+			Email:     u.Email,
+			Name:      u.Name,
+			Surname:   u.Surname,
+			ImagePath: u.ImagePath,
+			IsMale:    isMale,
+			Birthdate: birthdate,
+		}
+	}
+	return out, nil
 }
 
 func MapRepositoryError(err error) error {

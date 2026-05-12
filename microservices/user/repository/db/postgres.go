@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/models"
+	"github.com/lib/pq"
 )
 
 var (
@@ -246,4 +247,39 @@ func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models
 	}
 
 	return folders, nil
+}
+
+func (r *Repository) FindByEmails(ctx context.Context, emails []string) ([]models.User, error) {
+	if len(emails) == 0 {
+		return nil, nil
+	}
+	if r.userDb == nil {
+		return nil, ErrUserDbNotInited
+	}
+
+	const query = `
+    	SELECT id, email, name, surname, image_path, is_male, birthdate
+        FROM users
+        WHERE email = ANY($1)
+    `
+
+	rows, err := r.userDb.QueryContext(ctx, query, pq.Array(emails))
+	if err != nil {
+		return nil, fmt.Errorf("FindByEmails: %w", ErrQueryError)
+	}
+	defer rows.Close()
+
+	var users []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Surname,
+			&u.ImagePath, &u.IsMale, &u.Birthdate); err != nil {
+			return nil, fmt.Errorf("FindByEmails scan: %w", err)
+		}
+		users = append(users, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("FindByEmails rows: %w", err)
+	}
+	return users, nil
 }
