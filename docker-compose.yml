@@ -12,7 +12,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data/pgdata
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,8 +45,6 @@ services:
       dockerfile: microservices/user/Dockerfile
     env_file:
       - .env
-    environment:
-      FOLDER_SERVICE_ADDR: "folder-service:50053"
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -57,14 +56,13 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      folder-service:
-        condition: service_started  # ← добавить
     healthcheck:
       test: ["CMD-SHELL", "netstat -tlnp | grep 50051"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
+
     restart: unless-stopped
 
   # Email service
@@ -74,8 +72,6 @@ services:
       dockerfile: microservices/email/Dockerfile
     env_file:
       - .env
-    environment:
-      USER_SERVICE_ADDR: "user-service:50051"
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -96,8 +92,6 @@ services:
       dockerfile: microservices/folder/Dockerfile
     env_file:
       - .env
-    environment:
-      EMAIL_SERVICE_ADDR: "email-service:50052"
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -108,7 +102,7 @@ services:
       postgres:
         condition: service_healthy
       email-service:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   # Prometheus

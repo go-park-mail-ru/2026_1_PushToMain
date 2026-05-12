@@ -56,4 +56,4 @@ grpc:
   user_port: "50051"
 
 grpc_clients: 
-  folder_service: "user-service:50053"
+  folder_service: "folder-service:50053"
