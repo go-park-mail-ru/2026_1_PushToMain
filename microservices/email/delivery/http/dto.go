@@ -31,6 +31,7 @@ type EmailResponse struct {
 	Body          string    `json:"body"`
 	CreatedAt     time.Time `json:"created_at"`
 	IsRead        bool      `json:"is_read"`
+	IsStarred     bool      `json:"is_starred"`
 }
 
 type GetEmailsResponse struct {
@@ -48,6 +49,7 @@ type MyEmailResponse struct {
 	Body            string    `json:"body"`
 	CreatedAt       time.Time `json:"created_at"`
 	IsRead          bool      `json:"is_read"`
+	IsStarred       bool      `json:"is_starred"`
 	ReceiversEmails []string  `json:"receivers_emails"`
 }
 

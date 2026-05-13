@@ -55,6 +55,7 @@ type MyEmailResult struct {
 	Body            string
 	CreatedAt       time.Time
 	IsRead          bool
+	IsStarred       bool
 	ReceiversEmails []string
 }
 
@@ -71,6 +72,7 @@ type GetEmailResult struct {
 	SenderSurname   string
 	Header          string
 	Body            string
+	IsStarred       bool
 	CreatedAt       time.Time
 	SenderImagePath string
 	ReceiverList    []string
@@ -173,6 +175,7 @@ func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*
 			Body:            em.Body,
 			CreatedAt:       em.CreatedAt,
 			IsRead:          em.IsRead,
+			IsStarred:       em.IsStarred,
 			ReceiversEmails: em.Recipients,
 		}
 	}

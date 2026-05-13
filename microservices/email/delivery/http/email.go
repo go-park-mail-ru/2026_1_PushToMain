@@ -53,6 +53,7 @@ func emailToDTO(em service.EmailResult) EmailResponse {
 		Body:          em.Body,
 		CreatedAt:     em.CreatedAt,
 		IsRead:        em.IsRead,
+		IsStarred:     em.IsStarred,
 	}
 }
 
@@ -162,7 +163,7 @@ func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 		out[i] = MyEmailResponse{
 			ID: em.ID, SenderID: em.SenderID,
 			Header: em.Header, Body: em.Body,
-			CreatedAt: em.CreatedAt, IsRead: em.IsRead,
+			CreatedAt: em.CreatedAt, IsRead: em.IsRead, IsStarred: em.IsStarred,
 			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
