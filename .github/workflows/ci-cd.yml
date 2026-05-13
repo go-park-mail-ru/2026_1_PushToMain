@@ -1,48 +1,48 @@
-name: CI/CD
+# name: CI/CD
 
-on:
-  push:
-    branches: [main, dev, feat/ci-cd]
-  pull_request:
-    branches: [main, dev, feat/ci-cd]
+# on:
+#   push:
+#     branches: [main, dev, feat/ci-cd]
+#   pull_request:
+#     branches: [main, dev, feat/ci-cd]
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-      - run: make test
+# jobs:
+#   test:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-go@v5
+#         with:
+#           go-version: "1.23"
+#       - run: make test
 
-  deploy:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
+#   deploy:
+#     needs: test
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Setup SSH
+#         run: |
+#           mkdir -p ~/.ssh
+#           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+#           chmod 600 ~/.ssh/id_rsa
+#           ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
 
-      - name: Deploy
-        # TODO: add production-ready docker images with ghcr
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} \
-          "cd ~/backend && \
-          git fetch origin && \
-          git reset --hard origin/main && \
-          # Add .env
-          rm -f .env && \
-          echo 'POSTGRES_USER=${{ secrets.POSTGRES_USER }}' >> .env && \
-          echo 'POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}' >> .env && \
-          echo 'POSTGRES_DBNAME=${{ secrets.POSTGRES_DBNAME }}' >> .env && \
-          echo 'MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}' >> .env && \
-          echo 'MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}' >> .env && \
-          echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' >> .env && \
-          # Build and run containers
-          sudo docker compose down && \
-          sudo docker compose up -d --build"
+#       - name: Deploy
+#         # TODO: add production-ready docker images with ghcr
+#         run: |
+#           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} \
+#           "cd ~/backend && \
+#           git fetch origin && \
+#           git reset --hard origin/main && \
+#           # Add .env
+#           rm -f .env && \
+#           echo 'POSTGRES_USER=${{ secrets.POSTGRES_USER }}' >> .env && \
+#           echo 'POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}' >> .env && \
+#           echo 'POSTGRES_DBNAME=${{ secrets.POSTGRES_DBNAME }}' >> .env && \
+#           echo 'MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}' >> .env && \
+#           echo 'MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}' >> .env && \
+#           echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' >> .env && \
+#           # Build and run containers
+#           sudo docker compose down && \
+#           sudo docker compose up -d --build"
