@@ -1,0 +1,17 @@
+name: CI/CD for SMail
+
+on:
+  push:
+    branches: [main, dev, feat/ci-cd]
+  pull_request:
+    branches: [main, dev, feat/ci-cd]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run tests
+        run: make test
