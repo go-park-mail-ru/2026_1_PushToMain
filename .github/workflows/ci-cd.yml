@@ -35,5 +35,14 @@ jobs:
           "cd ~/backend && \
           git fetch origin && \
           git reset --hard origin/main && \
+          # Add .env
+          rm -f .env && \
+          echo 'POSTGRES_USER=${{ secrets.POSTGRES_USER }}' >> .env && \
+          echo 'POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}' >> .env && \
+          echo 'POSTGRES_DBNAME=${{ secrets.POSTGRES_DBNAME }}' >> .env && \
+          echo 'MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}' >> .env && \
+          echo 'MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}' >> .env && \
+          echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' >> .env && \
+          # Build and run containers
           sudo docker compose down && \
           sudo docker compose up -d --build"
