@@ -2,7 +2,7 @@ name: SMail deployment
 
 on:
   push:
-    branches: [main]
+    branches: [feat/ci-cd]
 
 jobs:
   deploy:
