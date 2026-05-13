@@ -1,28 +1,18 @@
-name: CI/CD
+name: CD
 
 on:
-  push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23"
-      - run: make test
-
   build:
-    needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -53,10 +43,8 @@ jobs:
           file: ./microservices/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:latest
-
   deploy:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
