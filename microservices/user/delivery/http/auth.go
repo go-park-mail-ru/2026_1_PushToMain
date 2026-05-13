@@ -149,7 +149,7 @@ func (req *SignUpRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 
@@ -237,7 +237,7 @@ func (req *SignInRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 
