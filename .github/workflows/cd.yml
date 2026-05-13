@@ -43,6 +43,7 @@ jobs:
           file: ./microservices/${{ matrix.service }}/Dockerfile
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service }}:latest
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -58,24 +59,19 @@ jobs:
       - name: Setup backend dir
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} "mkdir -p ~/backend"
 
-      - name: Copy docker-compose.prod.yml
-        run: scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend
+      - name: Copy files
+        run: |
+          scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend
+          scp scripts/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/scripts/
 
-      - name: Setup .env
+      - name: Deploy
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} \
-          "cd ~/backend && \
-          rm -f .env && \
-          echo 'POSTGRES_USER=${{ secrets.POSTGRES_USER }}' >> .env && \
-          echo 'POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}' >> .env && \
-          echo 'POSTGRES_DBNAME=${{ secrets.POSTGRES_DBNAME }}' >> .env && \
-          echo 'MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}' >> .env && \
-          echo 'MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}' >> .env && \
-          echo 'JWT_SECRET=${{ secrets.JWT_SECRET }}' >> .env"
-
-      - name: Pull and up docker containers
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} \
-          "cd ~/backend && \
-          sudo docker compose -f docker-compose.prod.yml pull && \
-          sudo docker compose -f docker-compose.prod.yml up -d"
+          "chmod +x ~/backend/scripts/deploy.sh && \
+          ~/backend/scripts/deploy.sh \
+          '${{ secrets.POSTGRES_USER }}' \
+          '${{ secrets.POSTGRES_PASSWORD }}' \
+          '${{ secrets.POSTGRES_DBNAME }}' \
+          '${{ secrets.MINIO_ACCESS_KEY }}' \
+          '${{ secrets.MINIO_SECRET_KEY }}' \
+          '${{ secrets.JWT_SECRET }}'"
