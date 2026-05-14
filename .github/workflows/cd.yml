@@ -63,6 +63,7 @@ jobs:
         run: |
           scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend
           scp scripts/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/scripts/
+          scp -r configs ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
 
       - name: Deploy
         run: |
