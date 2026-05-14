@@ -121,6 +121,23 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, in GetEmailsInput) (*
 	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
+func (s *Service) GetAllEmailsByUser(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
+	emails, err := s.repo.GetAllEmails(ctx, in.UserID, in.Limit, in.Offset)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+	stats, err := s.repo.GetInboxStats(ctx, in.UserID) //тк все отправленные априори не могут быть непрочитаны
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+	sentStat, err := s.repo.CountSentEmails(ctx, in.UserID)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+	stats.Total += sentStat
+	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+}
+
 func (s *Service) GetSpamEmails(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
 	emails, err := s.repo.GetSpamEmails(ctx, in.UserID, in.Limit, in.Offset)
 	if err != nil {

@@ -24,6 +24,7 @@ type Repository interface {
 	InsertEmailRecipients(ctx context.Context, tx *sql.Tx, emailID int64, recipients []models.Recipient) error
 	InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, emailID int64, checkSpam bool) error
 
+	GetAllEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error)
 	GetInboxEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetSentEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)

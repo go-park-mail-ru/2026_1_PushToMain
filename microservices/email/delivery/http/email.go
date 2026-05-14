@@ -13,6 +13,7 @@ import (
 )
 
 type Service interface {
+	GetAllEmailsByUser(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
 	GetEmailsByReceiver(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
 	GetEmailsBySender(ctx context.Context, in service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
 	GetEmailByID(ctx context.Context, in service.GetEmailInput) (*service.GetEmailResult, error)
@@ -137,6 +138,24 @@ func (h *Handler) GetInboxEmails(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		logger.Errorf("GetInbox: user_id=%d, err=%v", userID, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	writeEmailsList(w, result)
+}
+
+func (h *Handler) GetAllEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := h.service.GetAllEmailsByUser(r.Context(), service.GetEmailsInput{
+		UserID: userID, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("GetAllEmails: user_id=%d, err=%v", userID, err)
 		parseCommonErrors(err, w)
 		return
 	}

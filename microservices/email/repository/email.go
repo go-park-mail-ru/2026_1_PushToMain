@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
@@ -123,6 +124,37 @@ func (r *Repository) GetInboxEmails(ctx context.Context, userID int64, limit, of
 	limit, offset = normPage(limit, offset)
 	return r.queryUserMailbox(ctx, userID, limit, offset,
 		"ue.is_deleted = false AND ue.is_spam = false")
+}
+
+func (r *Repository) GetAllEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	inboxEmails, err := r.GetInboxEmails(ctx, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get inbox emails: %w", err)
+	}
+
+	// Получаем отправленные
+	sentEmails, err := r.GetSentEmails(ctx, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get sent emails: %w", err)
+	}
+
+	// Объединяем
+	allEmails := append(inboxEmails, sentEmails...)
+
+	// Сортируем по дате
+	sort.Slice(allEmails, func(i, j int) bool {
+		return allEmails[i].CreatedAt.After(allEmails[j].CreatedAt)
+	})
+
+	// Применяем пагинацию
+	if offset >= len(allEmails) {
+		return []models.EmailWithMetadata{}, nil
+	}
+	end := offset + limit
+	if end > len(allEmails) {
+		end = len(allEmails)
+	}
+	return allEmails[offset:end], nil
 }
 
 func (r *Repository) GetSpamEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {

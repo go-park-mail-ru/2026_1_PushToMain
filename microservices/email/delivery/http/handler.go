@@ -24,6 +24,7 @@ func New(service Service, cfg Config) *Handler {
 }
 
 func (h *Handler) InitRoutes(public, private *mux.Router) {
+	private.HandleFunc("/all-emails", h.GetAllEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/inbox", h.GetInboxEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/sent", h.GetSentEmails).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/send", h.SendEmail).Methods(http.MethodPost, http.MethodOptions)
