@@ -1,10 +1,14 @@
 name: CI
 
+# on:
+#   push:
+#     branches: [main, dev]
+#   pull_request:
+#     branches: [main, dev]
+
 on:
   push:
-    branches: [main, dev]
-  pull_request:
-    branches: [main, dev]
+    branches: [feat/ci-cd]
 
 jobs:
   lint:
