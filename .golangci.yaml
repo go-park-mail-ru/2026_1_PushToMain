@@ -3,11 +3,9 @@ version: "2"
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - typecheck
     - unused
     - gocyclo
     - goconst
@@ -17,4 +15,3 @@ linters:
 
 run:
   timeout: 5m
-  tests: false
