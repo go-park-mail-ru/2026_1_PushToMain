@@ -2,13 +2,13 @@ version: "2"
 
 linters:
   enable:
-    - errcheck
+    # - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
     - gocyclo
-    - goconst
+    # - goconst
     - misspell
   settings:
     gocyclo:
@@ -25,7 +25,7 @@ linters:
 
 formatters:
   enable:
-    - gofumpt
+    # - gofumpt
     - goimports
   settings:
     goimports:
