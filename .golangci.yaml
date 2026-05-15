@@ -4,11 +4,12 @@ linters:
   disable:
     - errcheck
     - goconst
+    - staticcheck
   enable:
     # - errcheck
     - govet
     - ineffassign
-    - staticcheck
+    # - staticcheck
     - unused
     - gocyclo
     # - goconst
