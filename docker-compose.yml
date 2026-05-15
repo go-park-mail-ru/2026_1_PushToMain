@@ -1,7 +1,4 @@
 services:
-  # =========================================
-  # POSTGRES
-  # =========================================
   postgres:
     image: postgres:16.3
     environment:
@@ -21,9 +18,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # MINIO
-  # =========================================
   minio:
     image: minio/minio:latest
     environment:
@@ -42,9 +36,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # USER SERVICE  (HTTP :8081 | gRPC :50051)
-  # =========================================
   user-service:
     build:
       context: .
@@ -68,12 +59,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    
+
     restart: unless-stopped
 
-  # =========================================
-  # EMAIL SERVICE  (HTTP :8082 | gRPC :50052)
-  # =========================================
   email-service:
     build:
       context: .
@@ -93,9 +81,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # =========================================
-  # FOLDER SERVICE  (HTTP :8083 | gRPC :50053)
-  # =========================================
   folder-service:
     build:
       context: .
@@ -114,7 +99,7 @@ services:
       email-service:
         condition: service_started
     restart: unless-stopped
-  
+
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -127,7 +112,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
     ports:
       - "3000:3000"
     volumes:

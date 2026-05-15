@@ -10,6 +10,7 @@ echo "POSTGRES_DBNAME=$3" >> .env
 echo "MINIO_ACCESS_KEY=$4" >> .env
 echo "MINIO_SECRET_KEY=$5" >> .env
 echo "JWT_SECRET=$6" >> .env
+echo "GRAFANA_PASSWORD=$7" >> .env
 
 sudo docker compose -f docker-compose.prod.yml pull
 sudo docker compose -f docker-compose.prod.yml up -d

@@ -72,6 +72,8 @@ jobs:
           scp docker-compose.prod.yml ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend
           scp scripts/deploy.sh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/scripts/
           scp -r configs ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
+          scp -r db/migrations ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
+          scp -r prometheus ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
 
       - name: Deploy
         run: |
@@ -83,4 +85,5 @@ jobs:
           '${{ secrets.POSTGRES_DBNAME }}' \
           '${{ secrets.MINIO_ACCESS_KEY }}' \
           '${{ secrets.MINIO_SECRET_KEY }}' \
-          '${{ secrets.JWT_SECRET }}'"
+          '${{ secrets.JWT_SECRET }}' \
+          '${{ secrets.GRAFANA_PASSWORD }}'"
