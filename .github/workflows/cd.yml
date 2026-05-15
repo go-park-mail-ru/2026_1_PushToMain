@@ -45,7 +45,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./microservices/${{ matrix.service }}
+          context: . # DON'T TOUCH IT! OTHERWISE go.mod AND go.sum WILL BE BROKEN
           file: ./microservices/${{ matrix.service }}/Dockerfile
           push: true
           tags: |
