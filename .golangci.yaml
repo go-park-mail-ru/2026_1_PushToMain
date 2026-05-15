@@ -9,9 +9,16 @@ linters:
     - unused
     - gocyclo
     - goconst
+    - misspell
+
+formatters:
+  enable:
     - gofumpt
     - goimports
-    - misspell
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/go-park-mail-ru/2026_1_PushToMain
 
 run:
   timeout: 5m
