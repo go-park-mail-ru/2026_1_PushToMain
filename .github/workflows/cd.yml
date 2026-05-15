@@ -55,6 +55,8 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      packages: read
     steps:
       - uses: actions/checkout@v4
       - name: Setup SSH
@@ -75,15 +77,18 @@ jobs:
           scp -r db/migrations ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
           scp -r prometheus ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }}:~/backend/
 
-      - name: Deploy
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} \
-          "chmod +x ~/backend/scripts/deploy.sh && \
-          ~/backend/scripts/deploy.sh \
-          '${{ secrets.POSTGRES_USER }}' \
-          '${{ secrets.POSTGRES_PASSWORD }}' \
-          '${{ secrets.POSTGRES_DBNAME }}' \
-          '${{ secrets.MINIO_ACCESS_KEY }}' \
-          '${{ secrets.MINIO_SECRET_KEY }}' \
-          '${{ secrets.JWT_SECRET }}' \
-          '${{ secrets.GRAFANA_PASSWORD }}'"
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOSTNAME }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: GITHUB_TOKEN,GITHUB_ACTOR
+          script: |
+            cd ~/backend
+            echo "${{ secrets.PROD_ENV }}" > .env
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh $GITHUB_ACTOR $GITHUB_TOKEN
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}
