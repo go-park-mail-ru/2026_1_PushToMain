@@ -10,6 +10,18 @@ linters:
     - gocyclo
     - goconst
     - misspell
+  settings:
+    gocyclo:
+      min-complexity: 15
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - goconst
 
 formatters:
   enable:
