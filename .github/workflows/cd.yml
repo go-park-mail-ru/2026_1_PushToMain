@@ -65,7 +65,7 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOSTNAME }} >> ~/.ssh/known_hosts
 
       - name: Setup backend dir
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} "mkdir -p ~/backend"
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOSTNAME }} "mkdir -p ~/backend ~/backend/scripts"
 
       - name: Copy files
         run: |
