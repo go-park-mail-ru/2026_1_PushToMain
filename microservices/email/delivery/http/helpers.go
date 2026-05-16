@@ -75,7 +75,7 @@ func validEmails(addrs []string) bool {
 		return false
 	}
 	for _, a := range addrs {
-		if _, err := mail.ParseAddressList(a); err != nil {
+		if _, err := mail.ParseAddress(a); err != nil {
 			return false
 		}
 	}

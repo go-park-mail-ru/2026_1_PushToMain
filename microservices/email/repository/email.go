@@ -62,6 +62,9 @@ func (r *Repository) CheckEmailAccess(ctx context.Context, userID, emailID int64
 		SELECT EXISTS (
 			SELECT 1 FROM user_emails
 			WHERE user_id = $1 AND email_id = $2
+			UNION ALL
+			SELECT 1 FROM emails
+			WHERE id = $2 AND sender_id = $1
 		)
 	`
 	var ok bool
@@ -192,7 +195,7 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 			e.created_at,
 			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
 		FROM emails e
-		LEFT JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1
+		LEFT JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1 AND ue.is_deleted = false
 		WHERE e.sender_id = $1 AND e.is_draft = false
 		ORDER BY e.created_at DESC
 		LIMIT $2 OFFSET $3
