@@ -28,9 +28,26 @@ func (s *Service) Trash(ctx context.Context, in BatchInput) error {
 		spamSet[id] = struct{}{}
 	}
 
-	var toTrash, toRemove []int64
+	var nonSpam []int64
 	for _, id := range in.EmailIDs {
-		if _, ok := spamSet[id]; ok {
+		if _, ok := spamSet[id]; !ok {
+			nonSpam = append(nonSpam, id)
+		}
+	}
+
+	deletedIDs, err := s.repo.GetDeletedEmailIDs(ctx, in.UserID, nonSpam)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+	deletedSet := make(map[int64]struct{}, len(deletedIDs))
+	for _, id := range deletedIDs {
+		deletedSet[id] = struct{}{}
+	}
+
+	var toTrash, toRemove []int64
+	toRemove = append(toRemove, spamIDs...)
+	for _, id := range nonSpam {
+		if _, ok := deletedSet[id]; ok {
 			toRemove = append(toRemove, id)
 		} else {
 			toTrash = append(toTrash, id)
