@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/mail"
 	"strconv"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -70,13 +71,13 @@ func decodeIDs(w http.ResponseWriter, r *http.Request) ([]int64, bool) {
 }
 
 func validEmails(addrs []string) bool {
-	// if len(addrs) == 0 {
-	// 	return false
-	// }
-	// for _, a := range addrs {
-	// 	if _, err := mail.ParseAddress(a); err != nil {
-	// 		return false
-	// 	}
-	// }
+	if len(addrs) == 0 {
+		return false
+	}
+	for _, a := range addrs {
+		if _, err := mail.ParseAddress(a); err != nil {
+			return false
+		}
+	}
 	return true
 }
