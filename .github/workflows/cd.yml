@@ -1,13 +1,10 @@
 name: CD
 
-# on:
-#   workflow_run:
-#     workflows: [CI]
-#     branches: [main]
-#     types: [completed]
 on:
-  push:
-    branches: [feat/ci-cd]
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
 
 env:
   REGISTRY: ghcr.io
@@ -15,7 +12,7 @@ env:
 
 jobs:
   build:
-    # if: github.event.workflow_run.conclusion == 'success'
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
