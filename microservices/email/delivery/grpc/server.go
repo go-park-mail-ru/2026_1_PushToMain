@@ -23,6 +23,17 @@ func New(service *emailService.Service) *Server {
 	}
 }
 
+func (s *Server) SwitchIsInbox(ctx context.Context, req *emailpb.SwitchIsInboxRequest) (*emailpb.SwitchIsInboxResponse, error) {
+	err := s.service.SwitchIsInbox(ctx,
+		emailService.SwitchIsInboxInput{
+			EmailID: req.EmailId,
+			UserID:  req.UserId},
+	)
+	return &emailpb.SwitchIsInboxResponse{
+		Success: err == nil,
+	}, nil
+}
+
 func (s *Server) GetEmailById(
 	ctx context.Context,
 	req *emailpb.GetEmailByIdRequest,

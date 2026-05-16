@@ -84,7 +84,7 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w)
 		return
 	}
-	if (!(req.Header == "" || req.Body == "")) || !validEmails(req.Receivers) {
+	if (req.Header == "" && req.Body == "") || !validEmails(req.Receivers) {
 		response.BadRequest(w)
 		return
 	}

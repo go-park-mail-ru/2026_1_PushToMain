@@ -54,6 +54,11 @@ type EmailClient interface {
 		userID int64,
 	) (bool, error)
 	GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) (*emailpb.GetEmailsByIdsResponse, error)
+	SwitchIsInbox(
+		ctx context.Context,
+		emailID,
+		userID int64,
+	) (bool, error)
 }
 
 func New(
@@ -259,6 +264,9 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, emailID); err != nil {
 			return MapRepositoryError(err)
 		}
+		if success, err := s.emailClient.SwitchIsInbox(ctx, emailID, input.UserID); err != nil || !success {
+			return MapRepositoryError(err)
+		}
 	}
 
 	return nil
@@ -286,6 +294,9 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 	// Удаляем каждое письмо из папки
 	for _, emailID := range input.EmailsID {
 		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, emailID); err != nil {
+			return MapRepositoryError(err)
+		}
+		if success, err := s.emailClient.SwitchIsInbox(ctx, emailID, input.UserID); err != nil || !success {
 			return MapRepositoryError(err)
 		}
 	}

@@ -66,6 +66,34 @@ func (c *Client) GetEmailByID(
 	return resp.Email, nil
 }
 
+func (c *Client) SwitchIsInbox(
+	ctx context.Context,
+	emailID,
+	userID int64,
+) (bool, error) {
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		3*time.Second,
+	)
+
+	defer cancel()
+
+	resp, err := c.client.SwitchIsInbox(
+		ctx,
+		&emailpb.SwitchIsInboxRequest{
+			EmailId: emailID,
+			UserId:  userID,
+		},
+	)
+
+	if err != nil {
+		return false, err
+	}
+
+	return resp.Success, nil
+}
+
 func (c *Client) CheckEmailAccess(
 	ctx context.Context,
 	emailID,

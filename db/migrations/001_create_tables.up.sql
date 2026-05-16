@@ -63,6 +63,7 @@ CREATE TABLE user_emails (
     is_starred BOOLEAN NOT NULL DEFAULT false,
     is_spam    BOOLEAN NOT NULL DEFAULT false,
     is_deleted BOOLEAN NOT NULL DEFAULT false,
+    is_inbox BOOLEAN NOT NULL DEFAULT true,
 
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,

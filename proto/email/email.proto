@@ -10,6 +10,16 @@ service EmailService {
     rpc GetEmailById(GetEmailByIdRequest) returns (GetEmailByIdResponse);
     rpc CheckEmailAccess(CheckEmailAccessRequest) returns (CheckEmailAccessResponse);
     rpc GetEmailsByIds(GetEmailsByIdsRequest) returns (GetEmailsByIdsResponse);
+    rpc SwitchIsInbox(SwitchIsInboxRequest) returns (SwitchIsInboxResponse);
+}
+
+message SwitchIsInboxRequest {
+    int64 user_id = 1;
+    int64 email_id = 2;
+}
+
+message SwitchIsInboxResponse {
+    bool success = 1;
 }
 
 message Email {

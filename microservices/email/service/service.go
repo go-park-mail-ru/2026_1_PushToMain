@@ -32,6 +32,7 @@ type Repository interface {
 	GetTrashEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 	GetFavoriteEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error)
 
+	GetReceivedStats(ctx context.Context, userID int64) (models.MailboxStats, error)
 	GetInboxStats(ctx context.Context, userID int64) (models.MailboxStats, error)
 	GetSpamStats(ctx context.Context, userID int64) (models.MailboxStats, error)
 	GetTrashStats(ctx context.Context, userID int64) (models.MailboxStats, error)
@@ -61,6 +62,7 @@ type Repository interface {
 	GetDrafts(ctx context.Context, userID int64, limit, offset int) ([]models.Draft, error)
 	DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error
 	MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error
+	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 }
 
 type DraftsConfig struct {

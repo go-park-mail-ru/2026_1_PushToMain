@@ -123,11 +123,17 @@ func (r *Repository) queryUserMailbox(
 func (r *Repository) GetInboxEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
 	limit, offset = normPage(limit, offset)
 	return r.queryUserMailbox(ctx, userID, limit, offset,
+		"ue.is_deleted = false AND ue.is_spam = false AND ue.is_inbox = true")
+}
+
+func (r *Repository) GetReceivedEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
+	limit, offset = normPage(limit, offset)
+	return r.queryUserMailbox(ctx, userID, limit, offset,
 		"ue.is_deleted = false AND ue.is_spam = false")
 }
 
 func (r *Repository) GetAllEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
-	inboxEmails, err := r.GetInboxEmails(ctx, userID, limit, offset)
+	inboxEmails, err := r.GetReceivedEmails(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get inbox emails: %w", err)
 	}
@@ -252,4 +258,16 @@ func (r *Repository) GetDeletedEmailIDs(ctx context.Context, userID int64, email
 		return nil, ErrQueryFail
 	}
 	return out, nil
+}
+
+func (r *Repository) SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error {
+	query := `
+		UPDATE user_emails
+		SET is_inbox = NOT is_inbox, updated_at = NOW()
+		WHERE user_id = $1 AND email_id =$2 AND is_spam = false
+	`
+	if _, err := r.db.ExecContext(ctx, query, UserID, emailID); err != nil {
+		return ErrQueryFail
+	}
+	return nil
 }

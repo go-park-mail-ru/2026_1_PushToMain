@@ -126,7 +126,7 @@ func (s *Service) GetAllEmailsByUser(ctx context.Context, in GetEmailsInput) (*G
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	stats, err := s.repo.GetInboxStats(ctx, in.UserID) //тк все отправленные априори не могут быть непрочитаны
+	stats, err := s.repo.GetReceivedStats(ctx, in.UserID)
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}

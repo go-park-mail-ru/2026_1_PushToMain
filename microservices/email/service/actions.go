@@ -14,6 +14,18 @@ func (in BatchInput) validate() error {
 	return nil
 }
 
+type SwitchIsInboxInput struct {
+	UserID  int64
+	EmailID int64
+}
+
+func (s *Service) SwitchIsInbox(ctx context.Context, input SwitchIsInboxInput) error {
+	if err := s.repo.SwitchIsInbox(ctx, input.EmailID, input.UserID); err != nil {
+		return MapRepositoryError(err)
+	}
+	return nil
+}
+
 func (s *Service) Trash(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
