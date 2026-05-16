@@ -18,8 +18,34 @@ func (s *Service) Trash(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	if err := s.repo.TrashEmails(ctx, in.UserID, in.EmailIDs); err != nil {
+
+	spamIDs, err := s.repo.GetSpamEmailIDs(ctx, in.UserID, in.EmailIDs)
+	if err != nil {
 		return MapRepositoryError(err)
+	}
+	spamSet := make(map[int64]struct{}, len(spamIDs))
+	for _, id := range spamIDs {
+		spamSet[id] = struct{}{}
+	}
+
+	var toTrash, toRemove []int64
+	for _, id := range in.EmailIDs {
+		if _, ok := spamSet[id]; ok {
+			toRemove = append(toRemove, id)
+		} else {
+			toTrash = append(toTrash, id)
+		}
+	}
+
+	if len(toTrash) > 0 {
+		if err := s.repo.TrashEmails(ctx, in.UserID, toTrash); err != nil {
+			return MapRepositoryError(err)
+		}
+	}
+	if len(toRemove) > 0 {
+		if err := s.repo.DeleteUserEmailsBatch(ctx, in.UserID, toRemove); err != nil {
+			return MapRepositoryError(err)
+		}
 	}
 	return nil
 }
