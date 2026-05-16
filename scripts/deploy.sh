@@ -4,7 +4,7 @@ cd ~/backend
 
 echo "$2" | docker login ghcr.io -u "$1" --password-stdin
 
-sudo docker compose -f docker-compose.prod.yml pull
-sudo docker compose -f docker-compose.prod.yml down
-sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
-sudo docker image prune -f
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
+docker image prune -f
