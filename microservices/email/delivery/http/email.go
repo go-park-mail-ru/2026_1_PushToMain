@@ -32,7 +32,8 @@ type Service interface {
 	Unfavorite(ctx context.Context, in service.BatchInput) error
 	Spam(ctx context.Context, in service.BatchInput) error
 	Unspam(ctx context.Context, in service.BatchInput) error
-	UnmarkSpamSenders(ctx context.Context, in service.BatchInput) error
+	BlockSenders(ctx context.Context, in service.BatchInput) error
+	UnblockSenders(ctx context.Context, in service.BatchInput) error
 	Delete(ctx context.Context, in service.BatchInput) error
 
 	CreateDraft(ctx context.Context, in service.CreateDraftInput) (*service.DraftResult, error)

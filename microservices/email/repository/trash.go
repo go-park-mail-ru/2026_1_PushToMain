@@ -26,3 +26,11 @@ func (r *Repository) DeleteUserEmailsBatch(ctx context.Context, userID int64, em
 	}
 	return nil
 }
+
+func (r *Repository) TrashEmails(ctx context.Context, userID int64, emailIDs []int64) error {
+	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_deleted", true)
+}
+
+func (r *Repository) UntrashEmails(ctx context.Context, userID int64, emailIDs []int64) error {
+	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_deleted", false)
+}

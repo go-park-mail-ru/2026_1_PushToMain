@@ -42,6 +42,7 @@ type Repository interface {
 	CheckEmailAccess(ctx context.Context, userID, emailID int64) error
 	GetDeletedEmailIDs(ctx context.Context, userID int64, emailIDs []int64) ([]int64, error)
 
+	GetSpamEmailIDs(ctx context.Context, userID int64, emailIDs []int64) ([]int64, error)
 	StarEmails(ctx context.Context, userID int64, emailIDs []int64) error
 	UnstarEmails(ctx context.Context, userID int64, emailIDs []int64) error
 	SpamEmails(ctx context.Context, userID int64, emailIDs []int64) error
@@ -52,10 +53,8 @@ type Repository interface {
 	UnreadEmails(ctx context.Context, userID int64, emailIDs []int64) error
 	DeleteUserEmailsBatch(ctx context.Context, userID int64, emailIDs []int64) error
 
-	GetSenderIDsByEmailIDs(ctx context.Context, userID int64, emailIDs []int64) ([]int64, error)
-	DeleteSpamSendersBatchTx(ctx context.Context, tx *sql.Tx, userID int64, senderIDs []int64) error
-	UnmarkSpamForSendersTx(ctx context.Context, tx *sql.Tx, userID int64, senderIDs []int64) error
-
+	UnblockSendersBatch(ctx context.Context, userID int64, senderIDs []int64) error
+	BlockSendersBatch(ctx context.Context, userID int64, senderIDs []int64) error
 	CreateDraft(ctx context.Context, draft models.Draft) (*models.Draft, error)
 	UpdateDraft(ctx context.Context, userID int64, draft models.Draft) error
 	GetDraftByID(ctx context.Context, draftID, userID int64) (*models.Draft, error)

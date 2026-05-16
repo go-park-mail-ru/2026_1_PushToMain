@@ -401,37 +401,13 @@ func (s *Service) MarkEmailAsUnRead(ctx context.Context, in MarkAsReadInput) err
 	return nil
 }
 
-func (s *Service) UnmarkSpamSenders(ctx context.Context, in BatchInput) error {
+func (s *Service) UnblockSenders(ctx context.Context, in BatchInput) error {
 	if err := in.validate(); err != nil {
 		return err
 	}
-	senderIDs, err := s.repo.GetSenderIDsByEmailIDs(ctx, in.UserID, in.EmailIDs)
-	if err != nil {
+	if err := s.repo.UnblockSendersBatch(ctx, in.UserID, in.EmailIDs); err != nil {
 		return MapRepositoryError(err)
 	}
-	if len(senderIDs) == 0 {
-		return nil
-	}
-	tx, err := s.repo.BeginTx(ctx)
-	if err != nil {
-		return ErrTransaction
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
-	if err := s.repo.DeleteSpamSendersBatchTx(ctx, tx, in.UserID, senderIDs); err != nil {
-		return MapRepositoryError(err)
-	}
-	if err := s.repo.UnmarkSpamForSendersTx(ctx, tx, in.UserID, senderIDs); err != nil {
-		return MapRepositoryError(err)
-	}
-	if err := tx.Commit(); err != nil {
-		return ErrTransaction
-	}
-	committed = true
 	return nil
 }
 

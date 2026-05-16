@@ -54,9 +54,13 @@ func (h *Handler) Unspam(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnmarkSpamSenders(w http.ResponseWriter, r *http.Request) {
-	h.batch(w, r, "UnmarkSpamSenders", h.service.UnmarkSpamSenders)
+	h.batch(w, r, "UnmarkSpamSenders", h.service.UnblockSenders)
 }
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	h.batch(w, r, "Delete", h.service.Delete)
+}
+
+func (h *Handler) BlockSenders(w http.ResponseWriter, r *http.Request) {
+	h.batch(w, r, "BlockSenders", h.service.BlockSenders)
 }

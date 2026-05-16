@@ -34,30 +34,6 @@ func (r *Repository) setUserEmailFlagsBatch(
 	return nil
 }
 
-func (r *Repository) StarEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_starred", true)
-}
-
-func (r *Repository) UnstarEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_starred", false)
-}
-
-func (r *Repository) SpamEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_spam", true)
-}
-
-func (r *Repository) UnspamEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_spam", false)
-}
-
-func (r *Repository) TrashEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_deleted", true)
-}
-
-func (r *Repository) UntrashEmails(ctx context.Context, userID int64, emailIDs []int64) error {
-	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_deleted", false)
-}
-
 func (r *Repository) ReadEmails(ctx context.Context, userID int64, emailIDs []int64) error {
 	return r.setUserEmailFlagsBatch(ctx, userID, emailIDs, "is_read", true)
 }
