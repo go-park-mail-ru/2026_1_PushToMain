@@ -31,8 +31,8 @@ logger:
 postgres:
   host: postgres
   port: 5432
-  user: ""
-  password: ""
+  # user: ""
+  # password: ""
   dbname: smail_db
   migration_user: ""
   migration_password: ""
