@@ -33,7 +33,7 @@ postgres:
   port: 5432
   user: ""
   password: ""
-  dbname: ""
+  dbname: smail_db
   sslmode: disable
   migrations_path: "file://db/migrations"
   pool:
