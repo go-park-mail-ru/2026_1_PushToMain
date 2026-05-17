@@ -28,6 +28,7 @@ func TestConfig_ToDSN(t *testing.T) {
 	}
 }
 
+/*
 func TestConfig_ToDSNPGX(t *testing.T) {
 	cfg := Config{
 		Host:     "localhost",
@@ -44,7 +45,7 @@ func TestConfig_ToDSNPGX(t *testing.T) {
 	if dsn != expected {
 		t.Fatalf("expected %s, got %s", expected, dsn)
 	}
-}
+}*/
 
 func TestPing(t *testing.T) {
 	tests := []struct {

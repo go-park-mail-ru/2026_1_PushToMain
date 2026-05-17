@@ -31,8 +31,8 @@ logger:
 postgres:
   host: postgres
   port: 5432
-  # user: ""
-  # password: ""
+  user: smail_email_svc
+  password: 1243
   dbname: smail_db
   sslmode: disable
   migrations_path: "file://db/migrations"
