@@ -143,8 +143,25 @@ services:
       - "--path.rootfs=/rootfs"
     restart: unless-stopped
 
+  # Postfix
+  postfix:
+    build:
+      context: .
+      dockerfile: microservices/postfix/Dockerfile
+    volumes:
+      - ./configs/postfix/main.cf:/etc/postfix/main.cf:ro
+      - ./configs/postfix/transport:/etc/postfix/transport:ro
+      - ./certs/postfix:/etc/ssl/postfix:ro
+      - postfix_queue:/var/spool/postfix
+    ports:
+      - "25:25"
+      - "587:587"
+    hostname: mail.e-smail.ru
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
   prometheus_data:
   grafana_data:
+  postfix_queue:
