@@ -22,6 +22,7 @@ const (
 	EmailService_GetEmailById_FullMethodName     = "/email.EmailService/GetEmailById"
 	EmailService_CheckEmailAccess_FullMethodName = "/email.EmailService/CheckEmailAccess"
 	EmailService_GetEmailsByIds_FullMethodName   = "/email.EmailService/GetEmailsByIds"
+	EmailService_SwitchIsInbox_FullMethodName    = "/email.EmailService/SwitchIsInbox"
 )
 
 // EmailServiceClient is the client API for EmailService service.
@@ -31,6 +32,7 @@ type EmailServiceClient interface {
 	GetEmailById(ctx context.Context, in *GetEmailByIdRequest, opts ...grpc.CallOption) (*GetEmailByIdResponse, error)
 	CheckEmailAccess(ctx context.Context, in *CheckEmailAccessRequest, opts ...grpc.CallOption) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(ctx context.Context, in *GetEmailsByIdsRequest, opts ...grpc.CallOption) (*GetEmailsByIdsResponse, error)
+	SwitchIsInbox(ctx context.Context, in *SwitchIsInboxRequest, opts ...grpc.CallOption) (*SwitchIsInboxResponse, error)
 }
 
 type emailServiceClient struct {
@@ -71,6 +73,16 @@ func (c *emailServiceClient) GetEmailsByIds(ctx context.Context, in *GetEmailsBy
 	return out, nil
 }
 
+func (c *emailServiceClient) SwitchIsInbox(ctx context.Context, in *SwitchIsInboxRequest, opts ...grpc.CallOption) (*SwitchIsInboxResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SwitchIsInboxResponse)
+	err := c.cc.Invoke(ctx, EmailService_SwitchIsInbox_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EmailServiceServer is the server API for EmailService service.
 // All implementations must embed UnimplementedEmailServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type EmailServiceServer interface {
 	GetEmailById(context.Context, *GetEmailByIdRequest) (*GetEmailByIdResponse, error)
 	CheckEmailAccess(context.Context, *CheckEmailAccessRequest) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(context.Context, *GetEmailsByIdsRequest) (*GetEmailsByIdsResponse, error)
+	SwitchIsInbox(context.Context, *SwitchIsInboxRequest) (*SwitchIsInboxResponse, error)
 	mustEmbedUnimplementedEmailServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedEmailServiceServer) CheckEmailAccess(context.Context, *CheckE
 }
 func (UnimplementedEmailServiceServer) GetEmailsByIds(context.Context, *GetEmailsByIdsRequest) (*GetEmailsByIdsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetEmailsByIds not implemented")
+}
+func (UnimplementedEmailServiceServer) SwitchIsInbox(context.Context, *SwitchIsInboxRequest) (*SwitchIsInboxResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SwitchIsInbox not implemented")
 }
 func (UnimplementedEmailServiceServer) mustEmbedUnimplementedEmailServiceServer() {}
 func (UnimplementedEmailServiceServer) testEmbeddedByValue()                      {}
@@ -172,6 +188,24 @@ func _EmailService_GetEmailsByIds_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EmailService_SwitchIsInbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SwitchIsInboxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EmailServiceServer).SwitchIsInbox(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EmailService_SwitchIsInbox_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EmailServiceServer).SwitchIsInbox(ctx, req.(*SwitchIsInboxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EmailService_ServiceDesc is the grpc.ServiceDesc for EmailService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var EmailService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetEmailsByIds",
 			Handler:    _EmailService_GetEmailsByIds_Handler,
+		},
+		{
+			MethodName: "SwitchIsInbox",
+			Handler:    _EmailService_SwitchIsInbox_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

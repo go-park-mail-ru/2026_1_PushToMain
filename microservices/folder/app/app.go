@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
+	"google.golang.org/grpc"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 	"go.uber.org/zap"
@@ -17,6 +18,11 @@ import (
 	folderHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/delivery/http"
 	folderRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/repository"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
+
+	"net"
+
+	grpcDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/delivery/grpc"
+	folderpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/folder"
 
 	emailClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/email"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
@@ -81,6 +87,43 @@ func (app *App) Run(configPath string) {
 		folderRepo,
 		grpcEmailClient,
 	)
+	grpcServer := grpc.NewServer()
+
+	folderGrpcHandler := grpcDelivery.New(
+		folderService,
+	)
+
+	folderpb.RegisterFolderServiceServer(
+		grpcServer,
+		folderGrpcHandler,
+	)
+
+	lis, err := net.Listen(
+		"tcp",
+		":"+app.Config.GRPC.FolderPort,
+	)
+
+	if err != nil {
+		app.Logger.Fatalf(
+			"grpc listen error: %v",
+			err,
+		)
+	}
+
+	go func() {
+		app.Logger.Infof(
+			"grpc started on %s",
+			app.Config.GRPC.FolderPort,
+		)
+
+		if err := grpcServer.Serve(lis); err != nil {
+			app.Logger.Fatalf(
+				"grpc serve error: %v",
+				err,
+			)
+		}
+	}()
+
 	folderHandler := folderHttp.New(folderService)
 
 	m := metrics.New("folder", "backend")
@@ -90,7 +133,7 @@ func (app *App) Run(configPath string) {
 	router.Use(middleware.Logging(app.Logger))
 	router.Use(middleware.Metrics(m))
 
-	public := router.PathPrefix("/api/v1").Subrouter()
+	public := router.PathPrefix("/api/v1/folder").Subrouter()
 	public.Use(middleware.Panic)
 	public.Use(middleware.CORS(app.Config.CORS))
 	public.Use(middleware.JSON)

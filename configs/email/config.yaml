@@ -31,11 +31,16 @@ logger:
 postgres:
   host: postgres
   port: 5432
-  user: postgres
-  password: postgres
+  user: smail_email_svc
+  password: 1243
   dbname: smail_db
   sslmode: disable
   migrations_path: "file://db/migrations"
+  pool:
+    max_open_conns: 10
+    max_idle_conns: 5
+    conn_max_lifetime_sec: 300
+    conn_max_idle_time_sec: 60
 
 drafts:
   max_per_user: 100

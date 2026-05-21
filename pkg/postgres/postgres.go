@@ -15,21 +15,38 @@ import (
 )
 
 type Config struct {
-	Host           string `mapstructure:"host"`
-	Port           int    `mapstructure:"port"`
-	User           string `mapstructure:"user"`
-	Password       string `mapstructure:"password"`
-	DBName         string `mapstructure:"dbname"`
-	SSLMode        string `mapstructure:"sslmode"`
-	MigrationsPath string `mapstructure:"migrations_path"`
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"password"`
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
+
+	MigrationUser     string `mapstructure:"migration_user"`
+	MigrationPassword string `mapstructure:"migration_password"`
+	MigrationsPath    string `mapstructure:"migrations_path"`
+
+	Pool PoolConfig `mapstructure:"pool"`
+}
+
+type PoolConfig struct {
+	MaxOpenConns       int `mapstructure:"max_open_conns"`
+	MaxIdleConns       int `mapstructure:"max_idle_conns"`
+	ConnMaxLifetimeSec int `mapstructure:"conn_max_lifetime_sec"`
+	ConnMaxIdleTimeSec int `mapstructure:"conn_max_idle_time_sec"`
 }
 
 func (cfg *Config) ToDSN() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
 }
 
-func (cfg *Config) ToDSNPGX() string {
-	return fmt.Sprintf("pgx://%s:%s@%s:%d/%s?sslmode=%s", cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
+func (cfg *Config) toMigrationDSN() string {
+	user, password := cfg.MigrationUser, cfg.MigrationPassword
+	if user == "" {
+		user, password = cfg.User, cfg.Password
+	}
+
+	return fmt.Sprintf("pgx://%s:%s@%s:%d/%s?sslmode=%s", user, password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode)
 }
 
 func Ping(db *sql.DB) error {
@@ -51,11 +68,21 @@ func NewWithOpener(cfg Config, opener Opener) (*sql.DB, error) {
 }
 
 func New(cfg Config) (*sql.DB, error) {
-	return NewWithOpener(cfg, sql.Open)
+	db, err := NewWithOpener(cfg, sql.Open)
+	if err != nil {
+		return nil, err
+	}
+
+	db.SetMaxOpenConns(cfg.Pool.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Pool.MaxIdleConns)
+	db.SetConnMaxLifetime(time.Duration(cfg.Pool.ConnMaxLifetimeSec) * time.Second)
+	db.SetConnMaxIdleTime(time.Duration(cfg.Pool.ConnMaxIdleTimeSec) * time.Second)
+
+	return db, nil
 }
 
 func RunMigrations(cfg Config) error {
-	dsn := cfg.ToDSNPGX()
+	dsn := cfg.toMigrationDSN()
 
 	m, err := migrate.New(cfg.MigrationsPath, dsn)
 	if err != nil {

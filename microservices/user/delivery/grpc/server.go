@@ -17,6 +17,7 @@ type Server struct {
 
 type Service interface {
 	GetMe(ctx context.Context, userID int64) (*service.GetMeResult, error)
+	GetUsersByEmails(ctx context.Context, emails []string) ([]service.UserInfo, error)
 }
 
 func New(svc Service) *Server {
@@ -67,4 +68,33 @@ func (s *Server) UserExists(
 	return &userpb.UserExistsResponse{
 		Exists: err == nil,
 	}, nil
+}
+
+func (s *Server) GetUsersByEmails(
+	ctx context.Context,
+	req *userpb.GetUsersByEmailsRequest,
+) (*userpb.GetUsersByEmailsResponse, error) {
+	emails := req.GetEmails()
+	if len(emails) == 0 {
+		return &userpb.GetUsersByEmailsResponse{}, nil
+	}
+
+	users, err := s.service.GetUsersByEmails(ctx, emails)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	pbUsers := make([]*userpb.User, 0, len(users))
+	for _, u := range users {
+		pbUsers = append(pbUsers, &userpb.User{
+			Id:        u.ID,
+			Email:     u.Email,
+			Name:      u.Name,
+			Surname:   u.Surname,
+			ImagePath: u.ImagePath,
+			IsMale:    u.IsMale,
+			Birthdate: u.Birthdate,
+		})
+	}
+	return &userpb.GetUsersByEmailsResponse{Users: pbUsers}, nil
 }

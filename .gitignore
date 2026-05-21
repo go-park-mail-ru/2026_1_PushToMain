@@ -31,6 +31,10 @@ go.work.sum
 # env file
 .env
 
+configs/user/config.yaml
+configs/email/config.yaml
+configs/folder/config.yaml
+
 # Editor/IDE
 *.idea/
 *.vscode/

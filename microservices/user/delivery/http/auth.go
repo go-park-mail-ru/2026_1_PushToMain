@@ -40,7 +40,7 @@ type UpdatePasswordRequest struct {
 }
 
 var (
-	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
+	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@e-smail\.ru$`)
 	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 )
@@ -149,7 +149,7 @@ func (req *SignUpRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 
@@ -237,7 +237,7 @@ func (req *SignInRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 

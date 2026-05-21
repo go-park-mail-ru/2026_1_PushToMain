@@ -1,7 +1,5 @@
 services:
-  # =========================================
-  # POSTGRES
-  # =========================================
+  # Postgres
   postgres:
     image: postgres:16.3
     environment:
@@ -9,10 +7,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DBNAME}
       PGDATA: /var/lib/postgresql/data/pgdata
+      SMAIL_MIGRATE_PASSWORD: ${SMAIL_MIGRATE_PASSWORD}
+      SMAIL_USER_SVC_PASSWORD: ${SMAIL_USER_SVC_PASSWORD}
+      SMAIL_EMAIL_SVC_PASSWORD: ${SMAIL_EMAIL_SVC_PASSWORD}
+      SMAIL_FOLDER_SVC_PASSWORD: ${SMAIL_FOLDER_SVC_PASSWORD}
     ports:
-      - "5430:5432"
+      - "127.0.0.1:5430:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data/pgdata
+      - postgres_data:/var/lib/postgresql/data/pgdata # просто данные
+      - ./db/postgres.conf:/etc/postgresql/postgresql.conf:ro # конфиг
+      - ./db/init:/docker-entrypoint-initdb.d:ro # скрипты инициализации
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
@@ -21,9 +26,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # MINIO
-  # =========================================
+  # MinIO
   minio:
     image: minio/minio:latest
     environment:
@@ -42,15 +45,18 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # USER SERVICE  (HTTP :8081 | gRPC :50051)
-  # =========================================
+  # User service
   user-service:
     build:
       context: .
       dockerfile: microservices/user/Dockerfile
     env_file:
       - .env
+    environment:
+      POSTGRES_USER: smail_user_svc
+      POSTGRES_PASSWORD: ${SMAIL_USER_SVC_PASSWORD}
+      POSTGRES_MIGRATION_USER: smail_migrate
+      POSTGRES_MIGRATION_PASSWORD: ${SMAIL_MIGRATE_PASSWORD}
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -68,18 +74,19 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    
+
     restart: unless-stopped
 
-  # =========================================
-  # EMAIL SERVICE  (HTTP :8082 | gRPC :50052)
-  # =========================================
+  # Email service
   email-service:
     build:
       context: .
       dockerfile: microservices/email/Dockerfile
     env_file:
       - .env
+    environment:
+      POSTGRES_USER: smail_email_svc
+      POSTGRES_PASSWORD: ${SMAIL_EMAIL_SVC_PASSWORD}
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -93,15 +100,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # =========================================
-  # FOLDER SERVICE  (HTTP :8083 | gRPC :50053)
-  # =========================================
+  # Folder service
   folder-service:
     build:
       context: .
       dockerfile: microservices/folder/Dockerfile
     env_file:
       - .env
+    environment:
+      POSTGRES_USER: smail_folder_svc
+      POSTGRES_PASSWORD: ${SMAIL_FOLDER_SVC_PASSWORD}
     volumes:
       - ./configs:/app/configs
       - ./db/migrations:/app/db/migrations
@@ -114,7 +122,8 @@ services:
       email-service:
         condition: service_started
     restart: unless-stopped
-  
+
+  # Prometheus
   prometheus:
     image: prom/prometheus:latest
     volumes:
@@ -124,6 +133,7 @@ services:
       - "9091:9090"
     restart: unless-stopped
 
+  # Grafana
   grafana:
     image: grafana/grafana:latest
     environment:

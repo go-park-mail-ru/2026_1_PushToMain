@@ -22,7 +22,9 @@ type GRPCConfig struct {
 	UserPort string `mapstructure:"user_port"`
 }
 
-type GRPCClients struct{}
+type GRPCClients struct {
+	FolderService string `mapstructure:"folder_service"`
+}
 
 type Config struct {
 	ServerPort string `mapstructure:"port"`

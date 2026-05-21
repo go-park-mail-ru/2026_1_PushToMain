@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package folder;
+
+option go_package = "./proto/folder";
+
+service FolderService {
+    rpc GetUserFolders(GetUserFoldersRequest) returns (GetUserFoldersResponse);
+}
+
+message GetUserFoldersRequest {
+    int64 user_id = 1;
+}
+
+message GetUserFoldersResponse {
+    repeated Folder folders = 1;
+}
+
+message Folder {
+    int64 id = 1;
+    string name = 2;
+}

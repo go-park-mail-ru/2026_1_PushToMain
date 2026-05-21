@@ -10,85 +10,51 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 )
 
-func (r *Repository) CountDraftsByUser(ctx context.Context, userID int64) (int, error) {
-	const query = `
-		SELECT COUNT(*) FROM user_emails
-		WHERE user_id = $1 AND is_sender = true AND is_draft = true
-	`
-	return r.scanCount(ctx, query, userID)
-}
-
-// CreateDraft — три INSERT'а в одной транзакции:
-//  1. emails (тело черновика);
-//  2. user_emails (связь автор-черновик с is_draft=true);
-//  3. draft_receivers (адреса получателей как plain text).
-func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (int64, error) {
+func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (*models.Draft, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, ErrTransactionFailed
+		return nil, ErrTransactionFailed
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
+	defer tx.Rollback()
 
-	var emailID int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO emails (sender_id, header, body)
-		VALUES ($1, $2, $3)
-		RETURNING id
-	`, draft.SenderID, draft.Header, draft.Body).Scan(&emailID)
+		INSERT INTO emails (sender_id, sender_email, header, body, is_draft)
+		SELECT $1, u.email, $2, $3, true FROM users u WHERE u.id = $1
+		RETURNING id, sender_email, created_at, updated_at
+	`, draft.SenderID, draft.Header, draft.Body).Scan(
+		&draft.ID, &draft.SenderEmail, &draft.CreatedAt, &draft.UpdatedAt,
+	)
 	if err != nil {
-		return 0, ErrSaveEmail
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, mapPgError(err)
 	}
 
-	_, err = tx.ExecContext(ctx, `
-		INSERT INTO user_emails (user_id, email_id, is_sender, is_draft)
-		VALUES ($1, $2, true, true)
-	`, draft.SenderID, emailID)
-	if err != nil {
-		return 0, ErrSaveEmail
-	}
-
-	if err = insertDraftReceivers(ctx, tx, emailID, draft.Receivers); err != nil {
-		return 0, err
+	if err = insertEmailRecipients(ctx, tx, draft.ID, draft.Recipients); err != nil {
+		return nil, err
 	}
 
 	if err = tx.Commit(); err != nil {
-		return 0, ErrTransactionFailed
+		return nil, ErrTransactionFailed
 	}
-	committed = true
-	return emailID, nil
+	return &draft, nil
 }
 
-// UpdateDraft — replace-семантика: переписываем header/body, удаляем старых получателей,
-// вставляем новых. Всё в одной транзакции.
-func (r *Repository) UpdateDraft(ctx context.Context, draft models.Draft) error {
+func (r *Repository) UpdateDraft(ctx context.Context, userID int64, draft models.Draft) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return ErrTransactionFailed
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-	}()
+	defer tx.Rollback()
 
 	res, err := tx.ExecContext(ctx, `
-		UPDATE emails e
-		SET header = $1, body = $2
-		FROM user_emails ue
-		WHERE e.id = $3
-		  AND ue.email_id = e.id
-		  AND ue.user_id = $4
-		  AND ue.is_sender = true
-		  AND ue.is_draft = true
-	`, draft.Header, draft.Body, draft.ID, draft.SenderID)
+		UPDATE emails
+		SET header = $1, body = $2, updated_at = NOW()
+		WHERE id = $3 AND sender_id = $4 AND is_draft = true
+	`, draft.Header, draft.Body, draft.ID, userID)
 	if err != nil {
-		return ErrQueryFail
+		return mapPgError(err)
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
@@ -99,149 +65,129 @@ func (r *Repository) UpdateDraft(ctx context.Context, draft models.Draft) error 
 	}
 
 	if _, err = tx.ExecContext(ctx, `
-		UPDATE user_emails
-		SET updated_at = NOW()
-		WHERE email_id = $1 AND user_id = $2 AND is_sender = true AND is_draft = true
-	`, draft.ID, draft.SenderID); err != nil {
+		DELETE FROM email_recipients WHERE email_id = $1
+	`, draft.ID); err != nil {
 		return ErrQueryFail
 	}
-
-	if _, err = tx.ExecContext(ctx, `DELETE FROM draft_receivers WHERE email_id = $1`, draft.ID); err != nil {
-		return ErrQueryFail
-	}
-	if err = insertDraftReceivers(ctx, tx, draft.ID, draft.Receivers); err != nil {
+	if err = insertEmailRecipients(ctx, tx, draft.ID, draft.Recipients); err != nil {
 		return err
 	}
-
 	if err = tx.Commit(); err != nil {
 		return ErrTransactionFailed
 	}
-	committed = true
 	return nil
 }
 
 func (r *Repository) GetDraftByID(ctx context.Context, draftID, userID int64) (*models.Draft, error) {
-	const query = `
-		SELECT
-			e.id, e.sender_id, e.header, e.body, e.created_at, ue.updated_at,
-			COALESCE((
-				SELECT array_agg(dr.receiver_email ORDER BY dr.id)
-				FROM draft_receivers dr
-				WHERE dr.email_id = e.id
-			), '{}'::text[]) AS receivers
-		FROM emails e
-		JOIN user_emails ue ON ue.email_id = e.id
-		WHERE e.id = $1
-		  AND ue.user_id = $2
-		  AND ue.is_sender = true
-		  AND ue.is_draft = true
-	`
 	var d models.Draft
-	var receiversStr string
-	err := r.db.QueryRowContext(ctx, query, draftID, userID).Scan(
-		&d.ID, &d.SenderID, &d.Header, &d.Body, &d.CreatedAt, &d.UpdatedAt, &receiversStr,
+	err := r.db.QueryRowContext(ctx, `
+		SELECT id, sender_id, sender_email, header, body, created_at, updated_at
+		FROM emails
+		WHERE id = $1 AND sender_id = $2 AND is_draft = true
+	`, draftID, userID).Scan(
+		&d.ID,
+		&d.SenderID,
+		&d.SenderEmail,
+		&d.Header,
+		&d.Body,
+		&d.CreatedAt,
+		&d.UpdatedAt,
 	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrDraftNotFound
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrDraftNotFound
-		}
 		return nil, ErrQueryFail
 	}
-	d.Receivers = parsePgTextArray(receiversStr)
-	return &d, nil
+
+	drafts := []models.Draft{d}
+	if err := r.fillRecipients(ctx, drafts, []int64{d.ID}, map[int64]int{d.ID: 0}); err != nil {
+		return nil, err
+	}
+
+	return &drafts[0], nil
 }
 
 func (r *Repository) GetDrafts(ctx context.Context, userID int64, limit, offset int) ([]models.Draft, error) {
-	limit, offset = normPage(limit, offset)
-	const query = `
-		SELECT
-			e.id, e.sender_id, e.header, e.body, e.created_at, ue.updated_at,
-			COALESCE((
-				SELECT array_agg(dr.receiver_email ORDER BY dr.id)
-				FROM draft_receivers dr
-				WHERE dr.email_id = e.id
-			), '{}'::text[]) AS receivers
-		FROM emails e
-		JOIN user_emails ue ON ue.email_id = e.id
-		WHERE ue.user_id = $1 AND ue.is_sender = true AND ue.is_draft = true
-		ORDER BY ue.updated_at DESC
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT id, sender_id, sender_email, header, body, created_at, updated_at
+		FROM emails
+		WHERE sender_id = $1 AND is_draft = true
+		ORDER BY created_at DESC
 		LIMIT $2 OFFSET $3
-	`
-	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	`, userID, limit, offset)
 	if err != nil {
 		return nil, ErrQueryFail
 	}
 	defer rows.Close()
 
-	drafts := make([]models.Draft, 0)
+	var drafts []models.Draft
+	var ids []int64
+	idxByID := map[int64]int{}
+
 	for rows.Next() {
 		var d models.Draft
-		var receiversStr string
-		if err := rows.Scan(&d.ID, &d.SenderID, &d.Header, &d.Body, &d.CreatedAt, &d.UpdatedAt, &receiversStr); err != nil {
+		if err := rows.Scan(&d.ID, &d.SenderID, &d.SenderEmail, &d.Header, &d.Body, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, ErrQueryFail
 		}
-		d.Receivers = parsePgTextArray(receiversStr)
+		idxByID[d.ID] = len(drafts)
 		drafts = append(drafts, d)
+		ids = append(ids, d.ID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, ErrQueryFail
 	}
+	if len(drafts) == 0 {
+		return drafts, nil
+	}
+
+	if err := r.fillRecipients(ctx, drafts, ids, idxByID); err != nil {
+		return nil, err
+	}
 	return drafts, nil
 }
 
-// DeleteDraftsBatch — массовое физическое удаление черновиков.
-// Черновик принадлежит одному юзеру, поэтому удаляем и user_emails, и emails.
-// Каскад в draft_receivers сработает по FK.
-func (r *Repository) DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error {
-	if len(draftIDs) == 0 {
-		return nil
+func (r *Repository) fillRecipients(ctx context.Context, drafts []models.Draft, ids []int64, idxByID map[int64]int) error {
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
 	}
 
-	tx, err := r.db.BeginTx(ctx, nil)
+	rows, err := r.db.QueryContext(ctx,
+		fmt.Sprintf(
+			`SELECT email_id, recipient_email FROM email_recipients WHERE email_id IN (%s)`,
+			strings.Join(placeholders, ","),
+		),
+		args...,
+	)
 	if err != nil {
-		return ErrTransactionFailed
+		return ErrQueryFail
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
+	defer rows.Close()
+
+	for rows.Next() {
+		var emailID int64
+		var recipient string
+		if err := rows.Scan(&emailID, &recipient); err != nil {
+			return ErrQueryFail
 		}
-	}()
-
-	holders, idArgs := idsPlaceholders(draftIDs, 2)
-	args := append([]interface{}{userID}, idArgs...)
-
-	q1 := fmt.Sprintf(`
-		DELETE FROM user_emails
-		WHERE user_id = $1 AND is_sender = true AND is_draft = true
-		  AND email_id IN (%s)
-	`, holders)
-	if _, err = tx.ExecContext(ctx, q1, args...); err != nil {
-		return ErrQueryFail
+		idx := idxByID[emailID]
+		drafts[idx].Recipients = append(drafts[idx].Recipients, recipient)
 	}
-
-	q2 := fmt.Sprintf(`DELETE FROM emails WHERE id IN (%s)`, holders)
-	if _, err = tx.ExecContext(ctx, q2, idArgs...); err != nil {
-		return ErrQueryFail
-	}
-
-	if err = tx.Commit(); err != nil {
-		return ErrTransactionFailed
-	}
-	committed = true
-	return nil
+	return rows.Err()
 }
 
-// MarkDraftAsSentTx — перевод черновика в "отправленное" состояние внутри транзакции отправки.
-// Чистит draft_receivers (они нужны были только для черновика).
 func (r *Repository) MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error {
-	res, err := tx.ExecContext(ctx, `
-		UPDATE user_emails
+	const query = `
+		UPDATE emails
 		SET is_draft = false, updated_at = NOW()
-		WHERE email_id = $1 AND user_id = $2 AND is_sender = true AND is_draft = true
-	`, draftID, userID)
+		WHERE id = $1 AND sender_id = $2 AND is_draft = true
+	`
+	res, err := tx.ExecContext(ctx, query, draftID, userID)
 	if err != nil {
-		return ErrQueryFail
+		return mapPgError(err)
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
@@ -250,29 +196,26 @@ func (r *Repository) MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID,
 	if rows == 0 {
 		return ErrDraftNotFound
 	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM draft_receivers WHERE email_id = $1`, draftID); err != nil {
-		return ErrQueryFail
-	}
 	return nil
 }
 
-func insertDraftReceivers(ctx context.Context, tx *sql.Tx, emailID int64, receivers []string) error {
-	if len(receivers) == 0 {
+func (r *Repository) DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error {
+	if len(draftIDs) == 0 {
 		return nil
 	}
-	parts := make([]string, len(receivers))
-	args := make([]interface{}, 0, len(receivers)+1)
-	args = append(args, emailID)
-	for i, rcv := range receivers {
-		parts[i] = fmt.Sprintf("($1, $%d)", i+2)
-		args = append(args, rcv)
+	parts := make([]string, len(draftIDs))
+	args := make([]any, 0, len(draftIDs)+1)
+	args = append(args, userID)
+	for i, id := range draftIDs {
+		parts[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, id)
 	}
-	query := fmt.Sprintf(
-		`INSERT INTO draft_receivers (email_id, receiver_email) VALUES %s`,
-		strings.Join(parts, ","),
-	)
-	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-		return ErrReceiverAdd
+	query := fmt.Sprintf(`
+		DELETE FROM emails
+		WHERE sender_id = $1 AND is_draft = true AND id IN (%s)
+	`, strings.Join(parts, ","))
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
+		return ErrQueryFail
 	}
 	return nil
 }

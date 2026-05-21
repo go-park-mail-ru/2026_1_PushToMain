@@ -146,7 +146,7 @@ func (r *Repository) CountUserFolders(ctx context.Context, userID int64) (int, e
 	return count, nil
 }
 
-func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (int, error) {
+func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (int, error) { //
 	query := `
 		SELECT COUNT(*)
 		FROM folder_emails
@@ -163,11 +163,11 @@ func (r *Repository) CountEmailsInFolder(ctx context.Context, folderID int64) (i
 }
 
 // AddEmailsToFolder добавляет несколько писем в папку (батч вставка)
-func (r *Repository) AddEmailToFolder(ctx context.Context, folderID, emailID int64) error {
+func (r *Repository) AddEmailToFolder(ctx context.Context, folderID, emailID int64) error { //
 	query := `
-        INSERT INTO folder_emails (folder_id, email_id)
+        INSERT INTO folder_emails (folder_id, user_email_id)
         VALUES ($1, $2)
-        ON CONFLICT (folder_id, email_id) DO NOTHING
+        ON CONFLICT (folder_id, user_email_id) DO NOTHING
     `
 
 	_, err := r.db.ExecContext(ctx, query, folderID, emailID)
@@ -178,10 +178,10 @@ func (r *Repository) AddEmailToFolder(ctx context.Context, folderID, emailID int
 	return nil
 }
 
-func (r *Repository) DeleteEmailFromFolder(ctx context.Context, folderID, emailID int64) error {
+func (r *Repository) DeleteEmailFromFolder(ctx context.Context, folderID, emailID int64) error { //
 	query := `
         DELETE FROM folder_emails
-        WHERE folder_id = $1 AND email_id = $2
+        WHERE folder_id = $1 AND user_email_id = $2
     `
 
 	result, err := r.db.ExecContext(ctx, query, folderID, emailID)
@@ -224,10 +224,37 @@ func (r *Repository) DeleteFolder(ctx context.Context, folderID, userID int64) e
 	return nil
 }
 
-func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error) {
+func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models.Folder, error) {
+	query := `
+        SELECT id, name, created_at, updated_at
+        FROM folders
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+    `
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user folders: %w", err)
+	}
+	defer rows.Close()
+
+	var folders []models.Folder
+	for rows.Next() {
+		var f models.Folder
+		err := rows.Scan(&f.ID, &f.Name, &f.CreatedAt, &f.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan folder: %w", err)
+		}
+		folders = append(folders, f)
+	}
+
+	return folders, nil
+}
+
+func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error) { //
 
 	query := `
-		SELECT email_id
+		SELECT user_email_id
 		FROM folder_emails
 		WHERE folder_id = $1
 		ORDER BY created_at DESC
