@@ -35,10 +35,10 @@ func (r *Repository) InsertEmailRecipients(ctx context.Context, tx *sql.Tx, emai
 	return nil
 }
 
-func (r *Repository) InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, emailID int64, checkSpam bool) error {
+func (r *Repository) InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, emailID int64, isSender, checkSpam bool) error {
 	const query = `
-        INSERT INTO user_emails (user_id, email_id, is_spam)
-        SELECT $1, $2, $3 AND EXISTS (
+        INSERT INTO user_emails (user_id, email_id, is_sender, is_spam)
+        SELECT $1, $2, $3, $4 AND EXISTS (
             SELECT 1
             FROM spam_senders ss
             JOIN emails e ON e.id = $2
@@ -47,7 +47,7 @@ func (r *Repository) InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, em
         ON CONFLICT (user_id, email_id) DO NOTHING
     `
 
-	if _, err := tx.ExecContext(ctx, query, userID, emailID, checkSpam); err != nil {
+	if _, err := tx.ExecContext(ctx, query, userID, emailID, isSender, checkSpam); err != nil {
 		return mapPgError(err)
 	}
 	return nil

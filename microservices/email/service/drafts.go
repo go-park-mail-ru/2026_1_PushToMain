@@ -194,11 +194,11 @@ func (s *Service) SendDraft(ctx context.Context, in SendDraftInput) (*SendEmailR
 		if r.UserID == nil {
 			continue
 		}
-		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, in.DraftID, true); err != nil {
+		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, in.DraftID, false, true); err != nil {
 			return nil, MapRepositoryError(err)
 		}
 	}
-	if err = s.repo.InsertUserEmail(ctx, tx, in.UserID, in.DraftID, false); err != nil {
+	if err = s.repo.InsertUserEmail(ctx, tx, in.UserID, in.DraftID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
 	}
 	if err = tx.Commit(); err != nil {

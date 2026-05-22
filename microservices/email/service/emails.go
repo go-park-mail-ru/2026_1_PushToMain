@@ -364,11 +364,11 @@ func (s *Service) sendEmailTx(
 		if r.UserID == nil {
 			continue
 		}
-		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, emailID, true); err != nil {
+		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, emailID, false, true); err != nil {
 			return nil, MapRepositoryError(err)
 		}
 	}
-	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, false); err != nil {
+	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
 	}
 	if err = tx.Commit(); err != nil {
