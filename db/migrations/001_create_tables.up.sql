@@ -65,6 +65,8 @@ CREATE TABLE user_emails (
     is_deleted BOOLEAN NOT NULL DEFAULT false,
     is_inbox BOOLEAN NOT NULL DEFAULT true,
 
+    is_sender BOOLEAN NOT NULL DEFAULT false,
+
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
