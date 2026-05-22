@@ -150,7 +150,6 @@ services:
       dockerfile: microservices/postfix/Dockerfile
     volumes:
       - ./configs/postfix/main.cf:/etc/postfix/main.cf:ro
-      - ./configs/postfix/transport:/etc/postfix/transport:ro
       - ./certs/postfix:/etc/ssl/postfix:ro
       - postfix_queue:/var/spool/postfix
     ports:

@@ -7,4 +7,7 @@ RUN apt-get update && \
 COPY microservices/postfix/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+COPY configs/postfix/transport /etc/postfix/transport
+RUN postmap /etc/postfix/transport
+
 ENTRYPOINT ["/entrypoint.sh"]
