@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/grpcx"
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Client struct {
@@ -17,13 +17,7 @@ type Client struct {
 
 func New(addr string) (*Client, error) {
 
-	conn, err := grpc.Dial(
-		addr,
-		grpc.WithTransportCredentials(
-			insecure.NewCredentials(),
-		),
-	)
-
+	conn, err := grpcx.NewClient(addr)
 	if err != nil {
 		return nil, err
 	}

@@ -68,9 +68,8 @@ CREATE TABLE user_emails (
     is_sender BOOLEAN NOT NULL DEFAULT false,
 
     created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
 
-    UNIQUE (user_id, email_id)
 );
 
 CREATE TABLE attachments (

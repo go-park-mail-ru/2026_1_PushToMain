@@ -44,7 +44,7 @@ func (r *Repository) InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, em
             JOIN emails e ON e.id = $2
             WHERE ss.user_id = $1 AND ss.sender_id = e.sender_id
         )
-        ON CONFLICT (user_id, email_id) DO NOTHING
+       
     `
 
 	if _, err := tx.ExecContext(ctx, query, userID, emailID, isSender, checkSpam); err != nil {
