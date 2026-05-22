@@ -38,3 +38,8 @@ func NotFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 	fmt.Fprintf(w, `{ "error": "Not found" }`)
 }
+
+func NotFoundWithMessage(w http.ResponseWriter, msg string) {
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprintf(w, `{ "error": %q }`, msg)
+}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
 )
@@ -19,6 +20,14 @@ var (
 	ErrDraftValidation  = errors.New("draft must contain at least one of: header, body, receivers")
 	ErrDraftsLimit      = errors.New("drafts limit reached")
 )
+
+type ErrRecipientNotFound struct {
+	Email string
+}
+
+func (e *ErrRecipientNotFound) Error() string {
+	return fmt.Sprintf("recipient not found: %s", e.Email)
+}
 
 func MapRepositoryError(err error) error {
 	switch {

@@ -59,6 +59,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
+	var errNotFound *service.ErrRecipientNotFound
 	switch {
 	case errors.Is(err, service.ErrConflict),
 		errors.Is(err, service.ErrDraftsLimit):
@@ -74,6 +75,9 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 		response.NotFound(w)
 	case errors.Is(err, service.ErrAccessDenied):
 		response.Forbidden(w)
+	case errors.As(err, &errNotFound):
+		response.NotFoundWithMessage(w, "recipient not found: "+errNotFound.Email)
+		return
 	default:
 		response.InternalError(w)
 	}

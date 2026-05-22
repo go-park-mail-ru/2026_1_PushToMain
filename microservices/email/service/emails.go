@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
@@ -423,18 +424,27 @@ func (s *Service) resolveRecipients(ctx context.Context, emails []string) ([]mod
 	for _, u := range users {
 		byEmail[u.Email] = u.Id
 	}
+
 	out := make([]models.Recipient, 0, len(emails))
-	hasInternal := false
 	for _, e := range emails {
+		domain := extractDomain(e)
 		rec := models.Recipient{Email: e}
+
 		if id, ok := byEmail[e]; ok {
 			rec.UserID = &id
-			hasInternal = true
+		} else if isLocalDomain(domain) {
+			return nil, &ErrRecipientNotFound{Email: e}
 		}
 		out = append(out, rec)
 	}
-	if !hasInternal {
-		return nil, ErrNoValidReceivers
-	}
+
 	return out, nil
+}
+
+func extractDomain(email string) string {
+	return strings.Split(email, "@")[1]
+}
+
+func isLocalDomain(domain string) bool {
+	return domain == "e-smail.ru"
 }
