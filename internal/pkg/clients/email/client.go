@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/grpcx"
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type Client struct {
@@ -17,13 +17,7 @@ type Client struct {
 
 func New(addr string) (*Client, error) {
 
-	conn, err := grpc.Dial(
-		addr,
-		grpc.WithTransportCredentials(
-			insecure.NewCredentials(),
-		),
-	)
-
+	conn, err := grpcx.NewClient(addr)
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +58,33 @@ func (c *Client) GetEmailByID(
 	}
 
 	return resp.Email, nil
+}
+func (c *Client) GetUserEmailID(
+	ctx context.Context,
+	emailID,
+	userID int64,
+) (int64, error) {
+
+	ctx, cancel := context.WithTimeout(
+		ctx,
+		3*time.Second,
+	)
+
+	defer cancel()
+
+	resp, err := c.client.GetUserEmailID(
+		ctx,
+		&emailpb.GetUserEmailIDRequest{
+			EmailId: emailID,
+			UserId:  userID,
+		},
+	)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return resp.UserEmailId, nil
 }
 
 func (c *Client) SwitchIsInbox(

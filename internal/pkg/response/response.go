@@ -26,7 +26,7 @@ func InternalError(w http.ResponseWriter) {
 
 func StatusConflict(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusConflict)
-	fmt.Fprintf(w, `{ "error" Already exsist" }`)
+	fmt.Fprintf(w, `{ "error": "Already exsist" }`)
 }
 
 func Forbidden(w http.ResponseWriter) {
@@ -37,4 +37,9 @@ func Forbidden(w http.ResponseWriter) {
 func NotFound(w http.ResponseWriter) {
 	w.WriteHeader(http.StatusNotFound)
 	fmt.Fprintf(w, `{ "error": "Not found" }`)
+}
+
+func NotFoundWithMessage(w http.ResponseWriter, msg string) {
+	w.WriteHeader(http.StatusNotFound)
+	fmt.Fprintf(w, `{ "error": %q }`, msg)
 }
