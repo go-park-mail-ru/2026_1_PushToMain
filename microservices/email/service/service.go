@@ -63,6 +63,7 @@ type Repository interface {
 	DeleteDraftsBatch(ctx context.Context, userID int64, draftIDs []int64) error
 	MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
+	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
 }
 
 type DraftsConfig struct {

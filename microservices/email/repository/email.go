@@ -27,6 +27,24 @@ func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.E
 	}
 	return id, nil
 }
+func (r *Repository) GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error) {
+	query := `
+        SELECT id FROM user_emails
+        WHERE email_id = $1 AND user_id = $2 AND is_sender = false
+        LIMIT 1
+    `
+
+	var userEmailID int64
+	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&userEmailID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrMailNotFound
+		}
+		return 0, fmt.Errorf("failed to get user_email_id: %w", err)
+	}
+
+	return userEmailID, nil
+}
 
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	const query = `
