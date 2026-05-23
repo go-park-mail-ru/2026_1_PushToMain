@@ -16,6 +16,8 @@ type Email struct {
 	IsDraft     bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+
+	Attachments []Attachment
 }
 
 type Recipient struct {
@@ -48,6 +50,8 @@ type Draft struct {
 	Recipients  []string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+
+	Attachments []Attachment
 }
 
 type UserEmail struct {
@@ -69,4 +73,14 @@ type User struct {
 	Password string
 	Name     string
 	Surname  string
+}
+
+type Attachment struct {
+	ID          int64
+	EmailID     int64
+	FileName    string
+	ContentType string
+	SizeBytes   int64
+	StoragePath string
+	CreatedAt   time.Time
 }

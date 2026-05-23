@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"mime/multipart"
 	"strings"
 	"time"
 
@@ -84,6 +85,9 @@ type SendEmailInput struct {
 	Header    string
 	Body      string
 	Receivers []string
+
+	Files       []multipart.File
+	FileHeaders []*multipart.FileHeader
 }
 
 type SendEmailResult struct {
@@ -321,7 +325,7 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 	if err != nil {
 		return nil, err
 	}
-	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients)
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders)
 }
 
 func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error {
@@ -339,7 +343,7 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients)
+	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil) //ДОДЕЛАТЬ
 	return err
 }
 
@@ -348,6 +352,8 @@ func (s *Service) sendEmailTx(
 	senderID int64,
 	header, body string,
 	recipients []models.Recipient,
+	Files []multipart.File,
+	FileHeaders []*multipart.FileHeader,
 ) (*SendEmailResult, error) {
 	sender, err := s.userClient.GetUserByID(ctx, senderID)
 	if err != nil {
@@ -389,6 +395,7 @@ func (s *Service) sendEmailTx(
 	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	if err = tx.Commit(); err != nil {
 		return nil, ErrTransaction
 	}

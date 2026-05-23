@@ -81,7 +81,6 @@ CREATE TABLE attachments (
     content_type TEXT     NOT NULL,
     size_bytes   BIGINT   NOT NULL,
 
-    sha256       CHAR(64) NOT NULL,
     storage_path TEXT     NOT NULL,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

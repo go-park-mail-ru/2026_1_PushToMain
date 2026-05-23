@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"database/sql"
+	"io"
+	"mime/multipart"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
@@ -65,6 +67,12 @@ type Repository interface {
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
 	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
+}
+
+type Storage interface {
+	SaveAttachment(ctx context.Context, file multipart.File, filename string) (string, error)
+	OpenAttachment(ctx context.Context, key string) (io.ReadCloser, error)
+	DeleteAttachment(ctx context.Context, key string) error
 }
 
 type DraftsConfig struct {
