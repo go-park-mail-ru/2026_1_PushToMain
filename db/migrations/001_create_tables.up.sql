@@ -65,10 +65,11 @@ CREATE TABLE user_emails (
     is_deleted BOOLEAN NOT NULL DEFAULT false,
     is_inbox BOOLEAN NOT NULL DEFAULT true,
 
-    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_sender BOOLEAN NOT NULL DEFAULT false,
 
-    UNIQUE (user_id, email_id)
+    created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+
 );
 
 CREATE TABLE attachments (

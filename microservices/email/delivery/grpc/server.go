@@ -64,6 +64,29 @@ func (s *Server) GetEmailById(
 	}, nil
 }
 
+func (s *Server) GetUserEmailID(
+	ctx context.Context,
+	req *emailpb.GetUserEmailIDRequest,
+) (*emailpb.GetUserEmailIDResponse, error) {
+
+	userEmailId, err := s.service.GetUserEmailID(
+		ctx,
+		req.EmailId,
+		req.UserId,
+	)
+
+	if err != nil {
+		return nil, status.Error(
+			codes.NotFound,
+			err.Error(),
+		)
+	}
+
+	return &emailpb.GetUserEmailIDResponse{
+		UserEmailId: userEmailId,
+	}, nil
+}
+
 func (s *Server) CheckEmailAccess(
 	ctx context.Context,
 	req *emailpb.CheckEmailAccessRequest,

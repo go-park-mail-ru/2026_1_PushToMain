@@ -58,6 +58,7 @@ type UserEmail struct {
 	IsDeleted bool
 	IsStarred bool
 	IsSpam    bool
+	IsSender  bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

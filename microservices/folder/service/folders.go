@@ -54,6 +54,7 @@ type EmailClient interface {
 		userID int64,
 	) (bool, error)
 	GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) (*emailpb.GetEmailsByIdsResponse, error)
+	GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error)
 	SwitchIsInbox(
 		ctx context.Context,
 		emailID,
@@ -260,8 +261,12 @@ func (s *Service) AddEmailsInFolder(ctx context.Context, input AddEmailsInFolder
 		if !hasAccess {
 			return MapRepositoryError(err)
 		}
+		user_email_id, err := s.emailClient.GetUserEmailID(ctx, emailID, input.UserID)
+		if err != nil {
+			return MapRepositoryError(err)
+		}
 
-		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, emailID); err != nil {
+		if err := s.repo.AddEmailToFolder(ctx, input.FolderID, user_email_id); err != nil {
 			return MapRepositoryError(err)
 		}
 		if success, err := s.emailClient.SwitchIsInbox(ctx, emailID, input.UserID); err != nil || !success {
@@ -293,7 +298,12 @@ func (s *Service) DeleteEmailsFromFolder(ctx context.Context, input DeleteEmails
 
 	// Удаляем каждое письмо из папки
 	for _, emailID := range input.EmailsID {
-		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, emailID); err != nil {
+		user_email_id, err := s.emailClient.GetUserEmailID(ctx, emailID, input.UserID)
+		if err != nil {
+			return MapRepositoryError(err)
+		}
+
+		if err := s.repo.DeleteEmailFromFolder(ctx, input.FolderID, user_email_id); err != nil {
 			return MapRepositoryError(err)
 		}
 		if success, err := s.emailClient.SwitchIsInbox(ctx, emailID, input.UserID); err != nil || !success {

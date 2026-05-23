@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
@@ -261,6 +262,15 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	}, nil
 }
 
+func (s *Service) GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error) {
+
+	result, err := s.repo.GetUserEmailID(ctx, emailID, userID)
+	if err != nil {
+		return 0, MapRepositoryError(err)
+	}
+	return result, nil
+}
+
 func (s *Service) GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) (*GetEmailsByIDsResult, error) {
 	if len(emailIDs) == 0 {
 		return &GetEmailsByIDsResult{Emails: []EmailResult{}, UnreadCount: 0}, nil
@@ -363,11 +373,11 @@ func (s *Service) sendEmailTx(
 		if r.UserID == nil {
 			continue
 		}
-		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, emailID, true); err != nil {
+		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, emailID, false, true); err != nil {
 			return nil, MapRepositoryError(err)
 		}
 	}
-	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, false); err != nil {
+	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -423,18 +433,27 @@ func (s *Service) resolveRecipients(ctx context.Context, emails []string) ([]mod
 	for _, u := range users {
 		byEmail[u.Email] = u.Id
 	}
+
 	out := make([]models.Recipient, 0, len(emails))
-	hasInternal := false
 	for _, e := range emails {
+		domain := extractDomain(e)
 		rec := models.Recipient{Email: e}
+
 		if id, ok := byEmail[e]; ok {
 			rec.UserID = &id
-			hasInternal = true
+		} else if isLocalDomain(domain) {
+			return nil, &ErrRecipientNotFound{Email: e}
 		}
 		out = append(out, rec)
 	}
-	if !hasInternal {
-		return nil, ErrNoValidReceivers
-	}
+
 	return out, nil
+}
+
+func extractDomain(email string) string {
+	return strings.Split(email, "@")[1]
+}
+
+func isLocalDomain(domain string) bool {
+	return domain == "e-smail.ru"
 }

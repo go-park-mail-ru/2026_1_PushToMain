@@ -23,6 +23,7 @@ const (
 	EmailService_CheckEmailAccess_FullMethodName = "/email.EmailService/CheckEmailAccess"
 	EmailService_GetEmailsByIds_FullMethodName   = "/email.EmailService/GetEmailsByIds"
 	EmailService_SwitchIsInbox_FullMethodName    = "/email.EmailService/SwitchIsInbox"
+	EmailService_GetUserEmailID_FullMethodName   = "/email.EmailService/GetUserEmailID"
 )
 
 // EmailServiceClient is the client API for EmailService service.
@@ -33,6 +34,7 @@ type EmailServiceClient interface {
 	CheckEmailAccess(ctx context.Context, in *CheckEmailAccessRequest, opts ...grpc.CallOption) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(ctx context.Context, in *GetEmailsByIdsRequest, opts ...grpc.CallOption) (*GetEmailsByIdsResponse, error)
 	SwitchIsInbox(ctx context.Context, in *SwitchIsInboxRequest, opts ...grpc.CallOption) (*SwitchIsInboxResponse, error)
+	GetUserEmailID(ctx context.Context, in *GetUserEmailIDRequest, opts ...grpc.CallOption) (*GetUserEmailIDResponse, error)
 }
 
 type emailServiceClient struct {
@@ -83,6 +85,16 @@ func (c *emailServiceClient) SwitchIsInbox(ctx context.Context, in *SwitchIsInbo
 	return out, nil
 }
 
+func (c *emailServiceClient) GetUserEmailID(ctx context.Context, in *GetUserEmailIDRequest, opts ...grpc.CallOption) (*GetUserEmailIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserEmailIDResponse)
+	err := c.cc.Invoke(ctx, EmailService_GetUserEmailID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EmailServiceServer is the server API for EmailService service.
 // All implementations must embed UnimplementedEmailServiceServer
 // for forward compatibility.
@@ -91,6 +103,7 @@ type EmailServiceServer interface {
 	CheckEmailAccess(context.Context, *CheckEmailAccessRequest) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(context.Context, *GetEmailsByIdsRequest) (*GetEmailsByIdsResponse, error)
 	SwitchIsInbox(context.Context, *SwitchIsInboxRequest) (*SwitchIsInboxResponse, error)
+	GetUserEmailID(context.Context, *GetUserEmailIDRequest) (*GetUserEmailIDResponse, error)
 	mustEmbedUnimplementedEmailServiceServer()
 }
 
@@ -112,6 +125,9 @@ func (UnimplementedEmailServiceServer) GetEmailsByIds(context.Context, *GetEmail
 }
 func (UnimplementedEmailServiceServer) SwitchIsInbox(context.Context, *SwitchIsInboxRequest) (*SwitchIsInboxResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SwitchIsInbox not implemented")
+}
+func (UnimplementedEmailServiceServer) GetUserEmailID(context.Context, *GetUserEmailIDRequest) (*GetUserEmailIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUserEmailID not implemented")
 }
 func (UnimplementedEmailServiceServer) mustEmbedUnimplementedEmailServiceServer() {}
 func (UnimplementedEmailServiceServer) testEmbeddedByValue()                      {}
@@ -206,6 +222,24 @@ func _EmailService_SwitchIsInbox_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EmailService_GetUserEmailID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserEmailIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EmailServiceServer).GetUserEmailID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EmailService_GetUserEmailID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EmailServiceServer).GetUserEmailID(ctx, req.(*GetUserEmailIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EmailService_ServiceDesc is the grpc.ServiceDesc for EmailService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +262,10 @@ var EmailService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SwitchIsInbox",
 			Handler:    _EmailService_SwitchIsInbox_Handler,
+		},
+		{
+			MethodName: "GetUserEmailID",
+			Handler:    _EmailService_GetUserEmailID_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

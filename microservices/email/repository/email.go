@@ -27,6 +27,24 @@ func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.E
 	}
 	return id, nil
 }
+func (r *Repository) GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error) {
+	query := `
+        SELECT id FROM user_emails
+        WHERE email_id = $1 AND user_id = $2 AND is_sender = false
+        LIMIT 1
+    `
+
+	var userEmailID int64
+	err := r.db.QueryRowContext(ctx, query, emailID, userID).Scan(&userEmailID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrMailNotFound
+		}
+		return 0, fmt.Errorf("failed to get user_email_id: %w", err)
+	}
+
+	return userEmailID, nil
+}
 
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	const query = `
@@ -126,13 +144,13 @@ func (r *Repository) queryUserMailbox(
 func (r *Repository) GetInboxEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
 	limit, offset = normPage(limit, offset)
 	return r.queryUserMailbox(ctx, userID, limit, offset,
-		"ue.is_deleted = false AND ue.is_spam = false AND ue.is_inbox = true")
+		"ue.is_deleted = false AND ue.is_spam = false AND ue.is_inbox = true AND ue.is_sender = false")
 }
 
 func (r *Repository) GetReceivedEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
 	limit, offset = normPage(limit, offset)
 	return r.queryUserMailbox(ctx, userID, limit, offset,
-		"ue.is_deleted = false AND ue.is_spam = false")
+		"ue.is_deleted = false AND ue.is_spam = false AND ue.is_sender = false")
 }
 
 func (r *Repository) GetAllEmails(ctx context.Context, userID int64, limit, offset int) ([]models.EmailWithMetadata, error) {
@@ -196,7 +214,7 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
 		FROM emails e
 		LEFT JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1 AND ue.is_deleted = false
-		WHERE e.sender_id = $1 AND e.is_draft = false
+		WHERE ue.user_id = $1 AND ue.is_sender = true AND e.is_draft = false
 		ORDER BY e.created_at DESC
 		LIMIT $2 OFFSET $3
 	`
