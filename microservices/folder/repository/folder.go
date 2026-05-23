@@ -252,15 +252,22 @@ func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models
 }
 
 func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error) { //
-
+	// query := `
+	// 	SELECT user_email_id
+	// 	FROM folder_emails
+	// 	WHERE folder_id = $1
+	// 	ORDER BY created_at DESC
+	// 	LIMIT $2
+	// 	OFFSET $3
+	// `
 	query := `
-		SELECT user_email_id
-		FROM folder_emails
-		WHERE folder_id = $1
-		ORDER BY created_at DESC
-		LIMIT $2
-		OFFSET $3
-	`
+        SELECT ue.email_id
+        FROM folder_emails fe
+        JOIN user_emails ue ON ue.id = fe.user_email_id
+        WHERE fe.folder_id = $1
+        ORDER BY fe.created_at DESC
+        LIMIT $2 OFFSET $3
+    `
 
 	rows, err := r.db.QueryContext(
 		ctx,
