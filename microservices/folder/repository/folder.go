@@ -252,7 +252,6 @@ func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models
 }
 
 func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limit, offset int) ([]int64, error) { //
-
 	query := `
 		SELECT user_email_id
 		FROM folder_emails

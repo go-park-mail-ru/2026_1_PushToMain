@@ -55,6 +55,7 @@ type EmailClient interface {
 	) (bool, error)
 	GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID int64) (*emailpb.GetEmailsByIdsResponse, error)
 	GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error)
+	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
 	SwitchIsInbox(
 		ctx context.Context,
 		emailID,
@@ -174,16 +175,16 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 		return nil, ErrAccessDenied
 	}
 
-	emailIDs, err := s.repo.GetFolderEmailIDs(
+	userEmailIDs, err := s.repo.GetFolderEmailIDs(
 		ctx,
 		input.FolderID,
 		input.Limit,
 		input.Offset,
 	)
-
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+	emailIDs, err := s.emailClient.GetEmailIdsByUserEmailIds(ctx, userEmailIDs)
 
 	emailResp, err := s.emailClient.GetEmailsByIDs(
 		ctx,
