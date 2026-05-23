@@ -19,11 +19,12 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EmailService_GetEmailById_FullMethodName     = "/email.EmailService/GetEmailById"
-	EmailService_CheckEmailAccess_FullMethodName = "/email.EmailService/CheckEmailAccess"
-	EmailService_GetEmailsByIds_FullMethodName   = "/email.EmailService/GetEmailsByIds"
-	EmailService_SwitchIsInbox_FullMethodName    = "/email.EmailService/SwitchIsInbox"
-	EmailService_GetUserEmailID_FullMethodName   = "/email.EmailService/GetUserEmailID"
+	EmailService_GetEmailById_FullMethodName              = "/email.EmailService/GetEmailById"
+	EmailService_GetEmailIdsByUserEmailIds_FullMethodName = "/email.EmailService/GetEmailIdsByUserEmailIds"
+	EmailService_CheckEmailAccess_FullMethodName          = "/email.EmailService/CheckEmailAccess"
+	EmailService_GetEmailsByIds_FullMethodName            = "/email.EmailService/GetEmailsByIds"
+	EmailService_SwitchIsInbox_FullMethodName             = "/email.EmailService/SwitchIsInbox"
+	EmailService_GetUserEmailID_FullMethodName            = "/email.EmailService/GetUserEmailID"
 )
 
 // EmailServiceClient is the client API for EmailService service.
@@ -31,6 +32,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type EmailServiceClient interface {
 	GetEmailById(ctx context.Context, in *GetEmailByIdRequest, opts ...grpc.CallOption) (*GetEmailByIdResponse, error)
+	GetEmailIdsByUserEmailIds(ctx context.Context, in *GetEmailIdsByUserEmailIdsRequest, opts ...grpc.CallOption) (*GetEmailIdsByUserEmailIdsResponse, error)
 	CheckEmailAccess(ctx context.Context, in *CheckEmailAccessRequest, opts ...grpc.CallOption) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(ctx context.Context, in *GetEmailsByIdsRequest, opts ...grpc.CallOption) (*GetEmailsByIdsResponse, error)
 	SwitchIsInbox(ctx context.Context, in *SwitchIsInboxRequest, opts ...grpc.CallOption) (*SwitchIsInboxResponse, error)
@@ -49,6 +51,16 @@ func (c *emailServiceClient) GetEmailById(ctx context.Context, in *GetEmailByIdR
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetEmailByIdResponse)
 	err := c.cc.Invoke(ctx, EmailService_GetEmailById_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *emailServiceClient) GetEmailIdsByUserEmailIds(ctx context.Context, in *GetEmailIdsByUserEmailIdsRequest, opts ...grpc.CallOption) (*GetEmailIdsByUserEmailIdsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetEmailIdsByUserEmailIdsResponse)
+	err := c.cc.Invoke(ctx, EmailService_GetEmailIdsByUserEmailIds_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +112,7 @@ func (c *emailServiceClient) GetUserEmailID(ctx context.Context, in *GetUserEmai
 // for forward compatibility.
 type EmailServiceServer interface {
 	GetEmailById(context.Context, *GetEmailByIdRequest) (*GetEmailByIdResponse, error)
+	GetEmailIdsByUserEmailIds(context.Context, *GetEmailIdsByUserEmailIdsRequest) (*GetEmailIdsByUserEmailIdsResponse, error)
 	CheckEmailAccess(context.Context, *CheckEmailAccessRequest) (*CheckEmailAccessResponse, error)
 	GetEmailsByIds(context.Context, *GetEmailsByIdsRequest) (*GetEmailsByIdsResponse, error)
 	SwitchIsInbox(context.Context, *SwitchIsInboxRequest) (*SwitchIsInboxResponse, error)
@@ -116,6 +129,9 @@ type UnimplementedEmailServiceServer struct{}
 
 func (UnimplementedEmailServiceServer) GetEmailById(context.Context, *GetEmailByIdRequest) (*GetEmailByIdResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetEmailById not implemented")
+}
+func (UnimplementedEmailServiceServer) GetEmailIdsByUserEmailIds(context.Context, *GetEmailIdsByUserEmailIdsRequest) (*GetEmailIdsByUserEmailIdsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetEmailIdsByUserEmailIds not implemented")
 }
 func (UnimplementedEmailServiceServer) CheckEmailAccess(context.Context, *CheckEmailAccessRequest) (*CheckEmailAccessResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CheckEmailAccess not implemented")
@@ -164,6 +180,24 @@ func _EmailService_GetEmailById_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EmailServiceServer).GetEmailById(ctx, req.(*GetEmailByIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EmailService_GetEmailIdsByUserEmailIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEmailIdsByUserEmailIdsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EmailServiceServer).GetEmailIdsByUserEmailIds(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EmailService_GetEmailIdsByUserEmailIds_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EmailServiceServer).GetEmailIdsByUserEmailIds(ctx, req.(*GetEmailIdsByUserEmailIdsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -250,6 +284,10 @@ var EmailService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetEmailById",
 			Handler:    _EmailService_GetEmailById_Handler,
+		},
+		{
+			MethodName: "GetEmailIdsByUserEmailIds",
+			Handler:    _EmailService_GetEmailIdsByUserEmailIds_Handler,
 		},
 		{
 			MethodName: "CheckEmailAccess",

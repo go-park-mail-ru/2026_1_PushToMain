@@ -262,6 +262,15 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	}, nil
 }
 
+func (s *Service) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error) {
+
+	result, err := s.repo.GetEmailIdsByUserEmailIds(ctx, userEmailIDs)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+	return result, nil
+}
+
 func (s *Service) GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error) {
 
 	result, err := s.repo.GetUserEmailID(ctx, emailID, userID)

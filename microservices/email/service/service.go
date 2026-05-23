@@ -64,6 +64,7 @@ type Repository interface {
 	MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
+	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
 }
 
 type DraftsConfig struct {
