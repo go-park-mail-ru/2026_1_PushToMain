@@ -17,6 +17,10 @@ type UserClient interface {
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*userpb.User, error)
 }
 
+type SmtpClient interface {
+	SendEmail(from string, to []string, subject, body string) error
+}
+
 type Repository interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
@@ -74,6 +78,7 @@ type Service struct {
 	repo       Repository
 	drafts     DraftsConfig
 	userClient UserClient
+	smtpClient SmtpClient
 }
 
 func New(repo Repository, userClient UserClient, drafts DraftsConfig) *Service {

@@ -21,6 +21,14 @@ var (
 	ErrDraftsLimit      = errors.New("drafts limit reached")
 )
 
+type ErrSavedAsDraft struct {
+	DraftID int64
+}
+
+func (e *ErrSavedAsDraft) Error() string {
+	return fmt.Sprintf("sending failed, saved as draft: %d", e.DraftID)
+}
+
 type ErrRecipientNotFound struct {
 	Email string
 }
