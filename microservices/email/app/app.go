@@ -12,12 +12,14 @@ import (
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
+	smtppkg "github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	"go.uber.org/zap"
 
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
+	lmtpDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
@@ -69,67 +71,68 @@ func (app *App) Run(configPath string) {
 	if err != nil {
 		app.Logger.Errorf("migrations error: %v", err)
 	}
-	emailRepo := emailRepo.New(db)
-	grpcUserClient, err := userClient.New(
-		app.Config.GRPCClients.UserService,
-	)
 
+	repo := emailRepo.New(db)
+
+	grpcUserClient, err := userClient.New(app.Config.GRPCClients.UserService)
 	if err != nil {
-		app.Logger.Fatalf(
-			"failed to init user grpc client: %v",
-			err,
-		)
+		app.Logger.Fatalf("failed to init user grpc client: %v", err)
 	}
-
 	defer grpcUserClient.Close()
 
-	emailService := emailService.New(
-		emailRepo,
+	// SMTP-клиент для исходящих писем через Postfix.
+	// Если хост не задан — smtpClient будет nil, исходящие через Postfix отключены.
+	var smtpClient emailService.SmtpClient
+	if app.Config.SMTP.Host != "" {
+		smtpClient = smtppkg.NewSmtpClient(
+			app.Config.SMTP.Host,
+			app.Config.SMTP.Port,
+			"", "", // auth не нужен, Postfix доверяет mynetworks
+		)
+		app.Logger.Infof("smtp client configured: %s:%s", app.Config.SMTP.Host, app.Config.SMTP.Port)
+	}
+
+	svc := emailService.New(
+		repo,
 		grpcUserClient,
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
+		smtpClient,
 	)
+
+	// LMTP-сервер для входящих писем от Postfix.
+	// Запускаем в горутине — он работает параллельно с HTTP и gRPC.
+	if app.Config.LMTP.Addr != "" {
+		lmtpSrv := lmtpDelivery.NewServer(svc, app.Config.LMTP.Addr)
+		go func() {
+			app.Logger.Infof("lmtp server started on %s", app.Config.LMTP.Addr)
+			if err := lmtpSrv.ListenAndServe(); err != nil {
+				app.Logger.Errorf("lmtp server error: %v", err)
+			}
+		}()
+	}
+
+	// gRPC сервер
 	grpcServer := grpc.NewServer()
+	emailGrpcHandler := grpcDelivery.New(svc)
+	emailpb.RegisterEmailServiceServer(grpcServer, emailGrpcHandler)
 
-	emailGrpcHandler := grpcDelivery.New(
-		emailService,
-	)
-
-	emailpb.RegisterEmailServiceServer(
-		grpcServer,
-		emailGrpcHandler,
-	)
-
-	lis, err := net.Listen(
-		"tcp",
-		":"+app.Config.GRPC.EmailPort,
-	)
-
+	lis, err := net.Listen("tcp", ":"+app.Config.GRPC.EmailPort)
 	if err != nil {
-		app.Logger.Fatalf(
-			"grpc listen error: %v",
-			err,
-		)
+		app.Logger.Fatalf("grpc listen error: %v", err)
 	}
 
 	go func() {
-		app.Logger.Infof(
-			"grpc started on %s",
-			app.Config.GRPC.EmailPort,
-		)
-
+		app.Logger.Infof("grpc started on %s", app.Config.GRPC.EmailPort)
 		if err := grpcServer.Serve(lis); err != nil {
-			app.Logger.Fatalf(
-				"grpc serve error: %v",
-				err,
-			)
+			app.Logger.Fatalf("grpc serve error: %v", err)
 		}
 	}()
 
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{
+	// HTTP сервер
+	emailHandler := emailHttp.New(svc, emailHttp.Config{
 		TTL: app.Config.JWTManager.TTL()})
 
 	m := metrics.New("email", "backend")
-
 	router := mux.NewRouter()
 	router.Handle("/metrics", m.Handler())
 	router.Use(middleware.Logging(app.Logger))
@@ -170,22 +173,21 @@ func (app *App) Run(configPath string) {
 }
 
 func (app *App) shutdownGracefully() error {
-	shutdownContex, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownMaxTime)
 	defer cancel()
 
 	app.Logger.Info("shutting down server")
 
 	fullShutdown := make(chan struct{}, 1)
 	go func() {
-		if err := app.Server.Shutdown(shutdownContex); err != nil {
+		if err := app.Server.Shutdown(shutdownCtx); err != nil {
 			app.Logger.Errorf("HTTP server Shutdown: %v", err)
 		}
 		close(fullShutdown)
 	}()
 	select {
-	case <-shutdownContex.Done():
-		app.Logger.Errorf("server shutdown: %w", shutdownContex.Err())
-		return fmt.Errorf("server shutdown: %w", shutdownContex.Err())
+	case <-shutdownCtx.Done():
+		return fmt.Errorf("server shutdown: %w", shutdownCtx.Err())
 	case <-fullShutdown:
 		app.Logger.Info("Server shut down successfully")
 	}

@@ -62,7 +62,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-
     restart: unless-stopped
 
   # Email service
@@ -78,11 +77,19 @@ services:
     ports:
       - "8082:8082"
       - "50052:50052"
+    expose:
+      - "24"
     depends_on:
       postgres:
         condition: service_healthy
       user-service:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tlnp | grep 8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   # Folder service
@@ -156,6 +163,9 @@ services:
       - "25:25"
       - "587:587"
     hostname: mail.e-smail.ru
+    depends_on:
+      email-service:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

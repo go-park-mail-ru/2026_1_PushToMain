@@ -29,6 +29,18 @@ type GRPCClients struct {
 	UserService string `mapstructure:"user_service"`
 }
 
+// SMTPConfig — настройки исходящего SMTP (Postfix submission, порт 587).
+type SMTPConfig struct {
+	Host string `mapstructure:"host"` // имя контейнера: "postfix"
+	Port string `mapstructure:"port"` // "587"
+}
+
+// LMTPConfig — настройки входящего LMTP-сервера.
+// Postfix отправляет письма на этот адрес после приёма из интернета.
+type LMTPConfig struct {
+	Addr string `mapstructure:"addr"` // ":24"
+}
+
 type Config struct {
 	ServerPort string `mapstructure:"port"`
 
@@ -39,29 +51,24 @@ type Config struct {
 
 	Db postgres.Config `mapstructure:"postgres"`
 
-	Avatar AvatarConfig `mapstructure:"avatar"`
-	Drafts DraftsConfig `mapstructure:"drafts"`
+	Avatar  AvatarConfig `mapstructure:"avatar"`
+	Drafts  DraftsConfig `mapstructure:"drafts"`
+	SMTP    SMTPConfig   `mapstructure:"smtp"`
+	LMTP    LMTPConfig   `mapstructure:"lmtp"`
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
 }
 
 func Load(path string) (*Config, error) {
-
 	if err := app.Init(path); err != nil {
-		return nil, fmt.Errorf(
-			"error initializing config: %w",
-			err,
-		)
+		return nil, fmt.Errorf("error initializing config: %w", err)
 	}
 
 	cfg := &Config{}
 
 	if err := viper.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf(
-			"error unmarshaling config: %w",
-			err,
-		)
+		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
 	return cfg, nil

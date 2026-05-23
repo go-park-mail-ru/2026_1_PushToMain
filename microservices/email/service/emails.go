@@ -263,7 +263,6 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 }
 
 func (s *Service) GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error) {
-
 	result, err := s.repo.GetUserEmailID(ctx, emailID, userID)
 	if err != nil {
 		return 0, MapRepositoryError(err)
@@ -312,6 +311,28 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 	if err != nil {
 		return nil, err
 	}
+
+	external := collectExternal(recipients)
+
+	if len(external) > 0 && s.smtpClient != nil {
+		sender, err := s.userClient.GetUserByID(ctx, in.UserId)
+		if err != nil {
+			return nil, MapRepositoryError(err)
+		}
+		if err := s.smtpClient.SendEmail(sender.Email, external, in.Header, in.Body); err != nil {
+			draft, draftErr := s.repo.CreateDraft(ctx, models.Draft{
+				SenderID:   in.UserId,
+				Header:     in.Header,
+				Body:       in.Body,
+				Recipients: in.Receivers,
+			})
+			if draftErr != nil {
+				return nil, MapRepositoryError(draftErr)
+			}
+			return nil, &ErrSavedAsDraft{DraftID: draft.ID}
+		}
+	}
+
 	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients)
 }
 
@@ -330,6 +351,18 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
+
+	external := collectExternal(recipients)
+	if len(external) > 0 && s.smtpClient != nil {
+		sender, err := s.userClient.GetUserByID(ctx, in.UserID)
+		if err != nil {
+			return MapRepositoryError(err)
+		}
+		if err := s.smtpClient.SendEmail(sender.Email, external, src.Header, src.Body); err != nil {
+			return err
+		}
+	}
+
 	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients)
 	return err
 }
@@ -391,6 +424,64 @@ func (s *Service) sendEmailTx(
 	}, nil
 }
 
+func (s *Service) ReceiveExternalEmail(
+	ctx context.Context,
+	from string,
+	to []string,
+	header, body string,
+) error {
+	users, err := s.userClient.GetUsersByEmails(ctx, to)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+	byEmail := make(map[string]int64, len(users))
+	for _, u := range users {
+		byEmail[u.Email] = u.Id
+	}
+
+	recipients := make([]models.Recipient, 0, len(to))
+	for _, e := range to {
+		rec := models.Recipient{Email: e}
+		if id, ok := byEmail[e]; ok {
+			id := id
+			rec.UserID = &id
+		}
+		recipients = append(recipients, rec)
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return ErrTransaction
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	emailID, err := s.repo.InsertExternalEmail(ctx, tx, from, header, body)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+	if err = s.repo.InsertEmailRecipients(ctx, tx, emailID, recipients); err != nil {
+		return MapRepositoryError(err)
+	}
+	for _, r := range recipients {
+		if r.UserID == nil {
+			continue
+		}
+		if err = s.repo.InsertUserEmail(ctx, tx, *r.UserID, emailID, false, true); err != nil {
+			return MapRepositoryError(err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return ErrTransaction
+	}
+	committed = true
+	return nil
+}
+
 func (s *Service) MarkEmailAsRead(ctx context.Context, in MarkAsReadInput) error {
 	if len(in.EmailID) == 0 {
 		return ErrEmptyIDs
@@ -450,8 +541,22 @@ func (s *Service) resolveRecipients(ctx context.Context, emails []string) ([]mod
 	return out, nil
 }
 
+func collectExternal(recipients []models.Recipient) []string {
+	var out []string
+	for _, r := range recipients {
+		if r.UserID == nil {
+			out = append(out, r.Email)
+		}
+	}
+	return out
+}
+
 func extractDomain(email string) string {
-	return strings.Split(email, "@")[1]
+	parts := strings.Split(email, "@")
+	if len(parts) != 2 {
+		return ""
+	}
+	return parts[1]
 }
 
 func isLocalDomain(domain string) bool {
