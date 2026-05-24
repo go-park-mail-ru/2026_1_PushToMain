@@ -267,7 +267,6 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 }
 
 func (s *Service) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error) {
-
 	result, err := s.repo.GetEmailIdsByUserEmailIds(ctx, userEmailIDs)
 	if err != nil {
 		return nil, MapRepositoryError(err)
@@ -276,7 +275,6 @@ func (s *Service) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []
 }
 
 func (s *Service) GetUserEmailID(ctx context.Context, emailID int64, userID int64) (int64, error) {
-
 	result, err := s.repo.GetUserEmailID(ctx, emailID, userID)
 	if err != nil {
 		return 0, MapRepositoryError(err)
@@ -343,7 +341,8 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil) //ДОДЕЛАТЬ
+	// Forwarded emails do not carry attachments — only header+body.
+	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil)
 	return err
 }
 
@@ -352,8 +351,8 @@ func (s *Service) sendEmailTx(
 	senderID int64,
 	header, body string,
 	recipients []models.Recipient,
-	Files []multipart.File,
-	FileHeaders []*multipart.FileHeader,
+	files []multipart.File,
+	fileHeaders []*multipart.FileHeader,
 ) (*SendEmailResult, error) {
 	sender, err := s.userClient.GetUserByID(ctx, senderID)
 	if err != nil {
@@ -381,9 +380,11 @@ func (s *Service) sendEmailTx(
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	if err = s.repo.InsertEmailRecipients(ctx, tx, emailID, recipients); err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	for _, r := range recipients {
 		if r.UserID == nil {
 			continue
@@ -392,8 +393,43 @@ func (s *Service) sendEmailTx(
 			return nil, MapRepositoryError(err)
 		}
 	}
+
 	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
+	}
+
+	// Insert attachment metadata inside the same transaction so that if
+	// something fails all DB changes are rolled back together.
+	if len(files) > 0 && s.storage != nil {
+		for i, f := range files {
+			if i >= len(fileHeaders) {
+				break
+			}
+			fh := fileHeaders[i]
+			contentType := fh.Header.Get("Content-Type")
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+
+			storageKey, uploadErr := s.storage.UploadAttachment(
+				ctx, emailID, fh.Filename, f, fh.Size, contentType,
+			)
+			if uploadErr != nil {
+				// Roll back DB; best-effort delete any already-uploaded objects.
+				return nil, uploadErr
+			}
+
+			if _, insertErr := s.repo.InsertAttachment(ctx, tx, models.Attachment{
+				EmailID:     emailID,
+				FileName:    fh.Filename,
+				ContentType: contentType,
+				SizeBytes:   fh.Size,
+				StoragePath: storageKey,
+			}); insertErr != nil {
+				_ = s.storage.DeleteAttachment(ctx, storageKey)
+				return nil, MapRepositoryError(insertErr)
+			}
+		}
 	}
 
 	if err = tx.Commit(); err != nil {

@@ -19,7 +19,8 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
-	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
+	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
+	emailStorage "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/storage"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 	"github.com/gorilla/mux"
 
@@ -28,6 +29,11 @@ import (
 	grpcDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/grpc"
 
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"google.golang.org/grpc"
 )
@@ -69,64 +75,47 @@ func (app *App) Run(configPath string) {
 	if err != nil {
 		app.Logger.Errorf("migrations error: %v", err)
 	}
-	emailRepo := emailRepo.New(db)
-	grpcUserClient, err := userClient.New(
-		app.Config.GRPCClients.UserService,
-	)
 
+	repo := emailRepo.New(db)
+
+	grpcUserClient, err := userClient.New(app.Config.GRPCClients.UserService)
 	if err != nil {
-		app.Logger.Fatalf(
-			"failed to init user grpc client: %v",
-			err,
-		)
+		app.Logger.Fatalf("failed to init user grpc client: %v", err)
 	}
-
 	defer grpcUserClient.Close()
 
-	emailService := emailService.New(
-		emailRepo,
+	svc := emailService.New(
+		repo,
 		grpcUserClient,
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
 	)
-	grpcServer := grpc.NewServer()
 
-	emailGrpcHandler := grpcDelivery.New(
-		emailService,
-	)
-
-	emailpb.RegisterEmailServiceServer(
-		grpcServer,
-		emailGrpcHandler,
-	)
-
-	lis, err := net.Listen(
-		"tcp",
-		":"+app.Config.GRPC.EmailPort,
-	)
-
+	// Initialise MinIO / S3-compatible object storage for attachments.
+	minioClient, err := newMinioClient(app.Config.Minio)
 	if err != nil {
-		app.Logger.Fatalf(
-			"grpc listen error: %v",
-			err,
-		)
+		app.Logger.Errorf("minio init error (attachments disabled): %v", err)
+	} else {
+		svc.WithStorage(emailStorage.New(minioClient))
+		app.Logger.Info("object storage connected")
+	}
+
+	grpcServer := grpc.NewServer()
+	emailGrpcHandler := grpcDelivery.New(svc)
+	emailpb.RegisterEmailServiceServer(grpcServer, emailGrpcHandler)
+
+	lis, err := net.Listen("tcp", ":"+app.Config.GRPC.EmailPort)
+	if err != nil {
+		app.Logger.Fatalf("grpc listen error: %v", err)
 	}
 
 	go func() {
-		app.Logger.Infof(
-			"grpc started on %s",
-			app.Config.GRPC.EmailPort,
-		)
-
+		app.Logger.Infof("grpc started on %s", app.Config.GRPC.EmailPort)
 		if err := grpcServer.Serve(lis); err != nil {
-			app.Logger.Fatalf(
-				"grpc serve error: %v",
-				err,
-			)
+			app.Logger.Fatalf("grpc serve error: %v", err)
 		}
 	}()
 
-	emailHandler := emailHttp.New(emailService, emailHttp.Config{
-		TTL: app.Config.JWTManager.TTL()})
+	emailHandler := emailHttp.New(svc, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	m := metrics.New("email", "backend")
 
@@ -167,6 +156,35 @@ func (app *App) Run(configPath string) {
 	if err := app.shutdownGracefully(); err != nil {
 		app.Logger.Errorf("error during shutdown: %v", err)
 	}
+}
+
+// newMinioClient builds an S3-compatible client pointing at MinIO.
+func newMinioClient(cfg MinioConfig) (*s3.Client, error) {
+	customResolver := aws.EndpointResolverWithOptionsFunc(
+		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				URL:               cfg.Endpoint,
+				SigningRegion:     cfg.Region,
+				HostnameImmutable: true,
+			}, nil
+		},
+	)
+
+	awsCfg, err := config.LoadDefaultConfig(
+		context.Background(),
+		config.WithRegion(cfg.Region),
+		config.WithEndpointResolverWithOptions(customResolver),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("minio aws config: %w", err)
+	}
+
+	return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.UsePathStyle = true // required for MinIO
+	}), nil
 }
 
 func (app *App) shutdownGracefully() error {

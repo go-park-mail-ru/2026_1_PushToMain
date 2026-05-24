@@ -16,11 +16,10 @@ type Repository struct {
 }
 
 func New(client *s3.Client) *Repository {
-	return &Repository{
-		s3: client,
-	}
+	return &Repository{s3: client}
 }
 
+// UploadAttachment streams file bytes into object storage and returns the storage key.
 func (r *Repository) UploadAttachment(
 	ctx context.Context,
 	emailID int64,
@@ -45,6 +44,24 @@ func (r *Repository) UploadAttachment(
 	return key, nil
 }
 
+// DownloadAttachment opens a streaming reader for the given storage key.
+// The caller is responsible for closing the returned ReadCloser.
+func (r *Repository) DownloadAttachment(
+	ctx context.Context,
+	key string,
+) (io.ReadCloser, error) {
+	out, err := r.s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out.Body, nil
+}
+
+// DeleteAttachment removes the object identified by key from storage.
 func (r *Repository) DeleteAttachment(
 	ctx context.Context,
 	key string,
@@ -53,14 +70,9 @@ func (r *Repository) DeleteAttachment(
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(key),
 	})
-
 	return err
 }
 
 func makeAttachmentPath(emailID int64, filename string) string {
-	return fmt.Sprintf(
-		"emails/%d/%s",
-		emailID,
-		filename,
-	)
+	return fmt.Sprintf("emails/%d/%s", emailID, filename)
 }

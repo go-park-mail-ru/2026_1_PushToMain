@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"io"
-	"mime/multipart"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
@@ -67,11 +66,22 @@ type Repository interface {
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
 	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
+
+	// Attachments
+	InsertAttachment(ctx context.Context, tx *sql.Tx, attachment models.Attachment) (int64, error)
+	GetAttachmentsByEmailIDs(ctx context.Context, emailIDs []int64) ([]models.Attachment, error)
+	GetAttachmentByID(ctx context.Context, attachmentID, emailID int64) (*models.Attachment, error)
+	DeleteAttachments(ctx context.Context, tx *sql.Tx, ids []int64) error
 }
 
+// Storage is the object-storage (MinIO/S3) interface.
+// Implementations live in microservices/email/repository/storage.
 type Storage interface {
-	SaveAttachment(ctx context.Context, file multipart.File, filename string) (string, error)
-	OpenAttachment(ctx context.Context, key string) (io.ReadCloser, error)
+	// UploadAttachment streams bytes into storage and returns the storage key.
+	UploadAttachment(ctx context.Context, emailID int64, filename string, file io.Reader, size int64, contentType string) (string, error)
+	// DownloadAttachment opens a stream for the given key. Caller must close the body.
+	DownloadAttachment(ctx context.Context, key string) (io.ReadCloser, error)
+	// DeleteAttachment removes the object from storage.
 	DeleteAttachment(ctx context.Context, key string) error
 }
 
@@ -83,8 +93,18 @@ type Service struct {
 	repo       Repository
 	drafts     DraftsConfig
 	userClient UserClient
+	storage    Storage
 }
 
+// New creates a Service without object storage (attachments will error until
+// WithStorage is called, or pass a real Storage implementation).
 func New(repo Repository, userClient UserClient, drafts DraftsConfig) *Service {
 	return &Service{repo: repo, drafts: drafts, userClient: userClient}
+}
+
+// WithStorage attaches an object-storage backend. Call from app.go after
+// initialising MinIO.
+func (s *Service) WithStorage(st Storage) *Service {
+	s.storage = st
+	return s
 }

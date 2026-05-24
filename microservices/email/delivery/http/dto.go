@@ -109,3 +109,18 @@ type GetDraftsResponse struct {
 	Offset int             `json:"offset"`
 	Total  int             `json:"total"`
 }
+
+// ─── Attachment DTOs ──────────────────────────────────────────────────────────
+
+type AttachmentResponse struct {
+	ID          int64     `json:"id"`
+	EmailID     int64     `json:"email_id"`
+	FileName    string    `json:"file_name"`
+	ContentType string    `json:"content_type"`
+	SizeBytes   int64     `json:"size_bytes"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type GetAttachmentsResponse struct {
+	Attachments []AttachmentResponse `json:"attachments"`
+}

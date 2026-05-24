@@ -12,6 +12,9 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 )
 
+// maxSendFormSize limits the entire multipart body when sending an email with attachments.
+const maxSendFormSize = 50 << 20 // 50 MB
+
 type Service interface {
 	GetAllEmailsByUser(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
 	GetEmailsByReceiver(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
@@ -42,6 +45,12 @@ type Service interface {
 	GetDrafts(ctx context.Context, in service.GetDraftsInput) (*service.GetDraftsResult, error)
 	DeleteDrafts(ctx context.Context, in service.DeleteDraftsInput) error
 	SendDraft(ctx context.Context, in service.SendDraftInput) (*service.SendEmailResult, error)
+
+	// Attachments
+	UploadAttachment(ctx context.Context, in service.UploadAttachmentInput) (*service.AttachmentResult, error)
+	DownloadAttachment(ctx context.Context, in service.DownloadAttachmentInput) (*service.DownloadAttachmentResult, error)
+	DeleteAttachments(ctx context.Context, in service.DeleteAttachmentsInput) error
+	GetAttachments(ctx context.Context, in service.GetAttachmentsInput) (*service.GetAttachmentsResult, error)
 }
 
 func emailToDTO(em service.EmailResult) EmailResponse {
@@ -73,24 +82,72 @@ func writeEmailsList(w http.ResponseWriter, result *service.GetEmailsResult) {
 	})
 }
 
+// SendEmail accepts either:
+//   - application/json  – plain email without attachments (legacy)
+//   - multipart/form-data – email with optional file attachments
+//
+// For multipart the text fields are: header, body, receivers (JSON array string).
 func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	userID, ok := userIDFromCtx(r, w)
 	if !ok {
 		return
 	}
-	var req SendEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+	ct := r.Header.Get("Content-Type")
+	in := service.SendEmailInput{UserId: userID}
+
+	if isMultipart(ct) {
+		// Parse multipart form.
+		if err := r.ParseMultipartForm(maxSendFormSize); err != nil {
+			response.BadRequest(w)
+			return
+		}
+		in.Header = r.FormValue("header")
+		in.Body = r.FormValue("body")
+
+		// receivers is a JSON-encoded string array: '["a@b.com","c@d.com"]'
+		receiversRaw := r.FormValue("receivers")
+		if receiversRaw != "" {
+			if err := json.Unmarshal([]byte(receiversRaw), &in.Receivers); err != nil {
+				response.BadRequest(w)
+				return
+			}
+		}
+
+		// Collect uploaded files.
+		if r.MultipartForm != nil {
+			for _, fhs := range r.MultipartForm.File {
+				for _, fh := range fhs {
+					f, err := fh.Open()
+					if err != nil {
+						response.BadRequest(w)
+						return
+					}
+					// Files are closed after SendEmail returns via multipart form GC.
+					in.Files = append(in.Files, f)
+					in.FileHeaders = append(in.FileHeaders, fh)
+				}
+			}
+		}
+	} else {
+		// Plain JSON body (no attachments).
+		var req SendEmailRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			response.BadRequest(w)
+			return
+		}
+		in.Header = req.Header
+		in.Body = req.Body
+		in.Receivers = req.Receivers
+	}
+
+	if (in.Header == "" && in.Body == "") || !validEmails(in.Receivers) {
 		response.BadRequest(w)
 		return
 	}
-	if (req.Header == "" && req.Body == "") || !validEmails(req.Receivers) {
-		response.BadRequest(w)
-		return
-	}
-	result, err := h.service.SendEmail(r.Context(), service.SendEmailInput{
-		UserId: userID, Header: req.Header, Body: req.Body, Receivers: req.Receivers,
-	})
+
+	result, err := h.service.SendEmail(r.Context(), in)
 	if err != nil {
 		logger.Errorf("SendEmail: user_id=%d, err=%v", userID, err)
 		parseCommonErrors(err, w)

@@ -14,20 +14,19 @@ func (r *Repository) InsertAttachment(
 	tx *sql.Tx,
 	attachment models.Attachment,
 ) (int64, error) {
-	query := `
-        INSERT INTO attachments (
-            email_id,
-            file_name,
-            content_type,
-            size_bytes,
-            storage_key
-        )
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id
-    `
+	const query = `
+		INSERT INTO attachments (
+			email_id,
+			filename,
+			content_type,
+			size_bytes,
+			storage_path
+		)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
 
 	var id int64
-
 	err := tx.QueryRowContext(
 		ctx,
 		query,
@@ -52,17 +51,17 @@ func (r *Repository) GetAttachmentsByEmailIDs(
 	placeholders, args := buildInQuery(emailIDs, 1)
 
 	query := fmt.Sprintf(`
-        SELECT
-            id,
-            email_id,
-            file_name,
-            content_type,
-            size_bytes,
-            storage_key,
-            created_at
-        FROM attachments
-        WHERE email_id IN (%s)
-    `, placeholders)
+		SELECT
+			id,
+			email_id,
+			filename,
+			content_type,
+			size_bytes,
+			storage_path,
+			created_at
+		FROM attachments
+		WHERE email_id IN (%s)
+	`, placeholders)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -73,22 +72,23 @@ func (r *Repository) GetAttachmentsByEmailIDs(
 	var attachments []models.Attachment
 
 	for rows.Next() {
-		var attachment models.Attachment
-
-		err = rows.Scan(
-			&attachment.ID,
-			&attachment.EmailID,
-			&attachment.FileName,
-			&attachment.ContentType,
-			&attachment.SizeBytes,
-			&attachment.StoragePath,
-			&attachment.CreatedAt,
-		)
-		if err != nil {
+		var a models.Attachment
+		if err := rows.Scan(
+			&a.ID,
+			&a.EmailID,
+			&a.FileName,
+			&a.ContentType,
+			&a.SizeBytes,
+			&a.StoragePath,
+			&a.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
+		attachments = append(attachments, a)
+	}
 
-		attachments = append(attachments, attachment)
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return attachments, nil
@@ -106,13 +106,35 @@ func (r *Repository) DeleteAttachments(
 	placeholders, args := buildInQuery(ids, 1)
 
 	query := fmt.Sprintf(`
-        DELETE FROM attachments
-        WHERE id IN (%s)
-    `, placeholders)
+		DELETE FROM attachments
+		WHERE id IN (%s)
+	`, placeholders)
 
 	_, err := tx.ExecContext(ctx, query, args...)
-
 	return err
+}
+
+// GetAttachmentByID returns a single attachment, checking it belongs to emailID.
+func (r *Repository) GetAttachmentByID(
+	ctx context.Context,
+	attachmentID, emailID int64,
+) (*models.Attachment, error) {
+	const query = `
+		SELECT id, email_id, filename, content_type, size_bytes, storage_path, created_at
+		FROM attachments
+		WHERE id = $1 AND email_id = $2
+	`
+	var a models.Attachment
+	err := r.db.QueryRowContext(ctx, query, attachmentID, emailID).Scan(
+		&a.ID, &a.EmailID, &a.FileName, &a.ContentType, &a.SizeBytes, &a.StoragePath, &a.CreatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
 }
 
 func (r *Repository) FillAttachments(
@@ -136,13 +158,9 @@ func (r *Repository) FillAttachments(
 		return err
 	}
 
-	for _, attachment := range attachments {
-		idx := idxByID[attachment.EmailID]
-
-		emails[idx].Attachments = append(
-			emails[idx].Attachments,
-			attachment,
-		)
+	for _, a := range attachments {
+		idx := idxByID[a.EmailID]
+		emails[idx].Attachments = append(emails[idx].Attachments, a)
 	}
 
 	return nil
@@ -153,11 +171,7 @@ func buildInQuery(ids []int64, start int) (string, []interface{}) {
 	args := make([]interface{}, 0, len(ids))
 
 	for i, id := range ids {
-		placeholders = append(
-			placeholders,
-			fmt.Sprintf("$%d", start+i),
-		)
-
+		placeholders = append(placeholders, fmt.Sprintf("$%d", start+i))
 		args = append(args, id)
 	}
 

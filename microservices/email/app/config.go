@@ -29,6 +29,15 @@ type GRPCClients struct {
 	UserService string `mapstructure:"user_service"`
 }
 
+// MinioConfig holds connection settings for MinIO / S3-compatible storage.
+type MinioConfig struct {
+	Endpoint  string `mapstructure:"endpoint"` // e.g. "http://minio:9000"
+	Region    string `mapstructure:"region"`   // e.g. "us-east-1"
+	AccessKey string `mapstructure:"access_key"`
+	SecretKey string `mapstructure:"secret_key"`
+	Bucket    string `mapstructure:"bucket"` // default bucket name (informational)
+}
+
 type Config struct {
 	ServerPort string `mapstructure:"port"`
 
@@ -41,27 +50,20 @@ type Config struct {
 
 	Avatar AvatarConfig `mapstructure:"avatar"`
 	Drafts DraftsConfig `mapstructure:"drafts"`
+	Minio  MinioConfig  `mapstructure:"minio"`
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
 }
 
 func Load(path string) (*Config, error) {
-
 	if err := app.Init(path); err != nil {
-		return nil, fmt.Errorf(
-			"error initializing config: %w",
-			err,
-		)
+		return nil, fmt.Errorf("error initializing config: %w", err)
 	}
 
 	cfg := &Config{}
-
 	if err := viper.Unmarshal(cfg); err != nil {
-		return nil, fmt.Errorf(
-			"error unmarshaling config: %w",
-			err,
-		)
+		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
 
 	return cfg, nil

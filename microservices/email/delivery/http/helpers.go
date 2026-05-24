@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/mail"
 	"strconv"
+	"strings"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
@@ -80,4 +81,9 @@ func validEmails(addrs []string) bool {
 		}
 	}
 	return true
+}
+
+// isMultipart reports whether the request Content-Type is multipart/form-data.
+func isMultipart(contentType string) bool {
+	return strings.HasPrefix(contentType, "multipart/form-data")
 }
