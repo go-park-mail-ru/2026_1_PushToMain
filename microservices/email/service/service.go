@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"io"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
@@ -21,6 +22,17 @@ type UserClient interface {
 // Реализуется pkg/smtp.SmtpClient.
 type SmtpClient interface {
 	SendEmail(from string, to []string, subject, body string) error
+}
+
+// Storage — интерфейс объектного хранилища (MinIO/S3) для вложений.
+// Реализуется microservices/email/repository/storage.
+type Storage interface {
+	// UploadAttachment загружает файл в хранилище и возвращает storage key.
+	UploadAttachment(ctx context.Context, emailID int64, filename string, file io.Reader, size int64, contentType string) (string, error)
+	// DownloadAttachment открывает поток для заданного ключа. Вызывающий обязан закрыть тело.
+	DownloadAttachment(ctx context.Context, key string) (io.ReadCloser, error)
+	// DeleteAttachment удаляет объект из хранилища.
+	DeleteAttachment(ctx context.Context, key string) error
 }
 
 type Repository interface {
@@ -73,6 +85,12 @@ type Repository interface {
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
 	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
+
+	// Attachments
+	InsertAttachment(ctx context.Context, tx *sql.Tx, attachment models.Attachment) (int64, error)
+	GetAttachmentsByEmailIDs(ctx context.Context, emailIDs []int64) ([]models.Attachment, error)
+	GetAttachmentByID(ctx context.Context, attachmentID, emailID int64) (*models.Attachment, error)
+	DeleteAttachments(ctx context.Context, tx *sql.Tx, ids []int64) error
 }
 
 type DraftsConfig struct {
@@ -84,6 +102,7 @@ type Service struct {
 	drafts     DraftsConfig
 	userClient UserClient
 	smtpClient SmtpClient // nil если Postfix не сконфигурирован
+	storage    Storage    // nil если MinIO не сконфигурирован
 }
 
 func New(repo Repository, userClient UserClient, drafts DraftsConfig, smtpClient SmtpClient) *Service {
@@ -93,4 +112,11 @@ func New(repo Repository, userClient UserClient, drafts DraftsConfig, smtpClient
 		userClient: userClient,
 		smtpClient: smtpClient,
 	}
+}
+
+// WithStorage подключает объектное хранилище для вложений.
+// Вызывается из app.go после инициализации MinIO.
+func (s *Service) WithStorage(st Storage) *Service {
+	s.storage = st
+	return s
 }

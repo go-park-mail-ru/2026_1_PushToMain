@@ -11,6 +11,7 @@ import (
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 	smtppkg "github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	"go.uber.org/zap"
@@ -22,6 +23,7 @@ import (
 	lmtpDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
+	emailStorage "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/storage"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 	"github.com/gorilla/mux"
 
@@ -98,6 +100,21 @@ func (app *App) Run(configPath string) {
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
 		smtpClient,
 	)
+
+	// MinIO / S3-совместимое хранилище для вложений.
+	// Если не сконфигурировано — вложения недоступны, сервис продолжает работу.
+	minioClient, err := minio.New(context.TODO(), app.Config.S3)
+	if err != nil {
+		app.Logger.Errorf("minio init error (attachments disabled): %v", err)
+	} else {
+		strg, err := emailStorage.New(minioClient)
+		if err != nil {
+			app.Logger.Warnf("failed to init s3 Storage: %v", err)
+		} else {
+			svc.WithStorage(strg)
+			app.Logger.Info("object storage connected")
+		}
+	}
 
 	// LMTP-сервер для входящих писем от Postfix.
 	// Запускаем в горутине — он работает параллельно с HTTP и gRPC.

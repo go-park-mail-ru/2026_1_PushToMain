@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"mime/multipart"
 	"strings"
 	"time"
 
@@ -84,6 +85,10 @@ type SendEmailInput struct {
 	Header    string
 	Body      string
 	Receivers []string
+
+	// Файлы заполняются только при multipart/form-data запросе.
+	Files       []multipart.File
+	FileHeaders []*multipart.FileHeader
 }
 
 type SendEmailResult struct {
@@ -263,7 +268,6 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 }
 
 func (s *Service) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error) {
-
 	result, err := s.repo.GetEmailIdsByUserEmailIds(ctx, userEmailIDs)
 	if err != nil {
 		return nil, MapRepositoryError(err)
@@ -323,6 +327,8 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 
 	external := collectExternal(recipients)
 
+	// Отправляем внешним получателям через Postfix (текст без вложений).
+	// Если Postfix недоступен — сохраняем как черновик и сообщаем об этом.
 	if len(external) > 0 && s.smtpClient != nil {
 		sender, err := s.userClient.GetUserByID(ctx, in.UserId)
 		if err != nil {
@@ -342,7 +348,7 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 		}
 	}
 
-	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients)
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders)
 }
 
 func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error {
@@ -372,7 +378,8 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 		}
 	}
 
-	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients)
+	// Пересылаемые письма не несут вложений — только заголовок и тело.
+	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil)
 	return err
 }
 
@@ -381,6 +388,8 @@ func (s *Service) sendEmailTx(
 	senderID int64,
 	header, body string,
 	recipients []models.Recipient,
+	files []multipart.File,
+	fileHeaders []*multipart.FileHeader,
 ) (*SendEmailResult, error) {
 	sender, err := s.userClient.GetUserByID(ctx, senderID)
 	if err != nil {
@@ -408,9 +417,11 @@ func (s *Service) sendEmailTx(
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	if err = s.repo.InsertEmailRecipients(ctx, tx, emailID, recipients); err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	for _, r := range recipients {
 		if r.UserID == nil {
 			continue
@@ -419,9 +430,43 @@ func (s *Service) sendEmailTx(
 			return nil, MapRepositoryError(err)
 		}
 	}
+
 	if err = s.repo.InsertUserEmail(ctx, tx, senderID, emailID, true, false); err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
+	// Загружаем вложения в хранилище и фиксируем метаданные внутри той же транзакции.
+	if len(files) > 0 && s.storage != nil {
+		for i, f := range files {
+			if i >= len(fileHeaders) {
+				break
+			}
+			fh := fileHeaders[i]
+			contentType := fh.Header.Get("Content-Type")
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+
+			storageKey, uploadErr := s.storage.UploadAttachment(
+				ctx, emailID, fh.Filename, f, fh.Size, contentType,
+			)
+			if uploadErr != nil {
+				return nil, uploadErr
+			}
+
+			if _, insertErr := s.repo.InsertAttachment(ctx, tx, models.Attachment{
+				EmailID:     emailID,
+				FileName:    fh.Filename,
+				ContentType: contentType,
+				SizeBytes:   fh.Size,
+				StoragePath: storageKey,
+			}); insertErr != nil {
+				_ = s.storage.DeleteAttachment(ctx, storageKey)
+				return nil, MapRepositoryError(insertErr)
+			}
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return nil, ErrTransaction
 	}
@@ -433,6 +478,7 @@ func (s *Service) sendEmailTx(
 	}, nil
 }
 
+// ReceiveExternalEmail сохраняет письмо, пришедшее от внешнего отправителя через LMTP.
 func (s *Service) ReceiveExternalEmail(
 	ctx context.Context,
 	from string,

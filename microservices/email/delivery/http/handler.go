@@ -40,13 +40,20 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/favorite", h.Favorite).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unfavorite", h.Unfavorite).Methods(http.MethodPut, http.MethodOptions)
 
-	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
+	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/unread", h.MarkEmailAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
 	private.HandleFunc("/spam-senders", h.UnmarkSpamSenders).Methods(http.MethodDelete, http.MethodOptions)
+
+	// Вложения: специфичный маршрут /{attachment_id} регистрируется раньше общего /attachments,
+	// чтобы gorilla/mux не перехватил его раньше.
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}", h.DownloadAttachment).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.GetAttachments).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.UploadAttachment).Methods(http.MethodPost, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.DeleteAttachments).Methods(http.MethodDelete, http.MethodOptions)
 
 	private.HandleFunc("/emails/{id:[0-9]+}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 
@@ -85,11 +92,13 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	case errors.Is(err, service.ErrBadRequest),
 		errors.Is(err, service.ErrEmptyIDs),
 		errors.Is(err, service.ErrDraftValidation),
-		errors.Is(err, service.ErrDraftNotReady):
+		errors.Is(err, service.ErrDraftNotReady),
+		errors.Is(err, service.ErrStorageUnavailable):
 		response.BadRequest(w)
 	case errors.Is(err, service.ErrUserNotFound),
 		errors.Is(err, service.ErrEmailNotFound),
-		errors.Is(err, service.ErrNoValidReceivers):
+		errors.Is(err, service.ErrNoValidReceivers),
+		errors.Is(err, service.ErrAttachmentNotFound):
 		response.NotFound(w)
 	case errors.Is(err, service.ErrAccessDenied):
 		response.Forbidden(w)
