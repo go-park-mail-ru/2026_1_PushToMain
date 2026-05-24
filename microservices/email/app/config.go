@@ -7,6 +7,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
 
 	"github.com/spf13/viper"
@@ -50,7 +51,7 @@ type Config struct {
 
 	Avatar AvatarConfig `mapstructure:"avatar"`
 	Drafts DraftsConfig `mapstructure:"drafts"`
-	Minio  MinioConfig  `mapstructure:"minio"`
+	S3     minio.Config `mapstructure:"minio"`
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`

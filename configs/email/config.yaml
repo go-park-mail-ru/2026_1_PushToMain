@@ -37,6 +37,13 @@ postgres:
   sslmode: disable
   migrations_path: "file://db/migrations"
 
+minio:
+  endpoint: "http://minio:9000"
+  region: "us-east-1"
+  sslmode: false
+  access_key: ""
+  secret_key: ""
+
 drafts:
   max_per_user: 100
 

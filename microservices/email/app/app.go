@@ -22,6 +22,7 @@ import (
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
 	emailStorage "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/storage"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/gorilla/mux"
 
 	"net"
@@ -91,11 +92,15 @@ func (app *App) Run(configPath string) {
 	)
 
 	// Initialise MinIO / S3-compatible object storage for attachments.
-	minioClient, err := newMinioClient(app.Config.Minio)
+	minioClient, err := minio.New(context.TODO(), app.Config.S3)
 	if err != nil {
 		app.Logger.Errorf("minio init error (attachments disabled): %v", err)
 	} else {
-		svc.WithStorage(emailStorage.New(minioClient))
+		strg, err := emailStorage.New(minioClient)
+		if err != nil {
+			app.Logger.Warnf("failed to init s3 Storage: %v", err)
+		}
+		svc.WithStorage(strg)
 		app.Logger.Info("object storage connected")
 	}
 

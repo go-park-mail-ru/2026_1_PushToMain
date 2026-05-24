@@ -2,21 +2,42 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 )
 
 const bucketName = "attachments"
 
+var (
+	ErrS3ClientNotInited = errors.New("s3 client not inited")
+	ErrS3CreateBucket    = errors.New("failed to create bucket")
+	ErrS3Err             = errors.New("failed to exec ")
+)
+
 type Repository struct {
-	s3 *s3.Client
+	s3            *s3.Client
+	presignClient *s3.PresignClient
 }
 
-func New(client *s3.Client) *Repository {
-	return &Repository{s3: client}
+func New(client *s3.Client) (*Repository, error) {
+	if client == nil {
+		return nil, ErrS3ClientNotInited
+	}
+
+	err := minio.CreateBucket(client, bucketName)
+	if err != nil {
+		return nil, ErrS3CreateBucket
+	}
+
+	return &Repository{
+		s3:            client,
+		presignClient: s3.NewPresignClient(client),
+	}, nil
 }
 
 // UploadAttachment streams file bytes into object storage and returns the storage key.

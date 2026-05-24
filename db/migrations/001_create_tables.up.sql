@@ -151,6 +151,5 @@ CREATE INDEX idx_user_emails_trash
     WHERE is_deleted = true;
 
 CREATE INDEX idx_attachments_email_id ON attachments(email_id);
-CREATE INDEX idx_attachments_sha256   ON attachments(sha256);
 
 CREATE INDEX idx_spam_senders_user_id ON spam_senders(user_id);
