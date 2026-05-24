@@ -8,7 +8,7 @@ inet_protocols = ipv4
 mynetworks = 127.0.0.0/8, 172.16.0.0/12, 10.0.0.0/8
 
 relay_domains = $mydomain
-relay_transport = lmtp:inet:email-service:24
+relay_transport = lmtp:inet:email-service:2400
 transport_maps = hash:/etc/postfix/transport
 
 smtpd_relay_restrictions =

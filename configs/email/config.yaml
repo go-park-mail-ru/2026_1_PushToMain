@@ -40,14 +40,12 @@ postgres:
 drafts:
   max_per_user: 100
 
-# Исходящие письма — Postfix submission
 smtp:
   host: postfix
   port: "587"
 
-# Входящие письма от Postfix — LMTP-сервер внутри email-service
 lmtp:
-  addr: ":24"
+  addr: ":2400"
 
 grpc:
   email_port: "50052"
