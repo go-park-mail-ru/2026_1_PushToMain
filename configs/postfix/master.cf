@@ -9,3 +9,4 @@ qmgr       unix  n  -  n  300 1  qmgr
 smtp       unix  -  -  n  -   -  smtp
 error      unix  -  -  n  -   -  error
 retry      unix  -  -  n  -   -  error
+postlog    unix-dgram n - n - 1  postlogd
