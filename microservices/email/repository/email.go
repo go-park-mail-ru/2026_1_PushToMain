@@ -27,6 +27,46 @@ func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.E
 	}
 	return id, nil
 }
+
+func (r *Repository) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error) {
+	if len(userEmailIDs) == 0 {
+		return []int64{}, nil
+	}
+
+	placeholders := make([]string, len(userEmailIDs))
+	args := make([]interface{}, len(userEmailIDs))
+	for i, id := range userEmailIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+        SELECT email_id FROM user_emails
+        WHERE id IN (%s)
+    `, strings.Join(placeholders, ", "))
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query email_ids: %w", err)
+	}
+	defer rows.Close()
+
+	var emailIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan email_id: %w", err)
+		}
+		emailIDs = append(emailIDs, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return emailIDs, nil
+}
+
 func (r *Repository) GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error) {
 	query := `
         SELECT id FROM user_emails

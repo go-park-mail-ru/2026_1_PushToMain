@@ -59,7 +59,25 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
-	var errNotFound *service.ErrRecipientNotFound
+	// Сначала проверяем типизированные ошибки через errors.As,
+	// потому что errors.Is не работает со структурами (каждый раз новый экземпляр).
+	var errSavedAsDraft *service.ErrSavedAsDraft
+	if errors.As(err, &errSavedAsDraft) {
+		// 202 Accepted: запрос принят, но письмо не отправлено — сохранено как черновик.
+		// Фронтенд должен уведомить пользователя и предложить повторить отправку из черновиков.
+		writeJSON(w, http.StatusAccepted, map[string]any{
+			"error":    "postfix unavailable, saved as draft",
+			"draft_id": errSavedAsDraft.DraftID,
+		})
+		return
+	}
+
+	var errRecipientNotFound *service.ErrRecipientNotFound
+	if errors.As(err, &errRecipientNotFound) {
+		response.NotFoundWithMessage(w, "recipient not found: "+errRecipientNotFound.Email)
+		return
+	}
+
 	switch {
 	case errors.Is(err, service.ErrConflict),
 		errors.Is(err, service.ErrDraftsLimit):
@@ -75,9 +93,6 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 		response.NotFound(w)
 	case errors.Is(err, service.ErrAccessDenied):
 		response.Forbidden(w)
-	case errors.As(err, &errNotFound):
-		response.NotFoundWithMessage(w, "recipient not found: "+errNotFound.Email)
-		return
 	default:
 		response.InternalError(w)
 	}

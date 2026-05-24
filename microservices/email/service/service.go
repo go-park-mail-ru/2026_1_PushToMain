@@ -17,10 +17,18 @@ type UserClient interface {
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*userpb.User, error)
 }
 
+// SmtpClient — интерфейс для отправки исходящих писем через Postfix.
+// Реализуется pkg/smtp.SmtpClient.
+type SmtpClient interface {
+	SendEmail(from string, to []string, subject, body string) error
+}
+
 type Repository interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
 	InsertEmail(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
+	// InsertExternalEmail сохраняет письмо от внешнего отправителя (sender_id = NULL).
+	InsertExternalEmail(ctx context.Context, tx *sql.Tx, senderEmail, header, body string) (int64, error)
 	InsertEmailRecipients(ctx context.Context, tx *sql.Tx, emailID int64, recipients []models.Recipient) error
 	InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, emailID int64, isSender bool, checkSpam bool) error
 
@@ -64,6 +72,7 @@ type Repository interface {
 	MarkDraftAsSentTx(ctx context.Context, tx *sql.Tx, draftID, userID int64) error
 	SwitchIsInbox(ctx context.Context, emailID int64, UserID int64) error
 	GetUserEmailID(ctx context.Context, emailID, userID int64) (int64, error)
+	GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error)
 }
 
 type DraftsConfig struct {
@@ -74,8 +83,14 @@ type Service struct {
 	repo       Repository
 	drafts     DraftsConfig
 	userClient UserClient
+	smtpClient SmtpClient // nil если Postfix не сконфигурирован
 }
 
-func New(repo Repository, userClient UserClient, drafts DraftsConfig) *Service {
-	return &Service{repo: repo, drafts: drafts, userClient: userClient}
+func New(repo Repository, userClient UserClient, drafts DraftsConfig, smtpClient SmtpClient) *Service {
+	return &Service{
+		repo:       repo,
+		drafts:     drafts,
+		userClient: userClient,
+		smtpClient: smtpClient,
+	}
 }

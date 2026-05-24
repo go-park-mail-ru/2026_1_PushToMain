@@ -40,6 +40,13 @@ postgres:
 drafts:
   max_per_user: 100
 
+smtp:
+  host: postfix
+  port: "587"
+
+lmtp:
+  addr: ":2400"
+
 grpc:
   email_port: "50052"
 

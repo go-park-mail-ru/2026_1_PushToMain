@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/smtp"
+	"strings"
 )
 
 var (
@@ -31,12 +32,13 @@ func (c *SmtpClient) SendEmail(from string, to []string, subject, body string) e
 		return ErrRecipientListIsEmpty
 	}
 
+	toString := strings.Join(to, ", ")
 	msg := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+
 		"Subject: %s\r\n"+
 		"Content-Type: text/plain; charset=UTF-8\r\n"+
 		"\r\n"+
-		"%s", from, to[0], subject, body)
+		"%s", from, toString, subject, body)
 
 	addr := c.Host + ":" + c.Port
 
