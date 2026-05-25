@@ -125,20 +125,18 @@ func (app *App) Run(configPath string) {
 		app.Logger.Error("empty SMTP client host config")
 	}
 
-	// lmtpBackend := lmtp.NewBackend(svc)
-	// lmtpServer := gosmtp.NewServer(lmtpBackend)
-	// lmtpServer.Addr = app.Config.LMTP.Addr
-	// lmtpServer.Domain = "e-smail.ru"
-	// lmtpServer.AllowInsecureAuth = true
-	// lmtpServer.LMTP = true
-
+	// LMTP
 	lmtpServer := lmtp.NewServer(svc, app.Config.LMTP.Addr)
+	lmtpListener, err := net.Listen("tcp", app.Config.LMTP.Addr)
+	if err != nil {
+		app.Logger.Fatalf("lmtp bind error: %v", err)
+	}
+	app.Logger.Infof("lmtp listening on %s", app.Config.LMTP.Addr)
 	go func() {
-		if err := lmtpServer.ListenAndServe(); err != nil {
-			app.Logger.Fatalf("lmtp serve error: %v", err)
+		if err := lmtpServer.Serve(lmtpListener); err != nil {
+			app.Logger.Errorf("lmtp serve stopped: %v", err)
 		}
 	}()
-	app.Logger.Infof("lmtp server started on %s", app.Config.LMTP.Addr)
 
 	grpcServer := grpc.NewServer()
 	emailGrpcHandler := grpcDelivery.New(svc)
