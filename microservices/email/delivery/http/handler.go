@@ -40,7 +40,7 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails/favorite", h.Favorite).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unfavorite", h.Unfavorite).Methods(http.MethodPut, http.MethodOptions)
 
-	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/read", h.MarkEmailsAsRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/unread", h.MarkEmailsAsUnRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/read", h.MarkEmailAsRead).Methods(http.MethodPut, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/unread", h.MarkEmailAsUnRead).Methods(http.MethodPut, http.MethodOptions)
