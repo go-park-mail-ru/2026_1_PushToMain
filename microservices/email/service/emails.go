@@ -1,12 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"fmt"
+	"io"
 	"mime/multipart"
 	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 )
 
 type GetEmailsInput struct {
@@ -341,9 +345,17 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-	// Forwarded emails do not carry attachments — only header+body.
 	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil)
 	return err
+}
+
+// filePayload хранит байты файла, прочитанные один раз для использования
+// и в MinIO, и в SMTP.
+type filePayload struct {
+	data        []byte
+	filename    string
+	contentType string
+	size        int64
 }
 
 func (s *Service) sendEmailTx(
@@ -357,6 +369,28 @@ func (s *Service) sendEmailTx(
 	sender, err := s.userClient.GetUserByID(ctx, senderID)
 	if err != nil {
 		return nil, MapRepositoryError(err)
+	}
+
+	payloads := make([]filePayload, 0, len(files))
+	for i, f := range files {
+		if i >= len(fileHeaders) {
+			break
+		}
+		fh := fileHeaders[i]
+		data, err := io.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+		ct := fh.Header.Get("Content-Type")
+		if ct == "" {
+			ct = "application/octet-stream"
+		}
+		payloads = append(payloads, filePayload{
+			data:        data,
+			filename:    fh.Filename,
+			contentType: ct,
+			size:        fh.Size,
+		})
 	}
 
 	tx, err := s.repo.BeginTx(ctx)
@@ -398,32 +432,19 @@ func (s *Service) sendEmailTx(
 		return nil, MapRepositoryError(err)
 	}
 
-	// Insert attachment metadata inside the same transaction so that if
-	// something fails all DB changes are rolled back together.
-	if len(files) > 0 && s.storage != nil {
-		for i, f := range files {
-			if i >= len(fileHeaders) {
-				break
-			}
-			fh := fileHeaders[i]
-			contentType := fh.Header.Get("Content-Type")
-			if contentType == "" {
-				contentType = "application/octet-stream"
-			}
-
+	if len(payloads) > 0 && s.storage != nil {
+		for _, p := range payloads {
 			storageKey, uploadErr := s.storage.UploadAttachment(
-				ctx, emailID, fh.Filename, f, fh.Size, contentType,
+				ctx, emailID, p.filename, bytes.NewReader(p.data), p.size, p.contentType,
 			)
 			if uploadErr != nil {
-				// Roll back DB; best-effort delete any already-uploaded objects.
 				return nil, uploadErr
 			}
-
 			if _, insertErr := s.repo.InsertAttachment(ctx, tx, models.Attachment{
 				EmailID:     emailID,
-				FileName:    fh.Filename,
-				ContentType: contentType,
-				SizeBytes:   fh.Size,
+				FileName:    p.filename,
+				ContentType: p.contentType,
+				SizeBytes:   p.size,
 				StoragePath: storageKey,
 			}); insertErr != nil {
 				_ = s.storage.DeleteAttachment(ctx, storageKey)
@@ -436,6 +457,24 @@ func (s *Service) sendEmailTx(
 		return nil, ErrTransaction
 	}
 	committed = true
+
+	if s.smtpClient != nil {
+		external := collectExternal(recipients)
+		if len(external) > 0 {
+			smtpAttachments := make([]smtp.Attachment, 0, len(payloads))
+			for _, p := range payloads {
+				smtpAttachments = append(smtpAttachments, smtp.Attachment{
+					Filename: p.filename,
+					Data:     p.data,
+					MIMEType: p.contentType,
+				})
+			}
+			if err := s.smtpClient.SendEmail(sender.Email, external, header, body, smtpAttachments); err != nil {
+				// TODO: надо сделать гарантированную доставку
+				return nil, fmt.Errorf("smtp send: %w", err)
+			}
+		}
+	}
 
 	return &SendEmailResult{
 		ID: emailID, SenderID: senderID,

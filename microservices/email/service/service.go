@@ -6,6 +6,7 @@ import (
 	"io"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
 )
 
@@ -18,20 +19,19 @@ type UserClient interface {
 	GetUsersByEmails(ctx context.Context, emails []string) ([]*userpb.User, error)
 }
 
-// SmtpClient — интерфейс для отправки исходящих писем через Postfix.
-// Реализуется pkg/smtp.SmtpClient.
-type SmtpClient interface {
-	SendEmail(from string, to []string, subject, body string) error
+type MailAttachment struct {
+	Filename    string
+	Data        []byte
+	ContentType string
 }
 
-// Storage — интерфейс объектного хранилища (MinIO/S3) для вложений.
-// Реализуется microservices/email/repository/storage.
+type SmtpClient interface {
+	SendEmail(from string, to []string, subject, body string, attachments []smtp.Attachment) error
+}
+
 type Storage interface {
-	// UploadAttachment загружает файл в хранилище и возвращает storage key.
 	UploadAttachment(ctx context.Context, emailID int64, filename string, file io.Reader, size int64, contentType string) (string, error)
-	// DownloadAttachment открывает поток для заданного ключа. Вызывающий обязан закрыть тело.
 	DownloadAttachment(ctx context.Context, key string) (io.ReadCloser, error)
-	// DeleteAttachment удаляет объект из хранилища.
 	DeleteAttachment(ctx context.Context, key string) error
 }
 
@@ -101,17 +101,19 @@ type Service struct {
 	drafts     DraftsConfig
 	userClient UserClient
 	storage    Storage
+	smtpClient SmtpClient
 }
 
-// New creates a Service without object storage (attachments will error until
-// WithStorage is called, or pass a real Storage implementation).
 func New(repo Repository, userClient UserClient, drafts DraftsConfig) *Service {
 	return &Service{repo: repo, drafts: drafts, userClient: userClient}
 }
 
-// WithStorage attaches an object-storage backend. Call from app.go after
-// initialising MinIO.
 func (s *Service) WithStorage(st Storage) *Service {
 	s.storage = st
+	return s
+}
+
+func (s *Service) WithSmtp(c SmtpClient) *Service {
+	s.smtpClient = c
 	return s
 }

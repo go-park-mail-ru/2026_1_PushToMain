@@ -84,6 +84,14 @@ func (c *SmtpClient) SendPlainText(from string, to []string, subject, body strin
 	return c.Send(NewMessage().From(from).To(to...).Subject(subject).Text(body))
 }
 
+func (c *SmtpClient) SendEmail(from string, to []string, subject, body string, attachments []Attachment) error {
+	msg := NewMessage().From(from).To(to...).Subject(subject).Text(body)
+	for _, a := range attachments {
+		msg.Attach(a.Filename, a.Data, a.MIMEType)
+	}
+	return c.Send(msg)
+}
+
 func (c *SmtpClient) Send(m *Message) error {
 	if len(m.to) == 0 {
 		return ErrRecipientListIsEmpty

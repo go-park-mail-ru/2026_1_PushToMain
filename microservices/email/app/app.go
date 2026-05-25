@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
+	smtp "github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	"go.uber.org/zap"
 
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
@@ -40,6 +41,18 @@ import (
 )
 
 const shutdownMaxTime = 5 * time.Second
+
+type smtpAdapter struct {
+	c *smtp.SmtpClient
+}
+
+func (a *smtpAdapter) SendEmail(from string, to []string, subject, body string, attachments []emailService.MailAttachment) error {
+	msg := smtp.NewMessage().From(from).To(to...).Subject(subject).Text(body)
+	for _, att := range attachments {
+		msg.Attach(att.Filename, att.Data, att.ContentType)
+	}
+	return a.c.Send(msg)
+}
 
 type App struct {
 	Server  http.Server
@@ -91,7 +104,6 @@ func (app *App) Run(configPath string) {
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
 	)
 
-	// Initialise MinIO / S3-compatible object storage for attachments.
 	minioClient, err := minio.New(context.TODO(), app.Config.S3)
 	if err != nil {
 		app.Logger.Errorf("minio init error (attachments disabled): %v", err)
@@ -102,6 +114,14 @@ func (app *App) Run(configPath string) {
 		}
 		svc.WithStorage(strg)
 		app.Logger.Info("object storage connected")
+	}
+
+	if app.Config.SMTP.Host != "" {
+		smtpClient := smtp.NewSmtpClient(app.Config.SMTP.Host, app.Config.SMTP.Port, "", "")
+		svc.WithSmtp(smtpClient)
+		app.Logger.Infof("smtp client configured: %s:%s", app.Config.SMTP.Host, app.Config.SMTP.Port)
+	} else {
+		app.Logger.Error("empty SMTP client host config")
 	}
 
 	grpcServer := grpc.NewServer()
@@ -162,7 +182,6 @@ func (app *App) Run(configPath string) {
 	}
 }
 
-// newMinioClient builds an S3-compatible client pointing at MinIO.
 func newMinioClient(cfg MinioConfig) (*s3.Client, error) {
 	customResolver := aws.EndpointResolverWithOptionsFunc(
 		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
@@ -187,7 +206,7 @@ func newMinioClient(cfg MinioConfig) (*s3.Client, error) {
 	}
 
 	return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.UsePathStyle = true // required for MinIO
+		o.UsePathStyle = true
 	}), nil
 }
 

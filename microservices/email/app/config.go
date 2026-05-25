@@ -30,13 +30,18 @@ type GRPCClients struct {
 	UserService string `mapstructure:"user_service"`
 }
 
-// MinioConfig holds connection settings for MinIO / S3-compatible storage.
 type MinioConfig struct {
-	Endpoint  string `mapstructure:"endpoint"` // e.g. "http://minio:9000"
-	Region    string `mapstructure:"region"`   // e.g. "us-east-1"
+	Endpoint  string `mapstructure:"endpoint"`
+	Region    string `mapstructure:"region"`
 	AccessKey string `mapstructure:"access_key"`
 	SecretKey string `mapstructure:"secret_key"`
-	Bucket    string `mapstructure:"bucket"` // default bucket name (informational)
+	Bucket    string `mapstructure:"bucket"`
+}
+
+// SMTPConfig — настройки исходящего SMTP (submission, порт 587).
+type SMTPConfig struct {
+	Host string `mapstructure:"host"` // имя контейнера: "postfix"
+	Port string `mapstructure:"port"` // "587"
 }
 
 type Config struct {
@@ -52,6 +57,7 @@ type Config struct {
 	Avatar AvatarConfig `mapstructure:"avatar"`
 	Drafts DraftsConfig `mapstructure:"drafts"`
 	S3     minio.Config `mapstructure:"minio"`
+	SMTP   SMTPConfig   `mapstructure:"smtp"`
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
