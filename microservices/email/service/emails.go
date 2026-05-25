@@ -217,16 +217,27 @@ func (s *Service) buildEmailsResult(
 ) (*GetEmailsResult, error) {
 	out := make([]EmailResult, len(emails))
 	for i, em := range emails {
-		user, err := s.userClient.GetUserByID(ctx, em.SenderID)
-		if err != nil {
-			return nil, MapRepositoryError(err)
+		var senderEmail, senderName, senderSurname string
+
+		if em.SenderID != 0 {
+			user, err := s.userClient.GetUserByID(ctx, em.SenderID)
+			if err != nil {
+				senderEmail = em.SenderEmail
+			} else {
+				senderEmail = user.Email
+				senderName = user.Name
+				senderSurname = user.Surname
+			}
+		} else {
+			senderEmail = em.SenderEmail
 		}
+
 		out[i] = EmailResult{
 			ID:            em.ID,
 			SenderID:      em.SenderID,
-			SenderEmail:   user.Email,
-			SenderName:    user.Name,
-			SenderSurname: user.Surname,
+			SenderEmail:   senderEmail,
+			SenderName:    senderName,
+			SenderSurname: senderSurname,
 			ReceiverList:  em.Recipients,
 			Header:        em.Header,
 			Body:          em.Body,
