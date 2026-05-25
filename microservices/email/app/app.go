@@ -13,16 +13,14 @@ import (
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/minio"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/postgres"
-	smtppkg "github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	"go.uber.org/zap"
 
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
-	lmtpDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
-	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
+	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
 	emailStorage "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/storage"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 	"github.com/gorilla/mux"
@@ -32,6 +30,11 @@ import (
 	grpcDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/grpc"
 
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"google.golang.org/grpc"
 )
@@ -82,27 +85,13 @@ func (app *App) Run(configPath string) {
 	}
 	defer grpcUserClient.Close()
 
-	// SMTP-клиент для исходящих писем через Postfix.
-	// Если хост не задан — smtpClient будет nil, исходящие через Postfix отключены.
-	var smtpClient emailService.SmtpClient
-	if app.Config.SMTP.Host != "" {
-		smtpClient = smtppkg.NewSmtpClient(
-			app.Config.SMTP.Host,
-			app.Config.SMTP.Port,
-			"", "", // auth не нужен, Postfix доверяет mynetworks
-		)
-		app.Logger.Infof("smtp client configured: %s:%s", app.Config.SMTP.Host, app.Config.SMTP.Port)
-	}
-
 	svc := emailService.New(
 		repo,
 		grpcUserClient,
 		emailService.DraftsConfig{MaxPerUser: app.Config.Drafts.MaxPerUser},
-		smtpClient,
 	)
 
-	// MinIO / S3-совместимое хранилище для вложений.
-	// Если не сконфигурировано — вложения недоступны, сервис продолжает работу.
+	// Initialise MinIO / S3-compatible object storage for attachments.
 	minioClient, err := minio.New(context.TODO(), app.Config.S3)
 	if err != nil {
 		app.Logger.Errorf("minio init error (attachments disabled): %v", err)
@@ -110,25 +99,11 @@ func (app *App) Run(configPath string) {
 		strg, err := emailStorage.New(minioClient)
 		if err != nil {
 			app.Logger.Warnf("failed to init s3 Storage: %v", err)
-		} else {
-			svc.WithStorage(strg)
-			app.Logger.Info("object storage connected")
 		}
+		svc.WithStorage(strg)
+		app.Logger.Info("object storage connected")
 	}
 
-	// LMTP-сервер для входящих писем от Postfix.
-	// Запускаем в горутине — он работает параллельно с HTTP и gRPC.
-	if app.Config.LMTP.Addr != "" {
-		lmtpSrv := lmtpDelivery.NewServer(svc, app.Config.LMTP.Addr)
-		go func() {
-			app.Logger.Infof("lmtp server started on %s", app.Config.LMTP.Addr)
-			if err := lmtpSrv.ListenAndServe(); err != nil {
-				app.Logger.Errorf("lmtp server error: %v", err)
-			}
-		}()
-	}
-
-	// gRPC сервер
 	grpcServer := grpc.NewServer()
 	emailGrpcHandler := grpcDelivery.New(svc)
 	emailpb.RegisterEmailServiceServer(grpcServer, emailGrpcHandler)
@@ -145,9 +120,7 @@ func (app *App) Run(configPath string) {
 		}
 	}()
 
-	// HTTP сервер
-	emailHandler := emailHttp.New(svc, emailHttp.Config{
-		TTL: app.Config.JWTManager.TTL()})
+	emailHandler := emailHttp.New(svc, emailHttp.Config{TTL: app.Config.JWTManager.TTL()})
 
 	m := metrics.New("email", "backend")
 	router := mux.NewRouter()
@@ -187,6 +160,35 @@ func (app *App) Run(configPath string) {
 	if err := app.shutdownGracefully(); err != nil {
 		app.Logger.Errorf("error during shutdown: %v", err)
 	}
+}
+
+// newMinioClient builds an S3-compatible client pointing at MinIO.
+func newMinioClient(cfg MinioConfig) (*s3.Client, error) {
+	customResolver := aws.EndpointResolverWithOptionsFunc(
+		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				URL:               cfg.Endpoint,
+				SigningRegion:     cfg.Region,
+				HostnameImmutable: true,
+			}, nil
+		},
+	)
+
+	awsCfg, err := config.LoadDefaultConfig(
+		context.Background(),
+		config.WithRegion(cfg.Region),
+		config.WithEndpointResolverWithOptions(customResolver),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("minio aws config: %w", err)
+	}
+
+	return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.UsePathStyle = true // required for MinIO
+	}), nil
 }
 
 func (app *App) shutdownGracefully() error {

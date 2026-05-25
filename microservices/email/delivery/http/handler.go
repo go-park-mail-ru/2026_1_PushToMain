@@ -57,6 +57,13 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 
 	private.HandleFunc("/emails/{id:[0-9]+}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 
+	// Attachment routes — note: specific path /attachments/{attachment_id} must be
+	// registered BEFORE the general /attachments to avoid route shadowing.
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}", h.DownloadAttachment).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.GetAttachments).Methods(http.MethodGet, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.UploadAttachment).Methods(http.MethodPost, http.MethodOptions)
+	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.DeleteAttachments).Methods(http.MethodDelete, http.MethodOptions)
+
 	private.HandleFunc("/drafts", h.CreateDraft).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/drafts", h.GetDrafts).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/drafts", h.DeleteDrafts).Methods(http.MethodDelete, http.MethodOptions)

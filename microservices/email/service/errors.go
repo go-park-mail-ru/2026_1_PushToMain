@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository"
+	repository "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
 )
 
 var (

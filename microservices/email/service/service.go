@@ -39,7 +39,6 @@ type Repository interface {
 	BeginTx(ctx context.Context) (*sql.Tx, error)
 
 	InsertEmail(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error)
-	// InsertExternalEmail сохраняет письмо от внешнего отправителя (sender_id = NULL).
 	InsertExternalEmail(ctx context.Context, tx *sql.Tx, senderEmail, header, body string) (int64, error)
 	InsertEmailRecipients(ctx context.Context, tx *sql.Tx, emailID int64, recipients []models.Recipient) error
 	InsertUserEmail(ctx context.Context, tx *sql.Tx, userID, emailID int64, isSender bool, checkSpam bool) error
@@ -101,21 +100,17 @@ type Service struct {
 	repo       Repository
 	drafts     DraftsConfig
 	userClient UserClient
-	smtpClient SmtpClient // nil если Postfix не сконфигурирован
-	storage    Storage    // nil если MinIO не сконфигурирован
+	storage    Storage
 }
 
-func New(repo Repository, userClient UserClient, drafts DraftsConfig, smtpClient SmtpClient) *Service {
-	return &Service{
-		repo:       repo,
-		drafts:     drafts,
-		userClient: userClient,
-		smtpClient: smtpClient,
-	}
+// New creates a Service without object storage (attachments will error until
+// WithStorage is called, or pass a real Storage implementation).
+func New(repo Repository, userClient UserClient, drafts DraftsConfig) *Service {
+	return &Service{repo: repo, drafts: drafts, userClient: userClient}
 }
 
-// WithStorage подключает объектное хранилище для вложений.
-// Вызывается из app.go после инициализации MinIO.
+// WithStorage attaches an object-storage backend. Call from app.go after
+// initialising MinIO.
 func (s *Service) WithStorage(st Storage) *Service {
 	s.storage = st
 	return s

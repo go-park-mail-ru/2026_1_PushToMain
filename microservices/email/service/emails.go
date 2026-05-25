@@ -86,7 +86,6 @@ type SendEmailInput struct {
 	Body      string
 	Receivers []string
 
-	// Файлы заполняются только при multipart/form-data запросе.
 	Files       []multipart.File
 	FileHeaders []*multipart.FileHeader
 }
@@ -324,30 +323,6 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 	if err != nil {
 		return nil, err
 	}
-
-	external := collectExternal(recipients)
-
-	// Отправляем внешним получателям через Postfix (текст без вложений).
-	// Если Postfix недоступен — сохраняем как черновик и сообщаем об этом.
-	if len(external) > 0 && s.smtpClient != nil {
-		sender, err := s.userClient.GetUserByID(ctx, in.UserId)
-		if err != nil {
-			return nil, MapRepositoryError(err)
-		}
-		if err := s.smtpClient.SendEmail(sender.Email, external, in.Header, in.Body); err != nil {
-			draft, draftErr := s.repo.CreateDraft(ctx, models.Draft{
-				SenderID:   in.UserId,
-				Header:     in.Header,
-				Body:       in.Body,
-				Recipients: in.Receivers,
-			})
-			if draftErr != nil {
-				return nil, MapRepositoryError(draftErr)
-			}
-			return nil, &ErrSavedAsDraft{DraftID: draft.ID}
-		}
-	}
-
 	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders)
 }
 
@@ -366,19 +341,7 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-
-	external := collectExternal(recipients)
-	if len(external) > 0 && s.smtpClient != nil {
-		sender, err := s.userClient.GetUserByID(ctx, in.UserID)
-		if err != nil {
-			return MapRepositoryError(err)
-		}
-		if err := s.smtpClient.SendEmail(sender.Email, external, src.Header, src.Body); err != nil {
-			return err
-		}
-	}
-
-	// Пересылаемые письма не несут вложений — только заголовок и тело.
+	// Forwarded emails do not carry attachments — only header+body.
 	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil)
 	return err
 }
@@ -435,7 +398,8 @@ func (s *Service) sendEmailTx(
 		return nil, MapRepositoryError(err)
 	}
 
-	// Загружаем вложения в хранилище и фиксируем метаданные внутри той же транзакции.
+	// Insert attachment metadata inside the same transaction so that if
+	// something fails all DB changes are rolled back together.
 	if len(files) > 0 && s.storage != nil {
 		for i, f := range files {
 			if i >= len(fileHeaders) {
@@ -451,6 +415,7 @@ func (s *Service) sendEmailTx(
 				ctx, emailID, fh.Filename, f, fh.Size, contentType,
 			)
 			if uploadErr != nil {
+				// Roll back DB; best-effort delete any already-uploaded objects.
 				return nil, uploadErr
 			}
 

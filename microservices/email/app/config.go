@@ -30,16 +30,13 @@ type GRPCClients struct {
 	UserService string `mapstructure:"user_service"`
 }
 
-// SMTPConfig — настройки исходящего SMTP (Postfix submission, порт 587).
-type SMTPConfig struct {
-	Host string `mapstructure:"host"` // имя контейнера: "postfix"
-	Port string `mapstructure:"port"` // "587"
-}
-
-// LMTPConfig — настройки входящего LMTP-сервера.
-// Postfix отправляет письма на этот адрес после приёма из интернета.
-type LMTPConfig struct {
-	Addr string `mapstructure:"addr"` // ":24"
+// MinioConfig holds connection settings for MinIO / S3-compatible storage.
+type MinioConfig struct {
+	Endpoint  string `mapstructure:"endpoint"` // e.g. "http://minio:9000"
+	Region    string `mapstructure:"region"`   // e.g. "us-east-1"
+	AccessKey string `mapstructure:"access_key"`
+	SecretKey string `mapstructure:"secret_key"`
+	Bucket    string `mapstructure:"bucket"` // default bucket name (informational)
 }
 
 type Config struct {
@@ -55,8 +52,6 @@ type Config struct {
 	Avatar AvatarConfig `mapstructure:"avatar"`
 	Drafts DraftsConfig `mapstructure:"drafts"`
 	S3     minio.Config `mapstructure:"minio"`
-	SMTP   SMTPConfig   `mapstructure:"smtp"`
-	LMTP   LMTPConfig   `mapstructure:"lmtp"`
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
@@ -68,7 +63,6 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg := &Config{}
-
 	if err := viper.Unmarshal(cfg); err != nil {
 		return nil, fmt.Errorf("error unmarshaling config: %w", err)
 	}
