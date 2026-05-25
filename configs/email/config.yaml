@@ -50,7 +50,7 @@ smtp:
   port: "587"
 
 lmtp:
-  addr: ":2400"
+  addr: "0.0.0.0:2400"
 
 grpc:
   email_port: "50052"
