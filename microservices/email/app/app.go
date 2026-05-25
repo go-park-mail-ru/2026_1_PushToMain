@@ -131,6 +131,7 @@ func (app *App) Run(configPath string) {
 	lmtpServer.Addr = app.Config.LMTP.Addr
 	lmtpServer.Domain = "e-smail.ru"
 	lmtpServer.AllowInsecureAuth = true
+	lmtpServer.LMTP = true
 
 	go func() {
 		app.Logger.Infof("lmtp server started on %s", lmtpServer.Addr)
