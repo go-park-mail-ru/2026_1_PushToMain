@@ -78,7 +78,7 @@ services:
       - "8082:8082"
       - "50052:50052"
     expose:
-      - "24"
+      - "2400"
     depends_on:
       postgres:
         condition: service_healthy
