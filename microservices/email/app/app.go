@@ -18,7 +18,6 @@ import (
 
 	"net"
 
-	gosmtp "github.com/emersion/go-smtp"
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
@@ -126,19 +125,20 @@ func (app *App) Run(configPath string) {
 		app.Logger.Error("empty SMTP client host config")
 	}
 
-	lmtpBackend := lmtp.NewBackend(svc)
-	lmtpServer := gosmtp.NewServer(lmtpBackend)
-	lmtpServer.Addr = app.Config.LMTP.Addr
-	lmtpServer.Domain = "e-smail.ru"
-	lmtpServer.AllowInsecureAuth = true
-	lmtpServer.LMTP = true
+	// lmtpBackend := lmtp.NewBackend(svc)
+	// lmtpServer := gosmtp.NewServer(lmtpBackend)
+	// lmtpServer.Addr = app.Config.LMTP.Addr
+	// lmtpServer.Domain = "e-smail.ru"
+	// lmtpServer.AllowInsecureAuth = true
+	// lmtpServer.LMTP = true
 
+	lmtpServer := lmtp.NewServer(svc, app.Config.LMTP.Addr)
 	go func() {
-		app.Logger.Infof("lmtp server started on %s", lmtpServer.Addr)
 		if err := lmtpServer.ListenAndServe(); err != nil {
 			app.Logger.Fatalf("lmtp serve error: %v", err)
 		}
 	}()
+	app.Logger.Infof("lmtp server started on %s", app.Config.LMTP.Addr)
 
 	grpcServer := grpc.NewServer()
 	emailGrpcHandler := grpcDelivery.New(svc)
