@@ -44,6 +44,10 @@ type SMTPConfig struct {
 	Port string `mapstructure:"port"` // "587"
 }
 
+type LMTPConfig struct {
+	Addr string `mapstructure:"addr"`
+}
+
 type Config struct {
 	ServerPort string `mapstructure:"port"`
 
@@ -61,6 +65,7 @@ type Config struct {
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
+	LMTP        LMTPConfig  `mapstructure:"lmtp"`
 }
 
 func Load(path string) (*Config, error) {

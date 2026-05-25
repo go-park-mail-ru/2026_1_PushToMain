@@ -16,17 +16,19 @@ import (
 	smtp "github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 	"go.uber.org/zap"
 
+	"net"
+
+	gosmtp "github.com/emersion/go-smtp"
 	userClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/user"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/logger"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/metrics"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	emailHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/http"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	emailRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
 	emailStorage "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/storage"
 	emailService "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 	"github.com/gorilla/mux"
-
-	"net"
 
 	grpcDelivery "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/grpc"
 
@@ -123,6 +125,19 @@ func (app *App) Run(configPath string) {
 	} else {
 		app.Logger.Error("empty SMTP client host config")
 	}
+
+	lmtpBackend := lmtp.NewBackend(svc)
+	lmtpServer := gosmtp.NewServer(lmtpBackend)
+	lmtpServer.Addr = app.Config.LMTP.Addr
+	lmtpServer.Domain = "e-smail.ru"
+	lmtpServer.AllowInsecureAuth = true
+
+	go func() {
+		app.Logger.Infof("lmtp server started on %s", lmtpServer.Addr)
+		if err := lmtpServer.ListenAndServe(); err != nil {
+			app.Logger.Fatalf("lmtp serve error: %v", err)
+		}
+	}()
 
 	grpcServer := grpc.NewServer()
 	emailGrpcHandler := grpcDelivery.New(svc)
