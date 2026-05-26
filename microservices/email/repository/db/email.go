@@ -97,7 +97,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 			e.is_draft,
 			e.created_at,
 			e.updated_at,
-			u.image_path,
+			COALESCE(u.image_path, ''),
 			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
 		FROM emails e
 		LEFT JOIN users u ON u.id = e.sender_id
@@ -155,10 +155,19 @@ func (r *Repository) queryUserMailbox(
 ) ([]models.EmailWithMetadata, error) {
 	query := fmt.Sprintf(`
 		SELECT
-			e.id, COALESCE(e.sender_id, 0), e.sender_email,
-			COALESCE(e.header, ''), COALESCE(e.body, ''),
-			e.is_draft, e.created_at, e.updated_at,
-			ue.is_read, ue.is_starred, ue.is_spam, ue.is_deleted, ue.created_at,
+			e.id,
+			e.sender_id,
+			e.sender_email,
+			e.header,
+			e.body,
+			e.is_draft,
+			e.created_at,
+			e.updated_at,
+			ue.is_read,
+			ue.is_starred,
+			ue.is_spam,
+			ue.is_deleted,
+			ue.created_at,
 			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
 		FROM emails e
 		JOIN user_emails ue ON ue.email_id = e.id AND ue.user_id = $1

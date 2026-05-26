@@ -35,6 +35,7 @@ type EmailWithMetadata struct {
 	Recipients []string
 }
 
+// TODO: sender image is OPTIONAL (for external senders)
 type EmailWithAvatar struct {
 	Email
 	SenderImagePath string
