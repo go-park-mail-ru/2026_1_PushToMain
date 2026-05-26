@@ -494,7 +494,7 @@ func (s *Service) sendEmailTx(
 					MIMEType: p.contentType,
 				})
 			}
-			if err := s.smtpClient.SendEmail(sender.Email, external, header, body, smtpAttachments); err != nil {
+			if err := s.smtpClient.SendEmail(sender.Name, sender.Surname, sender.Email, external, header, body, smtpAttachments); err != nil {
 				// TODO: надо сделать гарантированную доставку
 				return nil, fmt.Errorf("smtp send: %w", err)
 			}

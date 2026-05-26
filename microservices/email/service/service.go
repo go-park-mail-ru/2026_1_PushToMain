@@ -26,7 +26,7 @@ type MailAttachment struct {
 }
 
 type SmtpClient interface {
-	SendEmail(from string, to []string, subject, body string, attachments []smtp.Attachment) error
+	SendEmail(name string, surname string, from string, to []string, subject, body string, attachments []smtp.Attachment) error
 }
 
 type Storage interface {

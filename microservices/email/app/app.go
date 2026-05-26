@@ -43,18 +43,6 @@ import (
 
 const shutdownMaxTime = 5 * time.Second
 
-type smtpAdapter struct {
-	c *smtp.SmtpClient
-}
-
-func (a *smtpAdapter) SendEmail(from string, to []string, subject, body string, attachments []emailService.MailAttachment) error {
-	msg := smtp.NewMessage().From(from).To(to...).Subject(subject).Text(body)
-	for _, att := range attachments {
-		msg.Attach(att.Filename, att.Data, att.ContentType)
-	}
-	return a.c.Send(msg)
-}
-
 type App struct {
 	Server  http.Server
 	Address string

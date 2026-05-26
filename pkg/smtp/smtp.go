@@ -8,6 +8,7 @@ import (
 	"mime"
 	"mime/multipart"
 	"mime/quotedprintable"
+	"net/mail"
 	"net/smtp"
 	"net/textproto"
 	"path/filepath"
@@ -23,7 +24,8 @@ type Attachment struct {
 }
 
 type Message struct {
-	from        string
+	fromAddr    string
+	fromDisplay string
 	to          []string
 	subject     string
 	text        string
@@ -35,8 +37,10 @@ func NewMessage() *Message {
 	return &Message{}
 }
 
-func (m *Message) From(addr string) *Message {
-	m.from = addr
+func (m *Message) From(name, surname, addr string) *Message {
+	fullName := strings.TrimSpace(name + " " + surname)
+	m.fromAddr = addr
+	m.fromDisplay = (&mail.Address{Name: fullName, Address: addr}).String()
 	return m
 }
 
@@ -80,12 +84,12 @@ func NewSmtpClient(host, port, _, _ string) *SmtpClient {
 	return &SmtpClient{Host: host, Port: port}
 }
 
-func (c *SmtpClient) SendPlainText(from string, to []string, subject, body string) error {
-	return c.Send(NewMessage().From(from).To(to...).Subject(subject).Text(body))
+func (c *SmtpClient) SendPlainText(to []string, subject, body string) error {
+	return c.Send(NewMessage().To(to...).Subject(subject).Text(body))
 }
 
-func (c *SmtpClient) SendEmail(from string, to []string, subject, body string, attachments []Attachment) error {
-	msg := NewMessage().From(from).To(to...).Subject(subject).Text(body)
+func (c *SmtpClient) SendEmail(name string, surname string, from string, to []string, subject, body string, attachments []Attachment) error {
+	msg := NewMessage().From(name, surname, from).To(to...).Subject(subject).Text(body)
 	for _, a := range attachments {
 		msg.Attach(a.Filename, a.Data, a.MIMEType)
 	}
@@ -100,7 +104,7 @@ func (c *SmtpClient) Send(m *Message) error {
 	if err != nil {
 		return fmt.Errorf("smtp: build message: %w", err)
 	}
-	if err := smtp.SendMail(c.Host+":"+c.Port, nil, m.from, m.to, raw); err != nil {
+	if err := smtp.SendMail(c.Host+":"+c.Port, nil, m.fromAddr, m.to, raw); err != nil {
 		return fmt.Errorf("smtp: send: %w", err)
 	}
 	return nil
@@ -110,7 +114,7 @@ func (m *Message) build() ([]byte, error) {
 	var buf bytes.Buffer
 
 	hdr := func(k, v string) { fmt.Fprintf(&buf, "%s: %s\r\n", k, v) }
-	hdr("From", m.from)
+	hdr("From", m.fromDisplay)
 	hdr("To", strings.Join(m.to, ", "))
 	hdr("Subject", encodeRFC2047(m.subject))
 	hdr("MIME-Version", "1.0")
@@ -125,9 +129,13 @@ func (m *Message) build() ([]byte, error) {
 		hdr("Content-Transfer-Encoding", "quoted-printable")
 		buf.WriteString("\r\n")
 		qp := quotedprintable.NewWriter(&buf)
-		qp.Write([]byte(m.text))
-
-		return buf.Bytes(), qp.Close()
+		if _, err := qp.Write([]byte(m.text)); err != nil {
+			return nil, err
+		}
+		if err := qp.Close(); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	case hasHtml && !hasFiles:
 		mw := multipart.NewWriter(&buf)
 		hdr("Content-Type", "multipart/alternative; boundary=\""+mw.Boundary()+"\"")
@@ -140,7 +148,10 @@ func (m *Message) build() ([]byte, error) {
 		if err := writeHtmlPart(mw, m.html); err != nil {
 			return nil, err
 		}
-		return buf.Bytes(), mw.Close()
+		if err := mw.Close(); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	default:
 		mw := multipart.NewWriter(&buf)
 		hdr("Content-Type", "multipart/mixed; boundary=\""+mw.Boundary()+"\"")
@@ -161,7 +172,11 @@ func (m *Message) build() ([]byte, error) {
 				return nil, err
 			}
 		}
-		return buf.Bytes(), mw.Close()
+
+		if err := mw.Close(); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
 }
 
