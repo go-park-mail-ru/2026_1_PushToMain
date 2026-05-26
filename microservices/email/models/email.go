@@ -9,7 +9,7 @@ type MailboxStats struct {
 
 type Email struct {
 	ID          int64
-	SenderID    int64
+	SenderID    *int64
 	SenderEmail string
 	Header      string
 	Body        string

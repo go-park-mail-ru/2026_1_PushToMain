@@ -34,7 +34,7 @@ func (r *Repository) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs
 	}
 
 	placeholders := make([]string, len(userEmailIDs))
-	args := make([]interface{}, len(userEmailIDs))
+	args := make([]any, len(userEmailIDs))
 	for i, id := range userEmailIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
@@ -89,10 +89,15 @@ func (r *Repository) GetUserEmailID(ctx context.Context, emailID, userID int64) 
 func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.EmailWithAvatar, error) {
 	const query = `
 		SELECT
-			e.id, COALESCE(e.sender_id, 0), e.sender_email,
-			COALESCE(e.header, ''), COALESCE(e.body, ''),
-			e.is_draft, e.created_at, e.updated_at,
-			COALESCE(u.image_path, ''),
+			e.id,
+			e.sender_id,
+			e.sender_email,
+			e.header,
+			e.body,
+			e.is_draft,
+			e.created_at,
+			e.updated_at,
+			u.image_path,
 			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
 		FROM emails e
 		LEFT JOIN users u ON u.id = e.sender_id
@@ -101,9 +106,16 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 	var em models.EmailWithAvatar
 	var recipients string
 	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
-		&em.ID, &em.SenderID, &em.SenderEmail,
-		&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
-		&em.SenderImagePath, &recipients,
+		&em.ID,
+		&em.SenderID,
+		&em.SenderEmail,
+		&em.Header,
+		&em.Body,
+		&em.IsDraft,
+		&em.CreatedAt,
+		&em.UpdatedAt,
+		&em.SenderImagePath,
+		&recipients,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -112,6 +124,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 		return nil, ErrQueryFail
 	}
 	em.Recipients = parsePgTextArray(recipients)
+
 	return &em, nil
 }
 

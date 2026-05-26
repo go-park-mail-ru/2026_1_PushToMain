@@ -44,7 +44,6 @@ type GetEmailsResponse struct {
 
 type MyEmailResponse struct {
 	ID              int64     `json:"id"`
-	SenderID        int64     `json:"sender_id"`
 	Header          string    `json:"header"`
 	Body            string    `json:"body"`
 	CreatedAt       time.Time `json:"created_at"`
@@ -62,7 +61,6 @@ type GetMyEmailsResponse struct {
 
 type GetEmailResponse struct {
 	ID              int64     `json:"id"`
-	SenderID        int64     `json:"sender_id"`
 	SenderEmail     string    `json:"sender_email"`
 	SenderName      string    `json:"sender_name"`
 	SenderSurname   string    `json:"sender_surname"`

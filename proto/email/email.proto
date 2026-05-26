@@ -43,7 +43,7 @@ message SwitchIsInboxResponse {
 
 message Email {
     int64 id = 1;
-    int64 sender_id = 2;
+    optional int64 sender_id = 2;
     string header = 3;
     string body = 4;
     string created_at = 5;

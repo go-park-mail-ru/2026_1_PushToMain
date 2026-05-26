@@ -238,9 +238,12 @@ func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 	out := make([]MyEmailResponse, len(result.Emails))
 	for i, em := range result.Emails {
 		out[i] = MyEmailResponse{
-			ID: em.ID, SenderID: em.SenderID,
-			Header: em.Header, Body: em.Body,
-			CreatedAt: em.CreatedAt, IsRead: em.IsRead, IsStarred: em.IsStarred,
+			ID:              em.ID,
+			Header:          em.Header,
+			Body:            em.Body,
+			CreatedAt:       em.CreatedAt,
+			IsRead:          em.IsRead,
+			IsStarred:       em.IsStarred,
 			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
@@ -269,11 +272,15 @@ func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, GetEmailResponse{
-		ID: result.ID, SenderID: result.SenderID,
-		SenderEmail: result.SenderEmail, SenderName: result.SenderName, SenderSurname: result.SenderSurname,
-		Header: result.Header, Body: result.Body,
-		CreatedAt: result.CreatedAt, SenderImagePath: result.SenderImagePath,
-		ReceiverList: result.ReceiverList,
+		ID:              result.ID,
+		SenderEmail:     result.SenderEmail,
+		SenderName:      result.SenderName,
+		SenderSurname:   result.SenderSurname,
+		Header:          result.Header,
+		Body:            result.Body,
+		CreatedAt:       result.CreatedAt,
+		SenderImagePath: result.SenderImagePath,
+		ReceiverList:    result.ReceiverList,
 	})
 }
 

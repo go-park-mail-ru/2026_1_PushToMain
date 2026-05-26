@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	repository "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -60,6 +62,17 @@ func MapRepositoryError(err error) error {
 	case errors.Is(err, repository.ErrAccessDenied):
 		return ErrAccessDenied
 	default:
+		if st, ok := status.FromError(err); ok {
+			switch st.Code() {
+			case codes.NotFound:
+				return ErrUserNotFound
+			case codes.PermissionDenied:
+				return ErrAccessDenied
+			case codes.InvalidArgument:
+				return ErrBadRequest
+			}
+		}
+
 		return err
 	}
 }

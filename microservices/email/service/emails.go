@@ -35,7 +35,7 @@ type GetEmailsResult struct {
 
 type EmailResult struct {
 	ID            int64
-	SenderID      int64
+	SenderID      *int64
 	SenderEmail   string
 	SenderName    string
 	SenderSurname string
@@ -56,7 +56,7 @@ type GetMyEmailsResult struct {
 
 type MyEmailResult struct {
 	ID              int64
-	SenderID        int64
+	SenderID        *int64
 	Header          string
 	Body            string
 	CreatedAt       time.Time
@@ -72,7 +72,7 @@ type GetEmailInput struct {
 
 type GetEmailResult struct {
 	ID              int64
-	SenderID        int64
+	SenderID        *int64
 	SenderEmail     string
 	SenderName      string
 	SenderSurname   string
@@ -206,7 +206,10 @@ func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*
 		}
 	}
 	return &GetMyEmailsResult{
-		Emails: out, Limit: in.Limit, Offset: in.Offset, Total: total,
+		Emails: out,
+		Limit:  in.Limit,
+		Offset: in.Offset,
+		Total:  total,
 	}, nil
 }
 
@@ -219,8 +222,8 @@ func (s *Service) buildEmailsResult(
 	for i, em := range emails {
 		var senderEmail, senderName, senderSurname string
 
-		if em.SenderID != 0 {
-			user, err := s.userClient.GetUserByID(ctx, em.SenderID)
+		if em.SenderID != nil {
+			user, err := s.userClient.GetUserByID(ctx, *em.SenderID)
 			if err != nil {
 				senderEmail = em.SenderEmail
 			} else {
@@ -263,22 +266,29 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	if em == nil {
 		return nil, ErrEmailNotFound
 	}
-	user, err := s.userClient.GetUserByID(ctx, em.SenderID)
-	if err != nil {
-		return nil, MapRepositoryError(err)
-	}
-	return &GetEmailResult{
+
+	result := &GetEmailResult{
 		ID:              em.ID,
 		SenderID:        em.SenderID,
-		SenderEmail:     user.Email,
-		SenderName:      user.Name,
-		SenderSurname:   user.Surname,
+		SenderEmail:     em.SenderEmail,
 		Header:          em.Header,
 		Body:            em.Body,
 		CreatedAt:       em.CreatedAt,
 		SenderImagePath: em.SenderImagePath,
 		ReceiverList:    em.Recipients,
-	}, nil
+	}
+
+	if em.SenderID != nil {
+		user, err := s.userClient.GetUserByID(ctx, *em.SenderID)
+		if err != nil {
+			return nil, MapRepositoryError(err)
+		}
+		result.SenderEmail = user.Email
+		result.SenderName = user.Name
+		result.SenderSurname = user.Surname
+	}
+
+	return result, nil
 }
 
 func (s *Service) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs []int64) ([]int64, error) {
@@ -310,21 +320,25 @@ func (s *Service) GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID i
 		if em == nil {
 			continue
 		}
-		user, err := s.userClient.GetUserByID(ctx, em.SenderID)
-		if err != nil {
-			return nil, MapRepositoryError(err)
+		email := EmailResult{
+			ID:           em.ID,
+			ReceiverList: em.Recipients,
+			Header:       em.Header,
+			Body:         em.Body,
+			CreatedAt:    em.CreatedAt,
 		}
-		out = append(out, EmailResult{
-			ID:            em.ID,
-			SenderID:      em.SenderID,
-			SenderEmail:   user.Email,
-			SenderName:    user.Name,
-			SenderSurname: user.Surname,
-			ReceiverList:  em.Recipients,
-			Header:        em.Header,
-			Body:          em.Body,
-			CreatedAt:     em.CreatedAt,
-		})
+		if em.SenderID != nil {
+			senderUser, err := s.userClient.GetUserByID(ctx, *em.SenderID)
+			if err != nil {
+				return nil, MapRepositoryError(err)
+			}
+
+			email.SenderEmail = senderUser.Email
+			email.SenderName = senderUser.Name
+			email.SenderSurname = senderUser.Surname
+		}
+
+		out = append(out, email)
 	}
 	return &GetEmailsByIDsResult{Emails: out, UnreadCount: 0}, nil
 }
@@ -416,7 +430,7 @@ func (s *Service) sendEmailTx(
 	}()
 
 	emailID, err := s.repo.InsertEmail(ctx, tx, models.Email{
-		SenderID:    senderID,
+		SenderID:    &senderID,
 		SenderEmail: sender.Email,
 		Header:      header,
 		Body:        body,

@@ -305,7 +305,7 @@ func (x *SwitchIsInboxResponse) GetSuccess() bool {
 type Email struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	SenderId      int64                  `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	SenderId      *int64                 `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
 	Header        string                 `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"`
 	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -351,8 +351,8 @@ func (x *Email) GetId() int64 {
 }
 
 func (x *Email) GetSenderId() int64 {
-	if x != nil {
-		return x.SenderId
+	if x != nil && x.SenderId != nil {
+		return *x.SenderId
 	}
 	return 0
 }
@@ -800,14 +800,16 @@ const file_proto_email_email_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x19\n" +
 	"\bemail_id\x18\x02 \x01(\x03R\aemailId\"1\n" +
 	"\x15SwitchIsInboxResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x7f\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x92\x01\n" +
 	"\x05Email\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1b\n" +
-	"\tsender_id\x18\x02 \x01(\x03R\bsenderId\x12\x16\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
+	"\tsender_id\x18\x02 \x01(\x03H\x00R\bsenderId\x88\x01\x01\x12\x16\n" +
 	"\x06header\x18\x03 \x01(\tR\x06header\x12\x12\n" +
 	"\x04body\x18\x04 \x01(\tR\x04body\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\tR\tcreatedAt\"I\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAtB\f\n" +
+	"\n" +
+	"_sender_id\"I\n" +
 	"\x13GetEmailByIdRequest\x12\x19\n" +
 	"\bemail_id\x18\x01 \x01(\x03R\aemailId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\":\n" +
@@ -903,6 +905,7 @@ func file_proto_email_email_proto_init() {
 	if File_proto_email_email_proto != nil {
 		return
 	}
+	file_proto_email_email_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
