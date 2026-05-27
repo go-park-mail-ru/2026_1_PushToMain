@@ -32,6 +32,28 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
+func (c *Client) SendSystemEmail(
+	ctx context.Context,
+	recipientUserID int64,
+	recipientEmail string,
+	systemEmail string,
+	header string,
+	body string,
+) error {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	_, err := c.client.SendSystemEmail(ctx, &emailpb.SendSystemEmailRequest{
+		RecipientUserId: recipientUserID,
+		RecipientEmail:  recipientEmail,
+		SystemEmail:     systemEmail,
+		Header:          header,
+		Body:            body,
+	})
+
+	return err
+}
+
 func (c *Client) GetEmailByID(
 	ctx context.Context,
 	emailID,

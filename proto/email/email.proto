@@ -13,6 +13,19 @@ service EmailService {
     rpc GetEmailsByIds(GetEmailsByIdsRequest) returns (GetEmailsByIdsResponse);
     rpc SwitchIsInbox(SwitchIsInboxRequest) returns (SwitchIsInboxResponse);
     rpc GetUserEmailID(GetUserEmailIDRequest) returns (GetUserEmailIDResponse);
+    rpc SendSystemEmail(SendSystemEmailRequest) returns (SendSystemEmailResponse);
+}
+
+message SendSystemEmailRequest {
+    int64  recipient_user_id = 1;
+    string recipient_email   = 2;
+    string system_email      = 3;
+    string header            = 4;
+    string body              = 5;
+}
+
+message SendSystemEmailResponse {
+    bool success = 1;
 }
 
 message GetEmailIdsByUserEmailIdsRequest {

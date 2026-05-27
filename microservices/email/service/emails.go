@@ -119,6 +119,47 @@ type GetEmailsByIDsResult struct {
 	UnreadCount int
 }
 
+func (s *Service) SendSystemEmail(
+	ctx context.Context,
+	recipientUserId int64,
+	recipientEmail string,
+	systemEmail string,
+	header string,
+	body string,
+) error {
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return ErrTransaction
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	emailId, err := s.repo.InsertExternalEmail(ctx, tx, systemEmail, header, body)
+	if err != nil {
+		return MapRepositoryError(err)
+	}
+
+	recipients := []models.Recipient{{Email: recipientEmail, UserID: &recipientUserId}}
+	if err = s.repo.InsertEmailRecipients(ctx, tx, emailId, recipients); err != nil {
+		return MapRepositoryError(err)
+	}
+
+	if err = s.repo.InsertUserEmail(ctx, tx, recipientUserId, emailId, false, true); err != nil {
+		return MapRepositoryError(err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return ErrTransaction
+	}
+	committed = true
+	return nil
+}
+
 func (s *Service) GetEmailsByReceiver(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
 	emails, err := s.repo.GetInboxEmails(ctx, in.UserID, in.Limit, in.Offset)
 	if err != nil {

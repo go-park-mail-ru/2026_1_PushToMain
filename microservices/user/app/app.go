@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
+	emailClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/email"
 	folderClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/folder"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/delivery/http"
 	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/repository/db"
@@ -104,10 +105,21 @@ func (app *App) Run(configPath string) {
 		}
 	}()
 
-	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient)
+	userSrvc := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient)
 	grpcServer := grpc.NewServer()
 
-	userGrpcHandler := grpcDelivery.New(userService)
+	emailGrpcClient, err := emailClient.New(app.Config.GRPCClients.EmailService)
+	if err != nil {
+		app.Logger.Warnf("email client unavailable, welcome emails disabled: %v", err)
+	} else {
+		userSrvc.WithEmailClient(emailGrpcClient, userService.WelcomeConfig{
+			SenderEmail:     app.Config.WelcomeEmail.SenderEmail,
+			Header:          app.Config.WelcomeEmail.Header,
+			MessageTemplate: app.Config.WelcomeEmail.MessageTemplate,
+		})
+	}
+
+	userGrpcHandler := grpcDelivery.New(userSrvc)
 
 	userpb.RegisterUserServiceServer(
 		grpcServer,
@@ -134,7 +146,7 @@ func (app *App) Run(configPath string) {
 		}
 	}()
 
-	authHandler := authHttp.New(userService, authHttp.Config{
+	authHandler := authHttp.New(userSrvc, authHttp.Config{
 		TTL:           app.Config.JWTManager.TTL(),
 		MaxAvatarSize: app.Config.Avatar.MaxSizeMB * 1024 * 1024,
 		AllowedTypes:  app.Config.Avatar.AllowedTypes,
