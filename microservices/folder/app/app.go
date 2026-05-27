@@ -53,7 +53,11 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	defer app.Logger.Sync()
+	defer func() {
+		if err := app.Logger.Sync(); err != nil {
+			log.Printf("logger sync error: %v", err)
+		}
+	}()
 
 	app.Config = cfg
 	return &app
@@ -81,7 +85,11 @@ func (app *App) Run(configPath string) {
 		)
 	}
 
-	defer grpcEmailClient.Close()
+	defer func() {
+		if err := grpcEmailClient.Close(); err != nil {
+			app.Logger.Errorf("grpc client close error: %v", err)
+		}
+	}()
 
 	folderService := service.New(
 		folderRepo,

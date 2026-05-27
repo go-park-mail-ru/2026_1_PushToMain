@@ -55,7 +55,11 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	defer app.Logger.Sync()
+	defer func() {
+		if err := app.Logger.Sync(); err != nil {
+			log.Printf("logger sync error: %v", err)
+		}
+	}()
 
 	app.Config = cfg
 	return &app
@@ -94,7 +98,12 @@ func (app *App) Run(configPath string) {
 		)
 	}
 
-	defer grpcUserClient.Close()
+	defer func() {
+		if err := grpcUserClient.Close(); err != nil {
+			app.Logger.Errorf("grpc client close error: %v", err)
+		}
+	}()
+
 	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient)
 	grpcServer := grpc.NewServer()
 

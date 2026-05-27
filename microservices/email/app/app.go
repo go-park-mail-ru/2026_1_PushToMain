@@ -58,7 +58,11 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	defer app.Logger.Sync()
+	defer func() {
+		if err := app.Logger.Sync(); err != nil {
+			log.Printf("logger sync error: %v", err)
+		}
+	}()
 
 	app.Config = cfg
 	return &app
@@ -80,7 +84,12 @@ func (app *App) Run(configPath string) {
 	if err != nil {
 		app.Logger.Fatalf("failed to init user grpc client: %v", err)
 	}
-	defer grpcUserClient.Close()
+
+	defer func() {
+		if err := grpcUserClient.Close(); err != nil {
+			app.Logger.Errorf("grpc client close error: %v", err)
+		}
+	}()
 
 	svc := emailService.New(
 		repo,
