@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
 )
@@ -507,13 +508,7 @@ func (s *Service) sendEmailTx(
 	}, nil
 }
 
-// ReceiveExternalEmail сохраняет письмо, пришедшее от внешнего отправителя через LMTP.
-func (s *Service) ReceiveExternalEmail(
-	ctx context.Context,
-	from string,
-	to []string,
-	header, body string,
-) error {
+func (s *Service) ReceiveExternalEmail(ctx context.Context, from string, to []string, subject string, parsed lmtp.ParsedEmail) error {
 	users, err := s.userClient.GetUsersByEmails(ctx, to)
 	if err != nil {
 		return MapRepositoryError(err)
@@ -544,7 +539,7 @@ func (s *Service) ReceiveExternalEmail(
 		}
 	}()
 
-	emailID, err := s.repo.InsertExternalEmail(ctx, tx, from, header, body)
+	emailID, err := s.repo.InsertExternalEmail(ctx, tx, from, subject, parsed.Body)
 	if err != nil {
 		return MapRepositoryError(err)
 	}
@@ -559,7 +554,44 @@ func (s *Service) ReceiveExternalEmail(
 			return MapRepositoryError(err)
 		}
 	}
+
+	var uploadedKeys []string
+	if len(parsed.Attachments) > 0 && s.storage != nil {
+		for _, a := range parsed.Attachments {
+			ct := a.ContentType
+			if ct == "" {
+				ct = "application/octet-stream"
+			}
+			key, err := s.storage.UploadAttachment(
+				ctx, emailID, a.Filename,
+				bytes.NewReader(a.Data), int64(len(a.Data)), ct,
+			)
+			if err != nil {
+				for _, k := range uploadedKeys {
+					_ = s.storage.DeleteAttachment(ctx, k)
+				}
+				return err
+			}
+			uploadedKeys = append(uploadedKeys, key)
+			if _, err := s.repo.InsertAttachment(ctx, tx, models.Attachment{
+				EmailID:     emailID,
+				FileName:    a.Filename,
+				ContentType: ct,
+				SizeBytes:   int64(len(a.Data)),
+				StoragePath: key,
+			}); err != nil {
+				for _, k := range uploadedKeys {
+					_ = s.storage.DeleteAttachment(ctx, k)
+				}
+				return MapRepositoryError(err)
+			}
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
+		for _, k := range uploadedKeys {
+			_ = s.storage.DeleteAttachment(ctx, k)
+		}
 		return ErrTransaction
 	}
 	committed = true
