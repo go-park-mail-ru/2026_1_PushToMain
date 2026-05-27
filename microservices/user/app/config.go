@@ -41,6 +41,8 @@ type Config struct {
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
+
+	ReservedEmails []string `mapstructure:"reserved_emails"`
 }
 
 func Load(path string) (*Config, error) {

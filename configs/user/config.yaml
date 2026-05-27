@@ -55,5 +55,15 @@ avatar:
 grpc:
   user_port: "50051"
 
-grpc_clients: 
+grpc_clients:
   folder_service: "folder-service:50053"
+
+reserved_emails:
+  - noreply@e-smail.ru
+  - admin@e-smail.ru
+  - support@e-smail.ru
+  - administation@e-smail.ru
+  - sales@e-smail.ru
+  - marketing@e-smail.ru
+  - moder@e-smail.ru
+  - moderation@e-smail.ru
