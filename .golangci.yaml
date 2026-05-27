@@ -1,0 +1,40 @@
+version: "2"
+
+linters:
+  disable:
+    - errcheck
+    - goconst
+    - staticcheck
+  enable:
+    # - errcheck
+    - govet
+    - ineffassign
+    # - staticcheck
+    - unused
+    - gocyclo
+    # - goconst
+    - misspell
+  # settings:
+  #   gocyclo:
+  #     min-complexity: 15
+  #   goconst:
+  #     min-len: 3
+  #     min-occurrences: 3
+  # exclusions:
+  #   rules:
+  #     - path: _test\.go
+  #       linters:
+  #         - errcheck
+  #         - goconst
+
+# formatters:
+#   enable:
+#     - gofumpt
+#     - goimports
+#   settings:
+#     goimports:
+#       local-prefixes:
+#         - github.com/go-park-mail-ru/2026_1_PushToMain
+
+run:
+  timeout: 5m
