@@ -72,7 +72,7 @@ func TestCreateBucket(t *testing.T) {
 			defer server.Close()
 
 			client := s3.New(s3.Options{
-				Region:       "us-east-1",
+				Region:       defaultRegion,
 				BaseEndpoint: aws.String(server.URL),
 				Credentials:  aws.AnonymousCredentials{},
 				UsePathStyle: true,
@@ -130,7 +130,7 @@ func TestPing(t *testing.T) {
 			defer server.Close()
 
 			client := s3.New(s3.Options{
-				Region:       "us-east-1",
+				Region:       defaultRegion,
 				BaseEndpoint: aws.String(server.URL),
 				Credentials:  aws.AnonymousCredentials{},
 				UsePathStyle: true,
