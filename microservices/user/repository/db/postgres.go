@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/models"
+	"github.com/lib/pq"
 )
 
 var (
@@ -168,6 +169,28 @@ func (repo *Repository) FindByEmail(ctx context.Context, email string) (*models.
 	return &user, nil
 }
 
+func (r *Repository) GetUserPasswordByID(ctx context.Context, userID int64) (string, error) {
+	query := `
+        SELECT password_hash
+        FROM users
+        WHERE id = $1
+    `
+	if r.userDb == nil {
+		return "", ErrUserDbNotInited
+	}
+
+	var passwordHash string
+	err := r.userDb.QueryRowContext(ctx, query, userID).Scan(&passwordHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrUserNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to get password for user %d: %w", userID, err)
+	}
+
+	return passwordHash, nil
+}
+
 func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, error) {
 	query := `
         SELECT id, email, password_hash, name, surname, image_path, is_male, birthdate
@@ -187,12 +210,6 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
 	if err != nil {
 		return nil, ErrQueryError
 	}
-
-	folders, err := r.GetUserFolders(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get folders for user %d: %w", userID, err)
-	}
-	user.Folders = folders
 
 	return user, nil
 }
@@ -218,32 +235,39 @@ func (r *Repository) UpdatePassword(ctx context.Context, userID int64, passwordH
 	return nil
 }
 
-func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models.Folder, error) {
-	query := `
-        SELECT id, name
-        FROM folders
-        WHERE user_id = $1
-        ORDER BY created_at ASC
+func (r *Repository) FindByEmails(ctx context.Context, emails []string) ([]models.User, error) {
+	if len(emails) == 0 {
+		return nil, nil
+	}
+	if r.userDb == nil {
+		return nil, ErrUserDbNotInited
+	}
+
+	const query = `
+    	SELECT id, email, name, surname, image_path, is_male, birthdate
+        FROM users
+        WHERE email = ANY($1)
     `
 
-	rows, err := r.userDb.QueryContext(ctx, query, userID)
+	rows, err := r.userDb.QueryContext(ctx, query, pq.Array(emails))
 	if err != nil {
-		return nil, fmt.Errorf("failed to query folders: %w", err)
+		return nil, fmt.Errorf("FindByEmails: %w", ErrQueryError)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
-	var folders []models.Folder
+	var users []models.User
 	for rows.Next() {
-		var f models.Folder
-		if err := rows.Scan(&f.ID, &f.Name); err != nil {
-			return nil, fmt.Errorf("failed to scan folder: %w", err)
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Surname,
+			&u.ImagePath, &u.IsMale, &u.Birthdate); err != nil {
+			return nil, fmt.Errorf("FindByEmails scan: %w", err)
 		}
-		folders = append(folders, f)
+		users = append(users, u)
 	}
-
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration error: %w", err)
+		return nil, fmt.Errorf("FindByEmails rows: %w", err)
 	}
-
-	return folders, nil
+	return users, nil
 }

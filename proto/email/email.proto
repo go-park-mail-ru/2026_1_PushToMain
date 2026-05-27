@@ -8,13 +8,42 @@ option go_package = "./proto/email";
 
 service EmailService {
     rpc GetEmailById(GetEmailByIdRequest) returns (GetEmailByIdResponse);
+    rpc GetEmailIdsByUserEmailIds(GetEmailIdsByUserEmailIdsRequest) returns (GetEmailIdsByUserEmailIdsResponse);
     rpc CheckEmailAccess(CheckEmailAccessRequest) returns (CheckEmailAccessResponse);
     rpc GetEmailsByIds(GetEmailsByIdsRequest) returns (GetEmailsByIdsResponse);
+    rpc SwitchIsInbox(SwitchIsInboxRequest) returns (SwitchIsInboxResponse);
+    rpc GetUserEmailID(GetUserEmailIDRequest) returns (GetUserEmailIDResponse);
+}
+
+message GetEmailIdsByUserEmailIdsRequest {
+    repeated int64 user_email_ids = 1;
+}
+
+message GetEmailIdsByUserEmailIdsResponse {
+    repeated int64 email_ids = 1;
+}
+
+message GetUserEmailIDRequest {
+    int64 email_id = 1;
+    int64 user_id = 2;
+}
+
+message GetUserEmailIDResponse {
+    int64 user_email_id = 1;
+}
+
+message SwitchIsInboxRequest {
+    int64 user_id = 1;
+    int64 email_id = 2;
+}
+
+message SwitchIsInboxResponse {
+    bool success = 1;
 }
 
 message Email {
     int64 id = 1;
-    int64 sender_id = 2;
+    optional int64 sender_id = 2;
     string header = 3;
     string body = 4;
     string created_at = 5;

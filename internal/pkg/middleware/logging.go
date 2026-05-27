@@ -29,6 +29,12 @@ func (rw *responseWriter) WriteHeader(code int) {
 func Logging(logger *zap.SugaredLogger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Ignore metrics
+			if r.URL.Path == "/metrics" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			requestID := r.Header.Get("X-Request-Id")
 			if requestID == "" {
 				requestID = uuid.NewString()

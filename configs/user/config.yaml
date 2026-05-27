@@ -55,4 +55,5 @@ avatar:
 grpc:
   user_port: "50051"
 
-grpc_clients: {}
+grpc_clients: 
+  folder_service: "folder-service:50053"

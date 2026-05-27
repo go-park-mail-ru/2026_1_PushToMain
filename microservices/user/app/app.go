@@ -10,6 +10,7 @@ import (
 	"time"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
+	folderClient "github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/clients/folder"
 	authHttp "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/delivery/http"
 	profileDbRepo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/repository/db"
 	profileS3Repo "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/repository/storage"
@@ -54,7 +55,11 @@ func New(configPath string) *App {
 		return nil
 	}
 
-	defer app.Logger.Sync()
+	defer func() {
+		if err := app.Logger.Sync(); err != nil {
+			log.Printf("logger sync error: %v", err)
+		}
+	}()
 
 	app.Config = cfg
 	return &app
@@ -82,7 +87,24 @@ func (app *App) Run(configPath string) {
 		app.Logger.Warn("avatar storage disabled")
 		profileS3Repo = nil
 	}
-	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager)
+	grpcUserClient, err := folderClient.New(
+		app.Config.GRPCClients.FolderService,
+	)
+
+	if err != nil {
+		app.Logger.Fatalf(
+			"failed to init user grpc client: %v",
+			err,
+		)
+	}
+
+	defer func() {
+		if err := grpcUserClient.Close(); err != nil {
+			app.Logger.Errorf("grpc client close error: %v", err)
+		}
+	}()
+
+	userService := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient)
 	grpcServer := grpc.NewServer()
 
 	userGrpcHandler := grpcDelivery.New(userService)
@@ -125,7 +147,7 @@ func (app *App) Run(configPath string) {
 	router.Use(middleware.Logging(app.Logger))
 	router.Use(middleware.Metrics(m))
 
-	public := router.PathPrefix("/api/v1").Subrouter()
+	public := router.PathPrefix("/api/v1/user").Subrouter()
 	public.Use(middleware.Panic)
 	public.Use(middleware.CORS(app.Config.CORS))
 	public.Use(middleware.JSON)

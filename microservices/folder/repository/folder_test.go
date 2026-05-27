@@ -407,7 +407,7 @@ func TestRepository_DeleteEmailFromFolder(t *testing.T) {
 		repo := New(db)
 		ctx := context.Background()
 
-		mock.ExpectExec(`DELETE FROM folder_emails WHERE folder_id = \$1 AND email_id = \$2`).
+		mock.ExpectExec(`DELETE FROM folder_emails WHERE folder_id = \$1 AND user_email_id = \$2`).
 			WithArgs(int64(1), int64(100)).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 
@@ -532,11 +532,11 @@ func TestRepository_GetFolderEmailIDs(t *testing.T) {
 		repo := New(db)
 		ctx := context.Background()
 
-		rows := sqlmock.NewRows([]string{"email_id"}).
+		rows := sqlmock.NewRows([]string{"user_email_id"}).
 			AddRow(int64(100)).
 			AddRow(int64(200)).
 			AddRow(int64(300))
-		mock.ExpectQuery(`SELECT email_id FROM folder_emails WHERE folder_id = \$1 ORDER BY created_at DESC LIMIT \$2 OFFSET \$3`).
+		mock.ExpectQuery(`SELECT user_email_id FROM folder_emails WHERE folder_id = \$1 ORDER BY created_at DESC LIMIT \$2 OFFSET \$3`).
 			WithArgs(int64(1), 10, 0).
 			WillReturnRows(rows)
 
@@ -554,8 +554,8 @@ func TestRepository_GetFolderEmailIDs(t *testing.T) {
 		repo := New(db)
 		ctx := context.Background()
 
-		rows := sqlmock.NewRows([]string{"email_id"})
-		mock.ExpectQuery(`SELECT email_id FROM folder_emails`).
+		rows := sqlmock.NewRows([]string{"user_email_id"})
+		mock.ExpectQuery(`SELECT user_email_id FROM folder_emails`).
 			WithArgs(int64(1), 10, 0).
 			WillReturnRows(rows)
 
@@ -573,7 +573,7 @@ func TestRepository_GetFolderEmailIDs(t *testing.T) {
 		repo := New(db)
 		ctx := context.Background()
 
-		mock.ExpectQuery(`SELECT email_id FROM folder_emails`).
+		mock.ExpectQuery(`SELECT user_email_id FROM folder_emails`).
 			WithArgs(int64(1), 10, 0).
 			WillReturnError(errors.New("db down"))
 
@@ -591,9 +591,9 @@ func TestRepository_GetFolderEmailIDs(t *testing.T) {
 		repo := New(db)
 		ctx := context.Background()
 
-		rows := sqlmock.NewRows([]string{"email_id"}).
+		rows := sqlmock.NewRows([]string{"user_email_id"}).
 			AddRow("not_an_int")
-		mock.ExpectQuery(`SELECT email_id FROM folder_emails`).
+		mock.ExpectQuery(`SELECT user_email_id FROM folder_emails`).
 			WithArgs(int64(1), 10, 0).
 			WillReturnRows(rows)
 

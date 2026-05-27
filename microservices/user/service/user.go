@@ -1,6 +1,6 @@
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_db_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service DbRepository
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_s3_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service S3Repository
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_jwt_manager.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service JWTManager
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_db_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service DbRepository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_s3_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service S3Repository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_jwt_manager.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service JWTManager
 
 package service
 
@@ -15,6 +15,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/repository/db"
+	folderpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/folder"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -38,6 +39,11 @@ type DbRepository interface {
 	FindByID(ctx context.Context, userID int64) (*models.User, error)
 	UpdatePassword(ctx context.Context, userID int64, passwordHash string) error
 	UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error
+	FindByEmails(ctx context.Context, emails []string) ([]models.User, error)
+	GetUserPasswordByID(ctx context.Context, userID int64) (string, error)
+}
+type FolderClient interface {
+	GetUserFolders(ctx context.Context, userID int64) ([]*folderpb.Folder, error)
 }
 
 type S3Repository interface {
@@ -51,16 +57,18 @@ type JWTManager interface {
 }
 
 type Service struct {
-	userDB    DbRepository
-	s3Storage S3Repository
-	jwt       JWTManager
+	userDB       DbRepository
+	s3Storage    S3Repository
+	jwt          JWTManager
+	folderClient FolderClient
 }
 
-func New(r DbRepository, s3 S3Repository, jwt JWTManager) *Service {
+func New(r DbRepository, s3 S3Repository, jwt JWTManager, folderClient FolderClient) *Service {
 	return &Service{
-		userDB:    r,
-		s3Storage: s3,
-		jwt:       jwt,
+		userDB:       r,
+		s3Storage:    s3,
+		jwt:          jwt,
+		folderClient: folderClient,
 	}
 }
 
@@ -104,13 +112,19 @@ func (s *Service) GetMe(ctx context.Context, userID int64) (*GetMeResult, error)
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	folders := make([]Folder, len(user.Folders))
-	for i, f := range user.Folders {
+	var folders []Folder
+	pbFolders, err := s.folderClient.GetUserFolders(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	folders = make([]Folder, len(pbFolders))
+	for i, f := range pbFolders {
 		folders[i] = Folder{
-			ID:   f.ID,
+			ID:   f.Id,
 			Name: f.Name,
 		}
 	}
+
 	return &GetMeResult{
 		UserID:    user.ID,
 		Email:     user.Email,
@@ -141,12 +155,12 @@ func (s *Service) UpdateProfile(ctx context.Context, input UpdateProfileInput) e
 }
 
 func (s *Service) UpdatePassword(ctx context.Context, input UpdatePasswordInput) error {
-	user, err := s.userDB.FindByID(ctx, input.UserID)
+	password, err := s.userDB.GetUserPasswordByID(ctx, input.UserID)
 	if err != nil {
 		return MapRepositoryError(err)
 	}
 
-	if err := utils.ComparePasswordAndHash(user.Password, input.OldPassword); err != nil {
+	if err := utils.ComparePasswordAndHash(password, input.OldPassword); err != nil {
 		return ErrWrongPassword
 	}
 
@@ -238,6 +252,45 @@ func (s *Service) GenerateToken() (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+type UserInfo struct {
+	ID        int64
+	Email     string
+	Name      string
+	Surname   string
+	ImagePath string
+	IsMale    bool
+	Birthdate string
+}
+
+func (s *Service) GetUsersByEmails(ctx context.Context, emails []string) ([]UserInfo, error) {
+	users, err := s.userDB.FindByEmails(ctx, emails)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+
+	out := make([]UserInfo, len(users))
+	for i, u := range users {
+		birthdate := ""
+		if u.Birthdate != nil {
+			birthdate = u.Birthdate.Format("2006-01-02")
+		}
+		isMale := false
+		if u.IsMale != nil {
+			isMale = *u.IsMale
+		}
+		out[i] = UserInfo{
+			ID:        u.ID,
+			Email:     u.Email,
+			Name:      u.Name,
+			Surname:   u.Surname,
+			ImagePath: u.ImagePath,
+			IsMale:    isMale,
+			Birthdate: birthdate,
+		}
+	}
+	return out, nil
 }
 
 func MapRepositoryError(err error) error {

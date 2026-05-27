@@ -23,6 +23,17 @@ func New(service *emailService.Service) *Server {
 	}
 }
 
+func (s *Server) SwitchIsInbox(ctx context.Context, req *emailpb.SwitchIsInboxRequest) (*emailpb.SwitchIsInboxResponse, error) {
+	err := s.service.SwitchIsInbox(ctx,
+		emailService.SwitchIsInboxInput{
+			EmailID: req.EmailId,
+			UserID:  req.UserId},
+	)
+	return &emailpb.SwitchIsInboxResponse{
+		Success: err == nil,
+	}, nil
+}
+
 func (s *Server) GetEmailById(
 	ctx context.Context,
 	req *emailpb.GetEmailByIdRequest,
@@ -50,6 +61,51 @@ func (s *Server) GetEmailById(
 			Body:      email.Body,
 			CreatedAt: email.CreatedAt.String(),
 		},
+	}, nil
+}
+
+func (s *Server) GetUserEmailID(
+	ctx context.Context,
+	req *emailpb.GetUserEmailIDRequest,
+) (*emailpb.GetUserEmailIDResponse, error) {
+
+	userEmailId, err := s.service.GetUserEmailID(
+		ctx,
+		req.EmailId,
+		req.UserId,
+	)
+
+	if err != nil {
+		return nil, status.Error(
+			codes.NotFound,
+			err.Error(),
+		)
+	}
+
+	return &emailpb.GetUserEmailIDResponse{
+		UserEmailId: userEmailId,
+	}, nil
+}
+
+func (s *Server) GetEmailIdsByUserEmailIds(
+	ctx context.Context,
+	req *emailpb.GetEmailIdsByUserEmailIdsRequest,
+) (*emailpb.GetEmailIdsByUserEmailIdsResponse, error) {
+
+	emailIds, err := s.service.GetEmailIdsByUserEmailIds(
+		ctx,
+		req.UserEmailIds,
+	)
+
+	if err != nil {
+		return nil, status.Error(
+			codes.NotFound,
+			err.Error(),
+		)
+	}
+
+	return &emailpb.GetEmailIdsByUserEmailIdsResponse{
+		EmailIds: emailIds,
 	}, nil
 }
 

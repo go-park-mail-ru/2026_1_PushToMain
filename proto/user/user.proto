@@ -8,6 +8,7 @@ service UserService {
     rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
     rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsResponse);
     rpc UserExists(UserExistsRequest) returns (UserExistsResponse);
+    rpc GetUsersByEmails(GetUsersByEmailsRequest) returns (GetUsersByEmailsResponse);
 }
 
 message User {
@@ -42,4 +43,12 @@ message UserExistsRequest {
 
 message UserExistsResponse {
     bool exists = 1;
+}
+
+message GetUsersByEmailsRequest {
+    repeated string emails = 1;
+}
+
+message GetUsersByEmailsResponse {
+    repeated User users = 1;
 }

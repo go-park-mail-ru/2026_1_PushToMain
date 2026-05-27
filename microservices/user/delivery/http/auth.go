@@ -1,4 +1,4 @@
-//go:generate mockgen -destination=../../../../../mocks/app/user/mock_user_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/delivery/http Service
+//go:generate mockgen -destination=../../../../../mocks/app/user/mock_user_service.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/delivery/http Service
 
 package http
 
@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"io"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
@@ -27,6 +29,7 @@ type Service interface {
 	UpdateProfile(ctx context.Context, cmd service.UpdateProfileInput) error
 }
 
+//easyjson:json
 type SignUpRequest struct {
 	Name     string `json:"name"`
 	Surname  string `json:"surname"`
@@ -34,13 +37,14 @@ type SignUpRequest struct {
 	Password string `json:"password"`
 }
 
+//easyjson:json
 type UpdatePasswordRequest struct {
 	OldPassword string `json:"old_password"`
 	NewPassword string `json:"new_password"`
 }
 
 var (
-	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@smail\.ru$`)
+	emailRegex   = regexp.MustCompile(`^[a-zA-Z0-9._-]+@e-smail\.ru$`)
 	nameRegex    = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 	surnameRegex = regexp.MustCompile(`^[a-zA-Zа-яА-Я-]+$`)
 )
@@ -61,9 +65,13 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req UpdatePasswordRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Errorf("failed to decode request: %v", err)
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -103,8 +111,13 @@ func (handler *Handler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /api/v1/auth/signup [post]
 func (handler *Handler) SignUp(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req SignUpRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -149,7 +162,7 @@ func (req *SignUpRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 
@@ -176,6 +189,7 @@ func (req *SignUpRequest) Validate() bool {
 	return true
 }
 
+//easyjson:json
 type SignInRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -193,8 +207,13 @@ type SignInRequest struct {
 // @Failure      500    {object}  response.ErrorResponse
 // @Router       /api/v1/auth/signin [post]
 func (handler *Handler) SignIn(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req SignInRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -237,7 +256,7 @@ func (req *SignInRequest) Validate() bool {
 		return false
 	}
 
-	if !strings.HasSuffix(req.Email, "@smail.ru") {
+	if !strings.HasSuffix(req.Email, "@e-smail.ru") {
 		return false
 	}
 
@@ -271,6 +290,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//easyjson:json
 type csrfResponse struct {
 	Token string `json:"csrf_token"`
 }
@@ -296,5 +316,5 @@ func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
 	resp := csrfResponse{
 		Token: token,
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

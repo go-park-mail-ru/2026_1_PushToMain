@@ -1,7 +1,5 @@
 services:
-  # =========================================
-  # POSTGRES
-  # =========================================
+  # Postgres
   postgres:
     image: postgres:16.3
     environment:
@@ -21,9 +19,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # MINIO
-  # =========================================
+  # MinIO
   minio:
     image: minio/minio:latest
     environment:
@@ -42,9 +38,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # =========================================
-  # USER SERVICE  (HTTP :8081 | gRPC :50051)
-  # =========================================
+  # User service
   user-service:
     build:
       context: .
@@ -68,12 +62,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
-    
     restart: unless-stopped
 
-  # =========================================
-  # EMAIL SERVICE  (HTTP :8082 | gRPC :50052)
-  # =========================================
+  # Email service
   email-service:
     build:
       context: .
@@ -86,16 +77,24 @@ services:
     ports:
       - "8082:8082"
       - "50052:50052"
+    expose:
+      - "2400"
     depends_on:
       postgres:
         condition: service_healthy
+      minio:
+        condition: service_healthy
       user-service:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tlnp | grep 8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
-  # =========================================
-  # FOLDER SERVICE  (HTTP :8083 | gRPC :50053)
-  # =========================================
+  # Folder service
   folder-service:
     build:
       context: .
@@ -114,20 +113,22 @@ services:
       email-service:
         condition: service_started
     restart: unless-stopped
-  
+
+  # Prometheus
   prometheus:
     image: prom/prometheus:latest
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./configs/prometheus/config.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9091:9090"
     restart: unless-stopped
 
+  # Grafana
   grafana:
     image: grafana/grafana:latest
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
     ports:
       - "3000:3000"
     volumes:
@@ -151,8 +152,28 @@ services:
       - "--path.rootfs=/rootfs"
     restart: unless-stopped
 
+  # Postfix
+  postfix:
+    build:
+      context: .
+      dockerfile: microservices/postfix/Dockerfile
+    volumes:
+      - ./configs/postfix/main.cf:/etc/postfix/main.cf:ro
+      - ./configs/postfix/master.cf:/etc/postfix/master.cf:ro
+      - ./certs/postfix:/etc/ssl/postfix:ro
+      - postfix_queue:/var/spool/postfix
+    ports:
+      - "25:25"
+      - "587:587"
+    hostname: mail.e-smail.ru
+    depends_on:
+      email-service:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
   prometheus_data:
   grafana_data:
+  postfix_queue:

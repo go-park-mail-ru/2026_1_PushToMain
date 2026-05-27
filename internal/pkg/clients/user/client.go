@@ -83,3 +83,24 @@ func (c *Client) UserExists(
 
 	return resp.Exists, nil
 }
+
+func (c *Client) GetUsersByEmails(
+	ctx context.Context,
+	emails []string,
+) ([]*userpb.User, error) {
+
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	resp, err := c.client.GetUsersByEmails(
+		ctx,
+		&userpb.GetUsersByEmailsRequest{
+			Emails: emails,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Users, nil
+}

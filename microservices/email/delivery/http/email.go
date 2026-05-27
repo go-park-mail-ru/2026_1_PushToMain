@@ -5,313 +5,75 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
-	"net/mail"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/service"
 )
 
+// maxSendFormSize limits the entire multipart body when sending an email with attachments.
+const maxSendFormSize = 50 << 20 // 50 MB
+
 type Service interface {
-	GetEmailsByReceiver(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
-	GetEmailsBySender(ctx context.Context, cmd service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
-	GetEmailByID(ctx context.Context, cmd service.GetEmailInput) (*service.GetEmailResult, error)
-	SendEmail(ctx context.Context, cmd service.SendEmailInput) (*service.SendEmailResult, error)
-	ForwardEmail(ctx context.Context, cmd service.ForwardEmailInput) error
-	MarkEmailAsRead(ctx context.Context, cmd service.MarkAsReadInput) error
-	MarkEmailAsUnRead(ctx context.Context, cmd service.MarkAsReadInput) error
-	// Spam / Trash листинг
-	GetSpamEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
-	GetTrashEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
-	GetFavoriteEmails(ctx context.Context, cmd service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetAllEmailsByUser(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetEmailsByReceiver(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetEmailsBySender(ctx context.Context, in service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
+	GetEmailByID(ctx context.Context, in service.GetEmailInput) (*service.GetEmailResult, error)
+	SendEmail(ctx context.Context, in service.SendEmailInput) (*service.SendEmailResult, error)
+	ForwardEmail(ctx context.Context, in service.ForwardEmailInput) error
+	MarkEmailAsRead(ctx context.Context, in service.MarkAsReadInput) error
+	MarkEmailAsUnRead(ctx context.Context, in service.MarkAsReadInput) error
 
-	// Массовые действия с письмами
-	Trash(ctx context.Context, cmd service.BatchInput) error
-	Untrash(ctx context.Context, cmd service.BatchInput) error
-	Favorite(ctx context.Context, cmd service.BatchInput) error
-	Unfavorite(ctx context.Context, cmd service.BatchInput) error
-	Spam(ctx context.Context, cmd service.BatchInput) error
-	Unspam(ctx context.Context, cmd service.BatchInput) error
-	UnmarkSpamSenders(ctx context.Context, cmd service.BatchInput) error
-	Delete(ctx context.Context, cmd service.BatchInput) error
+	GetSpamEmails(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetTrashEmails(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
+	GetFavoriteEmails(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error)
 
-	// Drafts
-	CreateDraft(ctx context.Context, cmd service.CreateDraftInput) (*service.DraftResult, error)
-	UpdateDraft(ctx context.Context, cmd service.UpdateDraftInput) (*service.DraftResult, error)
-	GetDraftByID(ctx context.Context, cmd service.GetDraftInput) (*service.DraftResult, error)
-	GetDrafts(ctx context.Context, cmd service.GetDraftsInput) (*service.GetDraftsResult, error)
-	DeleteDrafts(ctx context.Context, cmd service.DeleteDraftsInput) error
-	SendDraft(ctx context.Context, cmd service.SendDraftInput) (*service.SendEmailResult, error)
+	Trash(ctx context.Context, in service.BatchInput) error
+	Untrash(ctx context.Context, in service.BatchInput) error
+	Favorite(ctx context.Context, in service.BatchInput) error
+	Unfavorite(ctx context.Context, in service.BatchInput) error
+	Spam(ctx context.Context, in service.BatchInput) error
+	Unspam(ctx context.Context, in service.BatchInput) error
+	BlockSenders(ctx context.Context, in service.BatchInput) error
+	UnblockSenders(ctx context.Context, in service.BatchInput) error
+	Delete(ctx context.Context, in service.BatchInput) error
+
+	CreateDraft(ctx context.Context, in service.CreateDraftInput) (*service.DraftResult, error)
+	UpdateDraft(ctx context.Context, in service.UpdateDraftInput) (*service.DraftResult, error)
+	GetDraftByID(ctx context.Context, in service.GetDraftInput) (*service.DraftResult, error)
+	GetDrafts(ctx context.Context, in service.GetDraftsInput) (*service.GetDraftsResult, error)
+	DeleteDrafts(ctx context.Context, in service.DeleteDraftsInput) error
+	SendDraft(ctx context.Context, in service.SendDraftInput) (*service.SendEmailResult, error)
+
+	// Attachments
+	UploadAttachment(ctx context.Context, in service.UploadAttachmentInput) (*service.AttachmentResult, error)
+	DownloadAttachment(ctx context.Context, in service.DownloadAttachmentInput) (*service.DownloadAttachmentResult, error)
+	DeleteAttachments(ctx context.Context, in service.DeleteAttachmentsInput) error
+	GetAttachments(ctx context.Context, in service.GetAttachmentsInput) (*service.GetAttachmentsResult, error)
 }
 
-type SendEmailRequest struct {
-	Header    string   `json:"header"`
-	Body      string   `json:"body"`
-	Receivers []string `json:"receivers"`
-}
-
-type SendEmailResponse struct {
-	ID        int64     `json:"email_id"`
-	SenderID  int64     `json:"from"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// @Summary     Отправить письмо
-// @Description  Отправляет письмо получаетлям, которых указал пользователь
-// @Tags         emails
-// @Produce      json
-// @Success      200  {object}   EmailResponse
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/send [post]
-func (handler *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Send email request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	var req SendEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Errorf("Invalid request body, user_id=%d: %v", payload.UserId, err)
-		response.BadRequest(w)
-		return
-	}
-
-	if !req.Validate() {
-		logger.Errorf("Validation failed, user_id=%d: %v", payload.UserId, req.Receivers)
-		response.BadRequest(w)
-		return
-	}
-
-	result, err := handler.service.SendEmail(r.Context(), service.SendEmailInput{
-		UserId:    payload.UserId,
-		Header:    req.Header,
-		Body:      req.Body,
-		Receivers: req.Receivers,
-	})
-	if err != nil {
-		logger.Errorf("Failed to send email: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-	resp := SendEmailResponse{
-		ID:        result.ID,
-		SenderID:  result.SenderID,
-		Header:    result.Header,
-		Body:      result.Body,
-		CreatedAt: result.CreatedAt,
-	}
-
-	logger.Debugf("Email sent successfully: user_id=%d, email_id=%d",
-		payload.UserId, result.ID)
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		logger.Errorf("Failed to encode response: %v", err)
-		response.InternalError(w)
-		return
+func emailToDTO(em service.EmailResult) EmailResponse {
+	return EmailResponse{
+		ID:            em.ID,
+		SenderEmail:   em.SenderEmail,
+		SenderName:    em.SenderName,
+		SenderSurname: em.SenderSurname,
+		ReceiverList:  em.ReceiverList,
+		Header:        em.Header,
+		Body:          em.Body,
+		CreatedAt:     em.CreatedAt,
+		IsRead:        em.IsRead,
+		IsStarred:     em.IsStarred,
 	}
 }
 
-func (req *SendEmailRequest) Validate() bool {
-
-	if len(req.Receivers) == 0 || req.Header == "" || req.Body == "" {
-		return false
-	}
-	for _, receiver := range req.Receivers {
-		_, err := mail.ParseAddressList(receiver)
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
-
-type ForwardEmailRequest struct {
-	EmailID   int64    `json:"email_id"`
-	Receivers []string `json:"receivers"`
-}
-
-// @Summary     Переслать письмо
-// @Description  Пересылает письмо получаетлям, которых указал пользователь
-// @Tags         emails
-// @Produce      json
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/forward [post]
-func (handler *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Forward email request received")
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-	var req ForwardEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Errorf("Invalid request body, user_id=%d: %v", payload.UserId, err)
-		response.BadRequest(w)
-		return
-	}
-
-	if req.EmailID <= 0 {
-		logger.Warn("invalid email_id")
-		response.BadRequest(w)
-		return
-	}
-	if payload.UserId <= 0 {
-		logger.Warn("invalid user_id")
-		response.BadRequest(w)
-		return
-	}
-	if len(req.Receivers) == 0 {
-		logger.Warn("empty receivers list")
-		response.BadRequest(w)
-		return
-	}
-
-	logger.Debugf("Forwarding email, user_id=%d, email_id=%d, receivers_count=%d",
-		payload.UserId, req.EmailID, len(req.Receivers))
-
-	err = handler.service.ForwardEmail(r.Context(), service.ForwardEmailInput{
-		UserID:    payload.UserId,
-		EmailID:   req.EmailID,
-		Receivers: req.Receivers,
-	})
-	if err != nil {
-		logger.Errorf("Failed to forward email: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-	logger.Debugf("Email forwarded successfully: user_id=%d, email_id=%d",
-		payload.UserId, req.EmailID)
-
-	w.WriteHeader(http.StatusOK)
-}
-
-func (req *ForwardEmailRequest) Validate() bool {
-	if len(req.Receivers) == 0 {
-		return false
-	}
-	for _, receiver := range req.Receivers {
-		_, err := mail.ParseAddressList(receiver)
-		if err != nil {
-			return false
-		}
-	}
-	return true
-}
-
-type EmailResponse struct {
-	ID            int64     `json:"id"`
-	SenderEmail   string    `json:"sender_email"`
-	SenderName    string    `json:"sender_name"`
-	SenderSurname string    `json:"sender_surname"`
-	ReceiverList  []string  `json:"receiver_list"`
-	Header        string    `json:"header"`
-	Body          string    `json:"body"`
-	CreatedAt     time.Time `json:"created_at"`
-	IsRead        bool      `json:"is_read"`
-}
-
-type GetEmailsResponse struct {
-	Emails      []EmailResponse `json:"emails"`
-	Limit       int             `json:"limit"`
-	Offset      int             `json:"offset"`
-	Total       int             `json:"total"`
-	UnreadCount int             `json:"unread_count"`
-}
-
-// @Summary      Получить письма пользователя
-// @Description  Возвращает список писем, в которых авторизованный пользователь указан получателем
-// @Tags         emails
-// @Produce      json
-// @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
-// @Param        offset  query     int  false  "Смещение для пагинации (default: 0)"
-// @Success      200  {object}  GetEmailsResponse
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails [get]
-func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-
-	logger.Infof("get email request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	limit := 20
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
-			limit = l
-		}
-	}
-
-	offset := 0
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
-	}
-
-	logger.Debugf("Getting emails, user_id=%d, limit=%d, offset=%d", payload.UserId, limit, offset)
-
-	result, err := handler.service.GetEmailsByReceiver(r.Context(), service.GetEmailsInput{
-		UserID: payload.UserId,
-		Limit:  limit,
-		Offset: offset,
-	})
-	if err != nil {
-		logger.Errorf("Failed to get emails: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-
+func writeEmailsList(w http.ResponseWriter, result *service.GetEmailsResult) {
 	emails := make([]EmailResponse, len(result.Emails))
-	for i, email := range result.Emails {
-		emails[i] = EmailResponse{
-			ID:            email.ID,
-			SenderEmail:   email.SenderEmail,
-			SenderName:    email.SenderName,
-			SenderSurname: email.SenderSurname,
-			ReceiverList:  email.ReceiverList,
-			Header:        email.Header,
-			Body:          email.Body,
-			CreatedAt:     email.CreatedAt,
-			IsRead:        email.IsRead,
-		}
+	for i, em := range result.Emails {
+		emails[i] = emailToDTO(em)
 	}
-
 	resp := GetEmailsResponse{
 		Emails:      emails,
 		Limit:       result.Limit,
@@ -319,195 +81,247 @@ func (handler *Handler) GetEmails(w http.ResponseWriter, r *http.Request) {
 		Total:       result.Total,
 		UnreadCount: result.UnreadCount,
 	}
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
 
-	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d, unread=%d",
-		payload.UserId, len(emails), result.Total, result.UnreadCount)
+}
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+// SendEmail accepts either:
+//   - application/json  – plain email without attachments (legacy)
+//   - multipart/form-data – email with optional file attachments
+//
+// For multipart the text fields are: header, body, receivers (JSON array string).
+func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+
+	ct := r.Header.Get("Content-Type")
+	in := service.SendEmailInput{UserId: userID}
+
+	if isMultipart(ct) {
+		// Parse multipart form.
+		if err := r.ParseMultipartForm(maxSendFormSize); err != nil {
+			response.BadRequest(w)
+			return
+		}
+		in.Header = r.FormValue("header")
+		in.Body = r.FormValue("body")
+
+		// receivers is a JSON-encoded string array: '["a@b.com","c@d.com"]'
+		receiversRaw := r.FormValue("receivers")
+		if receiversRaw != "" {
+			if err := json.Unmarshal([]byte(receiversRaw), &in.Receivers); err != nil {
+				response.BadRequest(w)
+				return
+			}
+		}
+
+		// Collect uploaded files.
+		if r.MultipartForm != nil {
+			for _, fhs := range r.MultipartForm.File {
+				for _, fh := range fhs {
+					f, err := fh.Open()
+					if err != nil {
+						response.BadRequest(w)
+						return
+					}
+					// Files are closed after SendEmail returns via multipart form GC.
+					in.Files = append(in.Files, f)
+					in.FileHeaders = append(in.FileHeaders, fh)
+				}
+			}
+		}
+	} else {
+		// Plain JSON body (no attachments).
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			response.BadRequest(w)
+			return
+		}
+		var req SendEmailRequest
+		if err := req.UnmarshalJSON(body); err != nil {
+			response.BadRequest(w)
+			return
+		}
+
+		in.Header = req.Header
+		in.Body = req.Body
+		in.Receivers = req.Receivers
+	}
+
+	if (in.Header == "" && in.Body == "") || !validEmails(in.Receivers) {
+		response.BadRequest(w)
+		return
+	}
+
+	result, err := h.service.SendEmail(r.Context(), in)
+	if err != nil {
+		logger.Errorf("SendEmail: user_id=%d, err=%v", userID, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	resp := SendEmailResponse{
+		ID: result.ID, SenderID: result.SenderID,
+		Header: result.Header, Body: result.Body, CreatedAt: result.CreatedAt,
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
 }
 
-type MyEmailResponse struct {
-	ID              int64     `json:"id"`
-	SenderID        int64     `json:"sender_id"`
-	Header          string    `json:"header"`
-	Body            string    `json:"body"`
-	CreatedAt       time.Time `json:"created_at"`
-	IsRead          bool      `json:"is_read"`
-	ReceiversEmails []string  `json:"receivers_emails"`
-}
-
-type GetMyEmailsResponse struct {
-	Emails []MyEmailResponse `json:"emails"`
-	Limit  int               `json:"limit"`
-	Offset int               `json:"offset"`
-	Total  int               `json:"total"`
-}
-
-// @Summary      Получить письма отправленные пользователем
-// @Description  Возвращает список писем, в которых авторизованный пользователь указан отправителем
-// @Tags         emails
-// @Produce      json
-// @Param        limit   query     int  false  "Количество записей на странице (default: 20, max: 100)"
-// @Param        offset  query     int  false  "Смещение для пагинации (default: 0)"
-// @Success      200  {object}  GetEmailsResponse
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/myemails [get]
-func (handler *Handler) GetMyEmails(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-
-	logger.Infof("get email request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
 		return
 	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		response.BadRequest(w)
 		return
 	}
-
-	limit := 20
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
-			limit = l
-		}
+	var req ForwardEmailRequest
+	if err := req.UnmarshalJSON(body); err != nil {
+		response.BadRequest(w)
+		return
 	}
-
-	offset := 0
-	if offsetStr := r.URL.Query().Get("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		}
+	if req.EmailID <= 0 || !validEmails(req.Receivers) {
+		response.BadRequest(w)
+		return
 	}
-
-	logger.Debugf("Getting emails, user_id=%d, limit=%d, offset=%d", payload.UserId, limit, offset)
-
-	result, err := handler.service.GetEmailsBySender(r.Context(), service.GetMyEmailsInput{
-		UserID: payload.UserId,
-		Limit:  limit,
-		Offset: offset,
-	})
-	if err != nil {
-		logger.Errorf("Failed to get emails: %v", err)
+	if err := h.service.ForwardEmail(r.Context(), service.ForwardEmailInput{
+		UserID: userID, EmailID: req.EmailID, Receivers: req.Receivers,
+	}); err != nil {
+		logger.Errorf("ForwardEmail: user_id=%d, email_id=%d, err=%v", userID, req.EmailID, err)
 		parseCommonErrors(err, w)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
+}
 
-	emails := make([]MyEmailResponse, len(result.Emails))
-	for i, email := range result.Emails {
-		emails[i] = MyEmailResponse{
-			ID:              email.ID,
-			SenderID:        email.SenderID,
-			Header:          email.Header,
-			Body:            email.Body,
-			CreatedAt:       email.CreatedAt,
-			IsRead:          email.IsRead,
-			ReceiversEmails: email.ReceiversEmails,
+func (h *Handler) GetInboxEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := h.service.GetEmailsByReceiver(r.Context(), service.GetEmailsInput{
+		UserID: userID, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("GetInbox: user_id=%d, err=%v", userID, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	writeEmailsList(w, result)
+}
+
+func (h *Handler) GetAllEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := h.service.GetAllEmailsByUser(r.Context(), service.GetEmailsInput{
+		UserID: userID, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("GetAllEmails: user_id=%d, err=%v", userID, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	writeEmailsList(w, result)
+}
+
+func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
+	logger := middleware.GetLogger(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := h.service.GetEmailsBySender(r.Context(), service.GetMyEmailsInput{
+		UserID: userID, Limit: limit, Offset: offset,
+	})
+	if err != nil {
+		logger.Errorf("GetSent: user_id=%d, err=%v", userID, err)
+		parseCommonErrors(err, w)
+		return
+	}
+	out := make([]MyEmailResponse, len(result.Emails))
+	for i, em := range result.Emails {
+		out[i] = MyEmailResponse{
+			ID:              em.ID,
+			Header:          em.Header,
+			Body:            em.Body,
+			CreatedAt:       em.CreatedAt,
+			IsRead:          em.IsRead,
+			IsStarred:       em.IsStarred,
+			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
 
 	resp := GetMyEmailsResponse{
-		Emails: emails,
-		Limit:  result.Limit,
-		Offset: result.Offset,
-		Total:  result.Total,
+		Emails: out, Limit: result.Limit, Offset: result.Offset, Total: result.Total,
 	}
 
-	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d",
-		payload.UserId, len(emails), result.Total)
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
+
 }
 
-type GetEmailResponse struct {
-	ID              int64     `json:"id"`
-	SenderID        int64     `json:"sender_id"`
-	SenderEmail     string    `json:"sender_email"`
-	SenderName      string    `json:"sender_name"`
-	SenderSurname   string    `json:"sender_surname"`
-	Header          string    `json:"header"`
-	Body            string    `json:"body"`
-	CreatedAt       time.Time `json:"created_at"`
-	SenderImagePath string    `json:"sender_image_path"`
-	ReceiverList    []string  `json:"receiver_list"`
-}
-
-// @Summary      Получить письмо по ID
-// @Description  Возвращает детальную информацию о письме
-// @Tags         emails
-// @Produce      json
-// @Param        id   path      int  true  "ID письма"
-// @Success      200  {object}  GetEmailResponse
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      401  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/{id} [get]
-func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Get email by ID request received")
-
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
 		return
 	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
+	emailID, err := parsePathInt64(r, "id")
+	if err != nil || emailID <= 0 {
 		response.BadRequest(w)
 		return
 	}
-
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Errorf("Invalid url %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDStr := pathParts[4]
-
-	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
-	if err != nil {
-		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	logger.Debugf("Getting email, user_id=%d, email_id=%d", payload.UserId, emailID)
-
-	result, err := handler.service.GetEmailByID(r.Context(), service.GetEmailInput{
-		UserID:  payload.UserId,
-		EmailID: emailID,
+	result, err := h.service.GetEmailByID(r.Context(), service.GetEmailInput{
+		UserID: userID, EmailID: emailID,
 	})
 	if err != nil {
-		logger.Errorf("Failed to get email: %v", err)
+		logger.Errorf("GetEmailByID: user_id=%d, email_id=%d, err=%v", userID, emailID, err)
 		parseCommonErrors(err, w)
 		return
 	}
 	resp := GetEmailResponse{
 		ID:              result.ID,
-		SenderID:        result.SenderID,
 		SenderEmail:     result.SenderEmail,
 		SenderName:      result.SenderName,
 		SenderSurname:   result.SenderSurname,
@@ -518,262 +332,123 @@ func (handler *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		ReceiverList:    result.ReceiverList,
 	}
 
-	logger.Debugf("Email retrieved successfully: user_id=%d, email_id=%d",
-		payload.UserId, emailID)
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
+
 }
 
-// @Summary      Отметить письмо как прочитанное
-// @Description  Помечает указанное письмо как прочитанное.
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param         id   path      int  true  "ID письма"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/read [put]
-func (handler *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
+	h.getFolder(w, r, "GetSpam", h.service.GetSpamEmails)
+}
+
+func (h *Handler) GetTrashEmails(w http.ResponseWriter, r *http.Request) {
+	h.getFolder(w, r, "GetTrash", h.service.GetTrashEmails)
+}
+
+func (h *Handler) GetFavoriteEmails(w http.ResponseWriter, r *http.Request) {
+	h.getFolder(w, r, "GetFavorites", h.service.GetFavoriteEmails)
+}
+
+func (h *Handler) getFolder(
+	w http.ResponseWriter, r *http.Request, op string,
+	fn func(ctx context.Context, in service.GetEmailsInput) (*service.GetEmailsResult, error),
+) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Mark email as read request received")
-	payload, err := middleware.ClaimsFromContext(r.Context())
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
+		return
+	}
+	limit, offset := parsePagination(r)
+	result, err := fn(r.Context(), service.GetEmailsInput{
+		UserID: userID, Limit: limit, Offset: offset,
+	})
 	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
-	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Errorf("Invalid url %v", err)
-
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDStr := pathParts[4]
-	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
-	if err != nil {
-		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDs := []int64{emailID}
-
-	logger.Debugf("Marking email as read, user_id=%d, email_id=%d", payload.UserId, emailID)
-
-	if err := handler.service.MarkEmailAsRead(r.Context(), service.MarkAsReadInput{
-		UserID:  payload.UserId,
-		EmailID: emailIDs,
-	}); err != nil {
-		logger.Errorf("Failed to mark email as read: %v", err)
+		logger.Errorf("%s: user_id=%d, err=%v", op, userID, err)
 		parseCommonErrors(err, w)
 		return
 	}
-
-	logger.Debugf("Email marked as read successfully: user_id=%d, email_id=%d",
-		payload.UserId, emailID)
-
-	w.WriteHeader(http.StatusOK)
+	writeEmailsList(w, result)
 }
 
-// @Summary      Отметить письмо как непрочитанное
-// @Description  Помечает указанное письмо как непрочитанное.
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param         id   path      int  true  "ID письма"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/{id}/unread [put]
-func (handler *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) MarkEmailAsRead(w http.ResponseWriter, r *http.Request) {
+	h.markReadSingle(w, r, true)
+}
+
+func (h *Handler) MarkEmailAsUnRead(w http.ResponseWriter, r *http.Request) {
+	h.markReadSingle(w, r, false)
+}
+
+func (h *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request) {
+	h.markReadBatch(w, r, true)
+}
+
+func (h *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Request) {
+	h.markReadBatch(w, r, false)
+}
+
+func (h *Handler) markReadSingle(w http.ResponseWriter, r *http.Request, isRead bool) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Mark email as unread request received")
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
 		return
 	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
+	emailID, err := parsePathInt64(r, "id")
+	if err != nil || emailID <= 0 {
 		response.BadRequest(w)
 		return
 	}
-
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		logger.Errorf("Invalid url %v", err)
-
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDStr := pathParts[4]
-	emailID, err := strconv.ParseInt(emailIDStr, 10, 64)
-	if err != nil {
-		logger.Errorf("Invalid email ID format: %s, user_id=%d", emailIDStr, payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	emailIDs := []int64{emailID}
-
-	logger.Debugf("Marking email as unread, user_id=%d, email_id=%d", payload.UserId, emailID)
-
-	if err := handler.service.MarkEmailAsUnRead(r.Context(), service.MarkAsReadInput{
-		UserID:  payload.UserId,
-		EmailID: emailIDs,
-	}); err != nil {
-		logger.Errorf("Failed to mark email as unread: %v", err)
+	in := service.MarkAsReadInput{UserID: userID, EmailID: []int64{emailID}}
+	if err := h.callMarkRead(r.Context(), in, isRead); err != nil {
+		logger.Errorf("MarkRead: user_id=%d, email_id=%d, isRead=%t, err=%v", userID, emailID, isRead, err)
 		parseCommonErrors(err, w)
 		return
 	}
-
-	logger.Debugf("Email marked as unread successfully: user_id=%d, email_id=%d",
-		payload.UserId, emailID)
-
 	w.WriteHeader(http.StatusOK)
 }
 
-type MarkEmailsAsReadRequest struct {
-	EmailIDs []int64 `json:"email_ids"`
-}
-
-// @Summary      Отметить письма как прочитанные
-// @Description  Помечает указанное письмо как прочитанное.
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param        request body MarkEmailsAsReadRequest true "ID письем"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/read [put]
-func (handler *Handler) MarkEmailsAsRead(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) markReadBatch(w http.ResponseWriter, r *http.Request, isRead bool) {
 	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Mark email as read request received")
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
+	userID, ok := userIDFromCtx(r, w)
+	if !ok {
 		return
 	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		response.BadRequest(w)
 		return
 	}
-
 	var req MarkEmailsAsReadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Errorf("Invalid request body: %v", err)
+	if err := req.UnmarshalJSON(body); err != nil || len(req.EmailIDs) == 0 {
 		response.BadRequest(w)
 		return
 	}
-
-	if len(req.EmailIDs) == 0 {
-		logger.Errorf("Email IDs array is empty")
-		response.BadRequest(w)
-		return
+	for _, id := range req.EmailIDs {
+		if id <= 0 {
+			response.BadRequest(w)
+			return
+		}
 	}
-
-	logger.Debugf("Marking emails as read, user_id=%d", payload.UserId)
-
-	if err := handler.service.MarkEmailAsRead(r.Context(), service.MarkAsReadInput{
-		UserID:  payload.UserId,
-		EmailID: req.EmailIDs,
-	}); err != nil {
-		logger.Errorf("Failed to mark email as read: %v", err)
+	in := service.MarkAsReadInput{UserID: userID, EmailID: req.EmailIDs}
+	if err := h.callMarkRead(r.Context(), in, isRead); err != nil {
+		logger.Errorf("MarkReadBatch: user_id=%d, isRead=%t, err=%v", userID, isRead, err)
 		parseCommonErrors(err, w)
 		return
 	}
-
-	logger.Debugf("Email marked as read successfully: user_id=%d",
-		payload.UserId)
-
 	w.WriteHeader(http.StatusOK)
 }
 
-// @Summary      Отметить письма как непрочитанные
-// @Description  Помечает указанное письмо как непрочитанное.
-// @Tags         emails
-// @Accept       json
-// @Produce      json
-// @Param        request body MarkEmailsAsReadRequest  true "ID письем"
-// @Success      200  "Success"
-// @Failure      400  {object}  response.ErrorResponse
-// @Failure      403  {object}  response.ErrorResponse
-// @Failure      404  {object}  response.ErrorResponse
-// @Failure      500  {object}  response.ErrorResponse
-// @Security     CookieAuth
-// @Router       /api/v1/emails/unread [put]
-func (handler *Handler) MarkEmailsAsUnRead(w http.ResponseWriter, r *http.Request) {
-	logger := middleware.GetLogger(r.Context())
-	logger.Infof("Mark email as unread request received")
-	payload, err := middleware.ClaimsFromContext(r.Context())
-	if err != nil {
-		logger.Errorf("Failed to get claims: %v", err)
-		response.InternalError(w)
-		return
+func (h *Handler) callMarkRead(ctx context.Context, in service.MarkAsReadInput, isRead bool) error {
+	if isRead {
+		return h.service.MarkEmailAsRead(ctx, in)
 	}
-
-	if payload.UserId <= 0 {
-		logger.Errorf("Invalid user ID: %d", payload.UserId)
-		response.BadRequest(w)
-		return
-	}
-
-	var req MarkEmailsAsReadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Errorf("Invalid request body: %v", err)
-		response.BadRequest(w)
-		return
-	}
-
-	if len(req.EmailIDs) == 0 {
-		logger.Errorf("Email IDs array is empty")
-		response.BadRequest(w)
-		return
-	}
-
-	logger.Debugf("Marking email as unread, user_id=%d", payload.UserId)
-
-	if err := handler.service.MarkEmailAsUnRead(r.Context(), service.MarkAsReadInput{
-		UserID:  payload.UserId,
-		EmailID: req.EmailIDs,
-	}); err != nil {
-		logger.Errorf("Failed to mark email as unread: %v", err)
-		parseCommonErrors(err, w)
-		return
-	}
-
-	logger.Debugf("Email marked as unread successfully: user_id=%d",
-		payload.UserId)
-
-	w.WriteHeader(http.StatusOK)
+	return h.service.MarkEmailAsUnRead(ctx, in)
 }

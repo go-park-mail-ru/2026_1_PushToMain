@@ -12,7 +12,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o ./build/email-service \
     ./cmd/email/main.go
 
-# ─────────────────────────────────────────────
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates tzdata
