@@ -105,7 +105,7 @@ func (app *App) Run(configPath string) {
 		}
 	}()
 
-	userSrvc := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient)
+	userSrvc := userService.New(profileDbRepo, profileS3Repo, &app.Config.JWTManager, grpcUserClient, app.Config.ReservedEmails)
 	grpcServer := grpc.NewServer()
 
 	emailGrpcClient, err := emailClient.New(app.Config.GRPCClients.EmailService)

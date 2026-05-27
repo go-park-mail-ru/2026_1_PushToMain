@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -70,6 +71,7 @@ type Service struct {
 	folderClient  FolderClient
 	emailClient   EmailClient
 	welcomeConfig WelcomeConfig
+	reservedEmail []string
 }
 
 type EmailClient interface {
@@ -85,12 +87,19 @@ func (s *Service) WithEmailClient(c EmailClient, cfg WelcomeConfig) {
 	s.welcomeConfig = cfg
 }
 
-func New(r DbRepository, s3 S3Repository, jwt JWTManager, folderClient FolderClient) *Service {
+func New(
+	r DbRepository,
+	s3 S3Repository,
+	jwt JWTManager,
+	folderClient FolderClient,
+	reservedEmails []string,
+) *Service {
 	return &Service{
-		userDB:       r,
-		s3Storage:    s3,
-		jwt:          jwt,
-		folderClient: folderClient,
+		userDB:        r,
+		s3Storage:     s3,
+		jwt:           jwt,
+		folderClient:  folderClient,
+		reservedEmail: reservedEmails,
 	}
 }
 
@@ -212,6 +221,9 @@ func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInp
 }
 
 func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
+	if slices.Contains(s.reservedEmail, strings.ToLower(signUp.Email)) {
+		return "", ErrUserAlreadyExists
+	}
 	_, err := s.userDB.FindByEmail(ctx, signUp.Email)
 	if err == nil {
 		return "", ErrUserAlreadyExists
