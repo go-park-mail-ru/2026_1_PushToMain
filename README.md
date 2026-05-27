@@ -23,7 +23,11 @@
 - **Frontend-часть:** [Smail Frontend](https://github.com/frontend-park-mail-ru/2026_1_PushToMain)
 
 ## Реализация
+<<<<<<< HEAD
 - [Ссылка на deploy](https://e-smail.ru)
+=======
+- [Ссылка на deploy](https://212.233.96.16)
+>>>>>>> main
 
 ### Зачем мы разработали этот проект?
 
