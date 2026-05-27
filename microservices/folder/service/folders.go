@@ -184,7 +184,11 @@ func (s *Service) GetEmailsFromFolder(ctx context.Context, input GetEmailsFromFo
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
+
 	emailIDs, err := s.emailClient.GetEmailIdsByUserEmailIds(ctx, userEmailIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	emailResp, err := s.emailClient.GetEmailsByIDs(
 		ctx,
