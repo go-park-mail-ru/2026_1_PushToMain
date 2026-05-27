@@ -33,11 +33,6 @@ import (
 
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-
 	"google.golang.org/grpc"
 )
 
@@ -182,34 +177,6 @@ func (app *App) Run(configPath string) {
 	if err := app.shutdownGracefully(); err != nil {
 		app.Logger.Errorf("error during shutdown: %v", err)
 	}
-}
-
-func newMinioClient(cfg MinioConfig) (*s3.Client, error) {
-	customResolver := aws.EndpointResolverWithOptionsFunc(
-		func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				URL:               cfg.Endpoint,
-				SigningRegion:     cfg.Region,
-				HostnameImmutable: true,
-			}, nil
-		},
-	)
-
-	awsCfg, err := config.LoadDefaultConfig(
-		context.Background(),
-		config.WithRegion(cfg.Region),
-		config.WithEndpointResolverWithOptions(customResolver),
-		config.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("minio aws config: %w", err)
-	}
-
-	return s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.UsePathStyle = true
-	}), nil
 }
 
 func (app *App) shutdownGracefully() error {

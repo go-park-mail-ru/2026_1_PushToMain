@@ -54,16 +54,6 @@ func encodeB64(data []byte) string {
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-func rawMessage(headers map[string]string, body string) io.Reader {
-	var sb strings.Builder
-	for k, v := range headers {
-		sb.WriteString(k + ": " + v + "\r\n")
-	}
-	sb.WriteString("\r\n")
-	sb.WriteString(body)
-	return strings.NewReader(sb.String())
-}
-
 func TestReadDecoded_Base64(t *testing.T) {
 	data := []byte("hello binary \x00\x01\x02")
 	encoded := base64.StdEncoding.EncodeToString(data)
