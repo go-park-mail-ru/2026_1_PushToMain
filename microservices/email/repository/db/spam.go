@@ -41,7 +41,9 @@ func (r *Repository) GetSenderIDsByEmailIDs(ctx context.Context, userID int64, e
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	out := make([]int64, 0)
 	for rows.Next() {
@@ -149,7 +151,9 @@ func (r *Repository) GetSpamEmailIDs(ctx context.Context, userID int64, emailIDs
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	var out []int64
 	for rows.Next() {
 		var id int64
@@ -172,7 +176,9 @@ func (r *Repository) BlockSendersBatch(ctx context.Context, userID int64, sender
 	if err != nil {
 		return ErrQueryFail
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	insertParts := make([]string, len(senderIDs))
 	insertArgs := make([]any, 0, len(senderIDs)+1)
@@ -222,7 +228,9 @@ func (r *Repository) UnblockSendersBatch(ctx context.Context, userID int64, send
 	if err != nil {
 		return ErrQueryFail
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	parts := make([]string, len(senderIDs))
 	args := make([]any, 0, len(senderIDs)+1)

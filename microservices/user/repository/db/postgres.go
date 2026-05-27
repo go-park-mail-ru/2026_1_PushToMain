@@ -253,7 +253,9 @@ func (r *Repository) FindByEmails(ctx context.Context, emails []string) ([]model
 	if err != nil {
 		return nil, fmt.Errorf("FindByEmails: %w", ErrQueryError)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var users []models.User
 	for rows.Next() {

@@ -316,5 +316,5 @@ func (h *Handler) GetCSRF(w http.ResponseWriter, r *http.Request) {
 	resp := csrfResponse{
 		Token: token,
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

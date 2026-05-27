@@ -49,7 +49,9 @@ func (r *Repository) GetEmailIdsByUserEmailIds(ctx context.Context, userEmailIDs
 	if err != nil {
 		return nil, fmt.Errorf("failed to query email_ids: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var emailIDs []int64
 	for rows.Next() {
@@ -180,7 +182,9 @@ func (r *Repository) queryUserMailbox(
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	out := make([]models.EmailWithMetadata, 0)
 	for rows.Next() {
@@ -284,7 +288,9 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	out := make([]models.EmailWithMetadata, 0)
 	for rows.Next() {
@@ -327,7 +333,9 @@ func (r *Repository) GetDeletedEmailIDs(ctx context.Context, userID int64, email
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	out := make([]int64, 0)
 	for rows.Next() {
