@@ -1,0 +1,35 @@
+myhostname = mail.e-smail.ru
+mydomain = e-smail.ru
+myorigin = $mydomain
+mydestination =
+
+inet_interfaces = all
+inet_protocols = ipv4
+mynetworks = 127.0.0.0/8, 172.16.0.0/12, 10.0.0.0/8
+
+relay_domains = $mydomain
+transport_maps = hash:/etc/postfix/transport
+
+smtpd_relay_restrictions =
+    permit_mynetworks,
+    reject_unauth_destination
+
+smtpd_recipient_restrictions =
+    permit_mynetworks,
+    reject_unauth_destination,
+    reject_invalid_hostname,
+    reject_non_fqdn_sender,
+    reject_non_fqdn_recipient,
+    reject_unknown_sender_domain,
+    reject_rbl_client zen.spamhaus.org
+
+smtpd_tls_cert_file = /etc/ssl/postfix/fullchain.pem
+smtpd_tls_key_file  = /etc/ssl/postfix/privkey.pem
+smtpd_tls_security_level = may
+smtp_tls_security_level  = may
+
+message_size_limit = 10240000
+mailbox_size_limit = 0
+
+maillog_file = /dev/stdout
+compatibility_level = 3.6

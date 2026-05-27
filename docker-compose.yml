@@ -1,18 +1,5 @@
 services:
-  app:
-    build: ./
-    env_file:
-      - .env
-    command: ["./smail", "--config", "./configs/config.yaml"]
-    volumes:
-      - ./configs:/app/configs
-      - ./db/migrations:/app/db/migrations
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
+  # Postgres
   postgres:
     image: postgres:16.3
     environment:
@@ -27,22 +14,166 @@ services:
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DBNAME}"]
-      interval: 30s
-      timeout: 10s
+      interval: 10s
+      timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  # MinIO
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: minio/minio:latest
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     ports:
-      - "9090:9090"
       - "9000:9000"
+      - "9090:9090"
     command: server --console-address ":9090" /data
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # User service
+  user-service:
+    build:
+      context: .
+      dockerfile: microservices/user/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8081:8081"
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tlnp | grep 50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # Email service
+  email-service:
+    build:
+      context: .
+      dockerfile: microservices/email/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8082:8082"
+      - "50052:50052"
+    expose:
+      - "2400"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -tlnp | grep 8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  # Folder service
+  folder-service:
+    build:
+      context: .
+      dockerfile: microservices/folder/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8083:8083"
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      email-service:
+        condition: service_started
+    restart: unless-stopped
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./configs/prometheus/config.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9091:9090"
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./configs/grafana:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+    restart: unless-stopped
+
+  # Postfix
+  postfix:
+    build:
+      context: .
+      dockerfile: microservices/postfix/Dockerfile
+    volumes:
+      - ./configs/postfix/main.cf:/etc/postfix/main.cf:ro
+      - ./configs/postfix/master.cf:/etc/postfix/master.cf:ro
+      - ./certs/postfix:/etc/ssl/postfix:ro
+      - postfix_queue:/var/spool/postfix
+    ports:
+      - "25:25"
+      - "587:587"
+    hostname: mail.e-smail.ru
+    depends_on:
+      email-service:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   minio_data:
+  prometheus_data:
+  grafana_data:
+  postfix_queue:
