@@ -25,6 +25,16 @@ type MockDbRepository struct {
 	isgomock struct{}
 }
 
+// FindByEmails implements [service.DbRepository].
+func (m *MockDbRepository) FindByEmails(ctx context.Context, emails []string) ([]models.User, error) {
+	panic("unimplemented")
+}
+
+// GetUserPasswordByID implements [service.DbRepository].
+func (m *MockDbRepository) GetUserPasswordByID(ctx context.Context, userID int64) (string, error) {
+	panic("unimplemented")
+}
+
 // MockDbRepositoryMockRecorder is the mock recorder for MockDbRepository.
 type MockDbRepositoryMockRecorder struct {
 	mock *MockDbRepository
