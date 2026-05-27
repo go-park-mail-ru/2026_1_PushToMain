@@ -52,7 +52,19 @@ func (h *Handler) GetAttachments(w http.ResponseWriter, r *http.Request) {
 	for i, a := range result.Attachments {
 		out[i] = attachmentToResponse(a)
 	}
-	writeJSON(w, http.StatusOK, GetAttachmentsResponse{Attachments: out})
+	resp := GetAttachmentsResponse{Attachments: out}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 // UploadAttachment godoc
@@ -118,7 +130,26 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, attachmentToResponse(*result))
+	resp := AttachmentResponse{
+		ID:          result.ID,
+		EmailID:     result.EmailID,
+		FileName:    result.FileName,
+		ContentType: result.ContentType,
+		SizeBytes:   result.SizeBytes,
+		CreatedAt:   result.CreatedAt,
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 // DownloadAttachment godoc

@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -27,10 +27,12 @@ const MaxFolderNameLength = 255
 
 var validFolderName = regexp.MustCompile(`^[a-zA-Zа-яА-Я0-9\s\-_]+$`)
 
+//easyjson:json
 type CreateNewFolderRequest struct {
 	FolderName string `json:"folder_name"`
 }
 
+//easyjson:json
 type CreateNewFolderResponse struct {
 	ID int64 `json:"folder_id"`
 }
@@ -58,12 +60,18 @@ func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req CreateNewFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
 	}
+
 	if !req.Validate() {
 		logger.Warnf("Validation failed, user_id=%d: invalid format", payload.UserId)
 		response.BadRequest(w)
@@ -81,11 +89,16 @@ func (handler *Handler) CreateNewFolder(w http.ResponseWriter, r *http.Request) 
 	resp := CreateNewFolderResponse{
 		ID: result.ID,
 	}
-
 	logger.Debugf("Folder created successfully: user_id=%d, folder_id=%d",
 		payload.UserId, result.ID)
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
@@ -103,6 +116,7 @@ func (req *CreateNewFolderRequest) Validate() bool {
 	return true
 }
 
+//easyjson:json
 type ChangeFolderNameRequest struct {
 	FolderName string `json:"folder_name"`
 }
@@ -147,8 +161,13 @@ func (handler *Handler) ChangeFolderName(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req ChangeFolderNameRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
@@ -187,6 +206,7 @@ func (req *ChangeFolderNameRequest) Validate() bool {
 	return true
 }
 
+//easyjson:json
 type EmailResponse struct {
 	ID            int64     `json:"id"`
 	SenderEmail   string    `json:"sender_email"`
@@ -199,6 +219,7 @@ type EmailResponse struct {
 	IsRead        bool      `json:"is_read"`
 }
 
+//easyjson:json
 type GetEmailsFromFolderResponse struct {
 	Emails      []EmailResponse `json:"emails"`
 	Limit       int             `json:"limit"`
@@ -287,13 +308,21 @@ func (handler *Handler) GetEmailsFromFolder(w http.ResponseWriter, r *http.Reque
 	logger.Debugf("Emails retrieved successfully: user_id=%d, count=%d, total=%d, unread=%d",
 		payload.UserId, len(emails), result.Total, result.UnreadCount)
 
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		logger.Errorf("Failed to encode response: %v", err)
 		response.InternalError(w)
 		return
 	}
+
 }
 
+//easyjson:json
 type AddEmailsInFolderRequest struct {
 	EmailsID []int64 `json:"emails_id"`
 }
@@ -338,8 +367,13 @@ func (handler *Handler) AddEmailsInFolder(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req AddEmailsInFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return
@@ -361,6 +395,7 @@ func (handler *Handler) AddEmailsInFolder(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
+//easyjson:json
 type DeleteEmailsFromFolderRequest struct {
 	EmailsID []int64 `json:"emails_id"`
 }
@@ -405,8 +440,13 @@ func (handler *Handler) DeleteEmailsFromFolder(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req DeleteEmailsFromFolderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		logger.Warnf("Invalid request body, user_id=%d: %v", payload.UserId, err)
 		response.BadRequest(w)
 		return

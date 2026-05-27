@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -27,8 +27,13 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req CreateDraftRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -40,7 +45,27 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusCreated, draftToResponse(result))
+	resp := DraftResponse{
+		ID:        result.ID,
+		SenderID:  result.SenderID,
+		Header:    result.Header,
+		Body:      result.Body,
+		Receivers: result.Recipients,
+		CreatedAt: result.CreatedAt,
+		UpdatedAt: result.UpdatedAt,
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
@@ -54,8 +79,13 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w)
 		return
 	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req UpdateDraftRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -68,7 +98,27 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusOK, draftToResponse(result))
+	resp := DraftResponse{
+		ID:        result.ID,
+		SenderID:  result.SenderID,
+		Header:    result.Header,
+		Body:      result.Body,
+		Receivers: result.Recipients,
+		CreatedAt: result.CreatedAt,
+		UpdatedAt: result.UpdatedAt,
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +140,28 @@ func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusOK, draftToResponse(result))
+
+	resp := DraftResponse{
+		ID:        result.ID,
+		SenderID:  result.SenderID,
+		Header:    result.Header,
+		Body:      result.Body,
+		Receivers: result.Recipients,
+		CreatedAt: result.CreatedAt,
+		UpdatedAt: result.UpdatedAt,
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
@@ -112,9 +183,22 @@ func (h *Handler) GetDrafts(w http.ResponseWriter, r *http.Request) {
 	for i := range result.Drafts {
 		out[i] = draftToResponse(&result.Drafts[i])
 	}
-	writeJSON(w, http.StatusOK, GetDraftsResponse{
+
+	resp := GetDraftsResponse{
 		Drafts: out, Limit: result.Limit, Offset: result.Offset, Total: result.Total,
-	})
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 func (h *Handler) DeleteDrafts(w http.ResponseWriter, r *http.Request) {
@@ -156,8 +240,20 @@ func (h *Handler) SendDraft(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusOK, SendEmailResponse{
+
+	resp := SendEmailResponse{
 		ID: result.ID, SenderID: result.SenderID,
 		Header: result.Header, Body: result.Body, CreatedAt: result.CreatedAt,
-	})
+	}
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }

@@ -2,12 +2,14 @@ package handler
 
 import "time"
 
+//easyjson:json
 type SendEmailRequest struct {
 	Header    string   `json:"header"`
 	Body      string   `json:"body"`
 	Receivers []string `json:"receivers"`
 }
 
+//easyjson:json
 type SendEmailResponse struct {
 	ID        int64     `json:"email_id"`
 	SenderID  int64     `json:"from"`
@@ -16,11 +18,13 @@ type SendEmailResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+//easyjson:json
 type ForwardEmailRequest struct {
 	EmailID   int64    `json:"email_id"`
 	Receivers []string `json:"receivers"`
 }
 
+//easyjson:json
 type EmailResponse struct {
 	ID            int64     `json:"id"`
 	SenderEmail   string    `json:"sender_email"`
@@ -34,6 +38,7 @@ type EmailResponse struct {
 	IsStarred     bool      `json:"is_starred"`
 }
 
+//easyjson:json
 type GetEmailsResponse struct {
 	Emails      []EmailResponse `json:"emails"`
 	Limit       int             `json:"limit"`
@@ -42,6 +47,7 @@ type GetEmailsResponse struct {
 	UnreadCount int             `json:"unread_count"`
 }
 
+//easyjson:json
 type MyEmailResponse struct {
 	ID              int64     `json:"id"`
 	Header          string    `json:"header"`
@@ -52,6 +58,7 @@ type MyEmailResponse struct {
 	ReceiversEmails []string  `json:"receivers_emails"`
 }
 
+//easyjson:json
 type GetMyEmailsResponse struct {
 	Emails []MyEmailResponse `json:"emails"`
 	Limit  int               `json:"limit"`
@@ -59,6 +66,7 @@ type GetMyEmailsResponse struct {
 	Total  int               `json:"total"`
 }
 
+//easyjson:json
 type GetEmailResponse struct {
 	ID              int64     `json:"id"`
 	SenderEmail     string    `json:"sender_email"`
@@ -71,26 +79,31 @@ type GetEmailResponse struct {
 	ReceiverList    []string  `json:"receiver_list"`
 }
 
+//easyjson:json
 type MarkEmailsAsReadRequest struct {
 	EmailIDs []int64 `json:"email_ids"`
 }
 
+//easyjson:json
 type IDsRequest struct {
 	IDs []int64 `json:"ids"`
 }
 
+//easyjson:json
 type CreateDraftRequest struct {
 	Header    string   `json:"header"`
 	Body      string   `json:"body"`
 	Receivers []string `json:"receivers"`
 }
 
+//easyjson:json
 type UpdateDraftRequest struct {
 	Header    string   `json:"header"`
 	Body      string   `json:"body"`
 	Receivers []string `json:"receivers"`
 }
 
+//easyjson:json
 type DraftResponse struct {
 	ID        int64     `json:"id"`
 	SenderID  int64     `json:"sender_id"`
@@ -101,6 +114,7 @@ type DraftResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+//easyjson:json
 type GetDraftsResponse struct {
 	Drafts []DraftResponse `json:"drafts"`
 	Limit  int             `json:"limit"`
@@ -109,7 +123,7 @@ type GetDraftsResponse struct {
 }
 
 // ─── Attachment DTOs ──────────────────────────────────────────────────────────
-
+//easyjson:json
 type AttachmentResponse struct {
 	ID          int64     `json:"id"`
 	EmailID     int64     `json:"email_id"`
@@ -119,6 +133,7 @@ type AttachmentResponse struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+//easyjson:json
 type GetAttachmentsResponse struct {
 	Attachments []AttachmentResponse `json:"attachments"`
 }

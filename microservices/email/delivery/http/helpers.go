@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -53,8 +54,13 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func decodeIDs(w http.ResponseWriter, r *http.Request) ([]int64, bool) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return nil, false
+	}
 	var req IDsRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return nil, false
 	}

@@ -5,6 +5,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
@@ -73,13 +74,24 @@ func writeEmailsList(w http.ResponseWriter, result *service.GetEmailsResult) {
 	for i, em := range result.Emails {
 		emails[i] = emailToDTO(em)
 	}
-	writeJSON(w, http.StatusOK, GetEmailsResponse{
+	resp := GetEmailsResponse{
 		Emails:      emails,
 		Limit:       result.Limit,
 		Offset:      result.Offset,
 		Total:       result.Total,
 		UnreadCount: result.UnreadCount,
-	})
+	}
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+
 }
 
 // SendEmail accepts either:
@@ -132,11 +144,17 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Plain JSON body (no attachments).
-		var req SendEmailRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
 			response.BadRequest(w)
 			return
 		}
+		var req SendEmailRequest
+		if err := req.UnmarshalJSON(body); err != nil {
+			response.BadRequest(w)
+			return
+		}
+
 		in.Header = req.Header
 		in.Body = req.Body
 		in.Receivers = req.Receivers
@@ -153,10 +171,22 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusOK, SendEmailResponse{
+	resp := SendEmailResponse{
 		ID: result.ID, SenderID: result.SenderID,
 		Header: result.Header, Body: result.Body, CreatedAt: result.CreatedAt,
-	})
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
 }
 
 func (h *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
@@ -165,8 +195,13 @@ func (h *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req ForwardEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
@@ -247,9 +282,23 @@ func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
-	writeJSON(w, http.StatusOK, GetMyEmailsResponse{
+
+	resp := GetMyEmailsResponse{
 		Emails: out, Limit: result.Limit, Offset: result.Offset, Total: result.Total,
-	})
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
+
 }
 
 func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
@@ -271,7 +320,7 @@ func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	writeJSON(w, http.StatusOK, GetEmailResponse{
+	resp := GetEmailResponse{
 		ID:              result.ID,
 		SenderEmail:     result.SenderEmail,
 		SenderName:      result.SenderName,
@@ -281,7 +330,20 @@ func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:       result.CreatedAt,
 		SenderImagePath: result.SenderImagePath,
 		ReceiverList:    result.ReceiverList,
-	})
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
+		logger.Errorf("Failed to encode response: %v", err)
+		response.InternalError(w)
+		return
+	}
+
 }
 
 func (h *Handler) GetSpamEmails(w http.ResponseWriter, r *http.Request) {
@@ -359,8 +421,13 @@ func (h *Handler) markReadBatch(w http.ResponseWriter, r *http.Request, isRead b
 	if !ok {
 		return
 	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req MarkEmailsAsReadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.EmailIDs) == 0 {
+	if err := req.UnmarshalJSON(body); err != nil || len(req.EmailIDs) == 0 {
 		response.BadRequest(w)
 		return
 	}
