@@ -22,7 +22,7 @@ func TestHandler_SignUp(t *testing.T) {
 	validBody := SignUpRequest{
 		Name:     "John",
 		Surname:  "Doe",
-		Email:    "john@smail.ru",
+		Email:    "john@e-smail.ru",
 		Password: "password123",
 	}
 
@@ -126,7 +126,7 @@ func TestHandler_SignUp(t *testing.T) {
 // SignIn
 func TestHandler_SignIn(t *testing.T) {
 	validBody := SignInRequest{
-		Email:    "john@smail.ru",
+		Email:    "john@e-smail.ru",
 		Password: "password123",
 	}
 

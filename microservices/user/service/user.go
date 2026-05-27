@@ -1,6 +1,6 @@
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_db_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service DbRepository
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_s3_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service S3Repository
-//go:generate mockgen -destination=../../../../mocks/app/user/mock_jwt_manager.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/internal/app/user/service JWTManager
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_db_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service DbRepository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_s3_repository.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service S3Repository
+//go:generate mockgen -destination=../../../../mocks/app/user/mock_jwt_manager.go -package=mocks github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service JWTManager
 
 package service
 

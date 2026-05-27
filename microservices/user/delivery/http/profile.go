@@ -14,10 +14,13 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/user/service"
 )
 
+//easyjson:json
 type Folder struct {
 	ID   int64  `json:"folder_id"`
 	Name string `json:"folder_name"`
 }
+
+//easyjson:json
 type GetMeResponse struct {
 	ID        int64    `json:"id"`
 	Email     string   `json:"email"`
@@ -59,7 +62,7 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := json.NewEncoder(w).Encode(GetMeResponse{
+	resp := GetMeResponse{
 		ID:        result.UserID,
 		Email:     result.Email,
 		Name:      result.Name,
@@ -68,8 +71,15 @@ func (handler *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 		IsMale:    result.IsMale,
 		Birthdate: result.Birthdate,
 		Folders:   folders,
-	}); err != nil {
-		logger.Errorf("failed to encode response: %v", err)
+	}
+
+	b, err := resp.MarshalJSON()
+	if err != nil {
+		response.InternalError(w)
+		return
+	}
+	_, err = w.Write(b)
+	if err != nil {
 		response.InternalError(w)
 		return
 	}
@@ -125,6 +135,7 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//easyjson:json
 type UpdateProfileRequest struct {
 	Name      string     `json:"name"`
 	Surname   string     `json:"surname"`
@@ -161,9 +172,13 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w)
+		return
+	}
 	var req UpdateProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		logger.Warnf("Invalid request body: %v", err)
+	if err := req.UnmarshalJSON(body); err != nil {
 		response.BadRequest(w)
 		return
 	}
