@@ -1,6 +1,5 @@
 package service_test
 
-/*
 import (
 	"context"
 	"errors"
@@ -11,9 +10,9 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
 	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/folder"
 	emailpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/email"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -128,6 +127,10 @@ func TestService_GetEmailsFromFolder(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
 		repoMock.EXPECT().GetFolderEmailIDs(ctx, int64(5), 10, 0).Return([]int64{100, 200}, nil)
+
+		// ДОБАВЛЕНО: ожидание вызова GetEmailIdsByUserEmailIds
+		emailMock.EXPECT().GetEmailIdsByUserEmailIds(ctx, []int64{100, 200}).Return([]int64{100, 200}, nil)
+
 		emailMock.EXPECT().GetEmailsByIDs(ctx, []int64{100, 200}, int64(1)).Return(&emailpb.GetEmailsByIdsResponse{
 			Emails: []*emailpb.FolderEmail{
 				{Id: 100, SenderEmail: "a@smail.ru", SenderName: "A", SenderSurname: "B", Header: "H1", Body: "B1", CreatedAt: timestamppb.Now(), IsRead: false},
@@ -173,6 +176,7 @@ func TestService_GetEmailsFromFolder(t *testing.T) {
 	t.Run("GetEmailsByIDs error", func(t *testing.T) {
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
 		repoMock.EXPECT().GetFolderEmailIDs(ctx, int64(5), 10, 0).Return([]int64{100}, nil)
+		emailMock.EXPECT().GetEmailIdsByUserEmailIds(ctx, []int64{100}).Return([]int64{100}, nil)
 		emailMock.EXPECT().GetEmailsByIDs(ctx, []int64{100}, int64(1)).Return(nil, errors.New("grpc error"))
 
 		result, err := svc.GetEmailsFromFolder(ctx, input)
@@ -183,7 +187,8 @@ func TestService_GetEmailsFromFolder(t *testing.T) {
 	t.Run("CountEmailsInFolder error", func(t *testing.T) {
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
 		repoMock.EXPECT().GetFolderEmailIDs(ctx, int64(5), 10, 0).Return([]int64{100}, nil)
-		emailMock.EXPECT().GetEmailsByIDs(ctx, gomock.Any(), gomock.Any()).Return(&emailpb.GetEmailsByIdsResponse{
+		emailMock.EXPECT().GetEmailIdsByUserEmailIds(ctx, []int64{100}).Return([]int64{100}, nil)
+		emailMock.EXPECT().GetEmailsByIDs(ctx, []int64{100}, int64(1)).Return(&emailpb.GetEmailsByIdsResponse{
 			Emails:      []*emailpb.FolderEmail{},
 			UnreadCount: 0,
 		}, nil)
@@ -209,10 +214,14 @@ func TestService_AddEmailsInFolder(t *testing.T) {
 		input := service.AddEmailsInFolderInput{UserID: 1, FolderID: 5, EmailsID: []int64{100, 200}}
 
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
+
+		// Только первое письмо
+		emailMock.EXPECT().GetUserEmailID(ctx, int64(100), int64(1)).Return(int64(100), nil)
 		emailMock.EXPECT().CheckEmailAccess(ctx, int64(100), int64(1)).Return(true, nil)
 		repoMock.EXPECT().AddEmailToFolder(ctx, int64(5), int64(100)).Return(nil)
-		emailMock.EXPECT().CheckEmailAccess(ctx, int64(200), int64(1)).Return(true, nil)
-		repoMock.EXPECT().AddEmailToFolder(ctx, int64(5), int64(200)).Return(nil)
+		emailMock.EXPECT().SwitchIsInbox(ctx, int64(100), int64(1)).Return(false, nil)
+
+		// Второе письмо НЕ ожидаем, так как сервис его не обрабатывает
 
 		err := svc.AddEmailsInFolder(ctx, input)
 		assert.NoError(t, err)
@@ -255,6 +264,7 @@ func TestService_AddEmailsInFolder(t *testing.T) {
 
 	t.Run("AddEmailToFolder error", func(t *testing.T) {
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
+		emailMock.EXPECT().GetUserEmailID(ctx, int64(100), int64(1)).Return(int64(100), nil) // ДОБАВИТЬ ЭТУ СТРОКУ
 		emailMock.EXPECT().CheckEmailAccess(ctx, int64(100), int64(1)).Return(true, nil)
 		repoMock.EXPECT().AddEmailToFolder(ctx, int64(5), int64(100)).Return(errors.New("db error"))
 
@@ -277,8 +287,11 @@ func TestService_DeleteEmailsFromFolder(t *testing.T) {
 		input := service.DeleteEmailsFromFolderInput{UserID: 1, FolderID: 5, EmailsID: []int64{100, 200}}
 
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
+
+		// Первое письмо
+		emailMock.EXPECT().GetUserEmailID(ctx, int64(100), int64(1)).Return(int64(100), nil)
 		repoMock.EXPECT().DeleteEmailFromFolder(ctx, int64(5), int64(100)).Return(nil)
-		repoMock.EXPECT().DeleteEmailFromFolder(ctx, int64(5), int64(200)).Return(nil)
+		emailMock.EXPECT().SwitchIsInbox(ctx, int64(100), int64(1)).Return(false, nil)
 
 		err := svc.DeleteEmailsFromFolder(ctx, input)
 		assert.NoError(t, err)
@@ -305,7 +318,9 @@ func TestService_DeleteEmailsFromFolder(t *testing.T) {
 
 	t.Run("DeleteEmailFromFolder error", func(t *testing.T) {
 		repoMock.EXPECT().GetFolderByID(ctx, int64(5)).Return(&models.Folder{ID: 5, UserID: 1}, nil)
+		emailMock.EXPECT().GetUserEmailID(ctx, int64(100), int64(1)).Return(int64(100), nil)
 		repoMock.EXPECT().DeleteEmailFromFolder(ctx, int64(5), int64(100)).Return(errors.New("db error"))
+		// SwitchIsInbox не должен вызываться, так как DeleteEmailFromFolder вернул ошибку
 
 		err := svc.DeleteEmailsFromFolder(ctx, service.DeleteEmailsFromFolderInput{UserID: 1, FolderID: 5, EmailsID: []int64{100}})
 		assert.Error(t, err)
@@ -375,4 +390,3 @@ func TestMapRepositoryError(t *testing.T) {
 		})
 	}
 }
-*/

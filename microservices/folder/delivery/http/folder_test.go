@@ -13,9 +13,9 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/service"
 	mocks "github.com/go-park-mail-ru/2026_1_PushToMain/mocks/app/folder"
+	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/mock/gomock"
 )
 
 // ---------- test helpers ----------
