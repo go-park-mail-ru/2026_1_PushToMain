@@ -88,7 +88,11 @@ func (h *Handler) UploadAttachment(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Errorf("file close error: %v", err)
+		}
+	}()
 
 	if header.Size > maxAttachmentSize {
 		response.BadRequest(w)
@@ -157,7 +161,11 @@ func (h *Handler) DownloadAttachment(w http.ResponseWriter, r *http.Request) {
 		parseCommonErrors(err, w)
 		return
 	}
-	defer result.Body.Close()
+	defer func() {
+		if err := result.Body.Close(); err != nil {
+			logger.Errorf("file close error: %v", err)
+		}
+	}()
 
 	w.Header().Set("Content-Type", result.ContentType)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, result.FileName))
