@@ -56,23 +56,27 @@ func New(cfg Config) (*sql.DB, error) {
 
 func RunMigrations(cfg Config) error {
 	dsn := cfg.ToDSNPGX()
-
 	m, err := migrate.New(cfg.MigrationsPath, dsn)
 	if err != nil {
 		return fmt.Errorf("cannot create migrate instance: %w", err)
 	}
-	defer m.Close()
 
 	errUp := m.Up()
+	sourceErr, dbErr := m.Close()
+	if sourceErr != nil {
+		return fmt.Errorf("migration source close error: %w", sourceErr)
+	}
+	if dbErr != nil {
+		return fmt.Errorf("migration db close error: %w", dbErr)
+	}
+
 	if errUp != nil && !errors.Is(errUp, migrate.ErrNoChange) {
 		return fmt.Errorf("cannot apply migrations: %w", errUp)
 	}
-
 	if errors.Is(errUp, migrate.ErrNoChange) {
 		fmt.Println("No new migrations to apply")
 	} else {
-		fmt.Printf("Migrations applied successfully from")
+		fmt.Println("Migrations applied successfully")
 	}
-
 	return nil
 }
