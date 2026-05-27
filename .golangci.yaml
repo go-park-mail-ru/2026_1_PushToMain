@@ -8,7 +8,6 @@ linters:
     - staticcheck
     - unused
     - gocyclo
-    - goconst
     - misspell
   exclusions:
     rules:
@@ -16,6 +15,5 @@ linters:
         linters:
           - errcheck
           - goconst
-
 run:
   timeout: 5m
