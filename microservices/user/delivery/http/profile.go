@@ -104,7 +104,9 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	if !isValidFileType(file, handler.cfg.AllowedTypes) {
 		logger.Infof("invalid image type: %s", header.Header.Get("Content-Type"))
@@ -205,7 +207,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("Profile updated successfully, user_id=%d", payload.UserId)
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "profile updated successfully",
 	})
 }

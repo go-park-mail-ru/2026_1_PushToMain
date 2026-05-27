@@ -236,7 +236,9 @@ func (r *Repository) GetUserFolders(ctx context.Context, userID int64) ([]models
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user folders: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var folders []models.Folder
 	for rows.Next() {
@@ -273,7 +275,9 @@ func (r *Repository) GetFolderEmailIDs(ctx context.Context, folderID int64, limi
 		return nil, err
 	}
 
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var ids []int64
 

@@ -15,7 +15,9 @@ func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (*mode
 	if err != nil {
 		return nil, ErrTransactionFailed
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	err = tx.QueryRowContext(ctx, `
 		INSERT INTO emails (sender_id, sender_email, header, body, is_draft)
@@ -46,7 +48,9 @@ func (r *Repository) UpdateDraft(ctx context.Context, userID int64, draft models
 	if err != nil {
 		return ErrTransactionFailed
 	}
-	defer tx.Rollback()
+	defer func() {
+		_ = tx.Rollback()
+	}()
 
 	res, err := tx.ExecContext(ctx, `
 		UPDATE emails
@@ -119,7 +123,9 @@ func (r *Repository) GetDrafts(ctx context.Context, userID int64, limit, offset 
 	if err != nil {
 		return nil, ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var drafts []models.Draft
 	var ids []int64
@@ -165,7 +171,9 @@ func (r *Repository) fillRecipients(ctx context.Context, drafts []models.Draft, 
 	if err != nil {
 		return ErrQueryFail
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	for rows.Next() {
 		var emailID int64
