@@ -189,7 +189,9 @@ func writeTextPart(mw *multipart.Writer, text string) error {
 		return err
 	}
 	qp := quotedprintable.NewWriter(pw)
-	qp.Write([]byte(text))
+	if _, err = qp.Write([]byte(text)); err != nil {
+		return err
+	}
 	return qp.Close()
 }
 
@@ -202,7 +204,9 @@ func writeHtmlPart(mw *multipart.Writer, html string) error {
 		return err
 	}
 	qp := quotedprintable.NewWriter(pw)
-	qp.Write([]byte(html))
+	if _, err = qp.Write([]byte(html)); err != nil {
+		return err
+	}
 	return qp.Close()
 }
 
@@ -290,19 +294,28 @@ func encodeRFC2047(s string) string {
 	return s
 }
 
+const (
+	mimeApplicationPDF   = "application/pdf"
+	mimeImagePNG         = "image/png"
+	mimeImageJPEG        = "image/jpeg"
+	mimeTextPlain        = "text/plain"
+	mimeTextHTML         = "text/html"
+	mimeApplicationOctet = "application/octet-stream"
+)
+
 func detectMimeByExtension(ext string) string {
 	types := map[string]string{
-		".pdf":  "application/pdf",
-		".png":  "image/png",
-		".jpg":  "image/jpeg",
-		".jpeg": "image/jpeg",
+		".pdf":  mimeApplicationPDF,
+		".png":  mimeImagePNG,
+		".jpg":  mimeImageJPEG,
+		".jpeg": mimeImageJPEG,
 		".gif":  "image/gif",
 		".webp": "image/webp",
 		".svg":  "image/svg+xml",
-		".txt":  "text/plain",
+		".txt":  mimeTextPlain,
 		".csv":  "text/csv",
-		".html": "text/html",
-		".htm":  "text/html",
+		".html": mimeTextHTML,
+		".htm":  mimeTextHTML,
 		".json": "application/json",
 		".xml":  "application/xml",
 		".zip":  "application/zip",
@@ -322,5 +335,5 @@ func detectMimeByExtension(ext string) string {
 	if v, ok := types[strings.ToLower(ext)]; ok {
 		return v
 	}
-	return "application/octet-stream"
+	return mimeApplicationOctet
 }
