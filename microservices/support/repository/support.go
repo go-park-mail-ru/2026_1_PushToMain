@@ -109,7 +109,9 @@ func (r *Repository) GetAllTicketsByUserID(ctx context.Context, userID int64) ([
 		return nil, ErrQueryError
 	}
 
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 	return scanTickets(rows)
 }
 
@@ -149,7 +151,9 @@ func (r *Repository) ListAllTickets(ctx context.Context, status, theme string) (
 	if err != nil {
 		return nil, ErrQueryError
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	return scanTickets(rows)
 }
@@ -189,7 +193,9 @@ func (r *Repository) ListMessagesByTicket(ctx context.Context, ticketID int64) (
 	if err != nil {
 		return nil, ErrQueryError
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	messages := make([]models.Message, 0)
 	for rows.Next() {
