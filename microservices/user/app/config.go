@@ -18,12 +18,19 @@ type AvatarConfig struct {
 	AllowedTypes []string `mapstructure:"allowed_types"`
 }
 
+type WelcomeEmailConfig struct {
+	SenderEmail     string `mapstructure:"sender_email"`
+	Header          string `mapstructure:"header"`
+	MessageTemplate string `mapstructure:"message_template"`
+}
+
 type GRPCConfig struct {
 	UserPort string `mapstructure:"user_port"`
 }
 
 type GRPCClients struct {
 	FolderService string `mapstructure:"folder_service"`
+	EmailService  string `mapstructure:"email_service"`
 }
 
 type Config struct {
@@ -41,6 +48,9 @@ type Config struct {
 
 	GRPC        GRPCConfig  `mapstructure:"grpc"`
 	GRPCClients GRPCClients `mapstructure:"grpc_clients"`
+
+	WelcomeEmail   WelcomeEmailConfig `mapstructure:"welcome_email"`
+	ReservedEmails []string           `mapstructure:"reserved_emails"`
 }
 
 func Load(path string) (*Config, error) {

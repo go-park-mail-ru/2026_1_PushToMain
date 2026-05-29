@@ -55,5 +55,21 @@ avatar:
 grpc:
   user_port: "50051"
 
-grpc_clients: 
+grpc_clients:
   folder_service: "folder-service:50053"
+  email_service: "email-service:50052"
+
+welcome_email:
+  sender_email: "noreply@e-smail.ru"
+  header: "Добро пожаловать в Smail!"
+  message_template: "Привет, {name}! Рады видеть тебя в Smail. Это твой первый почтовый ящик на e-smail.ru."
+
+reserved_emails:
+  - noreply@e-smail.ru
+  - admin@e-smail.ru
+  - support@e-smail.ru
+  - administation@e-smail.ru
+  - sales@e-smail.ru
+  - marketing@e-smail.ru
+  - moder@e-smail.ru
+  - moderation@e-smail.ru

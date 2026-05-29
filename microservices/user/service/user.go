@@ -10,6 +10,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/utils"
@@ -56,19 +58,48 @@ type JWTManager interface {
 	ValidateJWT(token string) (*utils.JwtPayload, error)
 }
 
-type Service struct {
-	userDB       DbRepository
-	s3Storage    S3Repository
-	jwt          JWTManager
-	folderClient FolderClient
+type WelcomeConfig struct {
+	SenderEmail     string
+	Header          string
+	MessageTemplate string
 }
 
-func New(r DbRepository, s3 S3Repository, jwt JWTManager, folderClient FolderClient) *Service {
+type Service struct {
+	userDB        DbRepository
+	s3Storage     S3Repository
+	jwt           JWTManager
+	folderClient  FolderClient
+	emailClient   EmailClient
+	welcomeConfig WelcomeConfig
+	reservedEmail []string
+}
+
+type EmailClient interface {
+	SendSystemEmail(ctx context.Context, recipientUserID int64, recipientEmail, systemEmail, header, body string) error
+}
+
+func (s *Service) WithEmailClient(c EmailClient, cfg WelcomeConfig) {
+	if cfg.Header == "" || cfg.MessageTemplate == "" || cfg.SenderEmail == "" {
+		return
+	}
+
+	s.emailClient = c
+	s.welcomeConfig = cfg
+}
+
+func New(
+	r DbRepository,
+	s3 S3Repository,
+	jwt JWTManager,
+	folderClient FolderClient,
+	reservedEmails []string,
+) *Service {
 	return &Service{
-		userDB:       r,
-		s3Storage:    s3,
-		jwt:          jwt,
-		folderClient: folderClient,
+		userDB:        r,
+		s3Storage:     s3,
+		jwt:           jwt,
+		folderClient:  folderClient,
+		reservedEmail: reservedEmails,
 	}
 }
 
@@ -190,6 +221,9 @@ func (s *Service) UploadAvatar(ctx context.Context, uploadAvatar UploadAvatarInp
 }
 
 func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error) {
+	if slices.Contains(s.reservedEmail, strings.ToLower(signUp.Email)) {
+		return "", ErrUserAlreadyExists
+	}
 	_, err := s.userDB.FindByEmail(ctx, signUp.Email)
 	if err == nil {
 		return "", ErrUserAlreadyExists
@@ -216,6 +250,24 @@ func (s *Service) SignUp(ctx context.Context, signUp SignUpInput) (string, error
 	token, err := s.jwt.GenerateJWT(userId)
 	if err != nil {
 		return "", MapRepositoryError(err)
+	}
+
+	if s.emailClient != nil {
+		cfg := s.welcomeConfig
+		name := signUp.Name
+		go func() {
+			sendCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			body := strings.ReplaceAll(cfg.MessageTemplate, "{name}", name)
+			_ = s.emailClient.SendSystemEmail(
+				sendCtx,
+				userId,
+				signUp.Email,
+				cfg.SenderEmail,
+				cfg.Header,
+				body,
+			)
+		}()
 	}
 
 	return token, nil

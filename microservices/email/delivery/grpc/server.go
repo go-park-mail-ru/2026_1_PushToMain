@@ -23,6 +23,24 @@ func New(service *emailService.Service) *Server {
 	}
 }
 
+func (s *Server) SendSystemEmail(
+	ctx context.Context,
+	req *emailpb.SendSystemEmailRequest,
+) (*emailpb.SendSystemEmailResponse, error) {
+	if err := s.service.SendSystemEmail(
+		ctx,
+		req.RecipientUserId,
+		req.RecipientEmail,
+		req.SystemEmail,
+		req.Header,
+		req.Body,
+	); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &emailpb.SendSystemEmailResponse{Success: true}, nil
+}
+
 func (s *Server) SwitchIsInbox(ctx context.Context, req *emailpb.SwitchIsInboxRequest) (*emailpb.SwitchIsInboxResponse, error) {
 	err := s.service.SwitchIsInbox(ctx,
 		emailService.SwitchIsInboxInput{
