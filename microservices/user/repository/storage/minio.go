@@ -39,6 +39,11 @@ func New(client *s3.Client) (*Repository, error) {
 		return nil, ErrS3CreateBucket
 	}
 
+	err = makeBucketPublic(client, "avatars")
+	if err != nil {
+		fmt.Printf("Warning: failed to make bucket public: %v\n", err)
+	}
+
 	return &Repository{
 		s3:            client,
 		presignClient: s3.NewPresignClient(client),
@@ -75,4 +80,28 @@ func (r *Repository) DeleteAvatar(ctx context.Context, userID int64) error {
 		return ErrS3Err
 	}
 	return nil
+}
+
+func makeBucketPublic(client *s3.Client, bucket string) error {
+	// Политика, которую MinIO считает "public"
+	policy := `{
+        "Version": "2012-10-17",
+        "Statement": [{
+            "Effect": "Allow",
+            "Principal": {"AWS": "*"},
+            "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+            "Resource": ["arn:aws:s3:::` + bucket + `"]
+        },{
+            "Effect": "Allow",
+            "Principal": {"AWS": "*"},
+            "Action": ["s3:GetObject"],
+            "Resource": ["arn:aws:s3:::` + bucket + `/*"]
+        }]
+    }`
+
+	_, err := client.PutBucketPolicy(context.TODO(), &s3.PutBucketPolicyInput{
+		Bucket: aws.String(bucket),
+		Policy: aws.String(policy),
+	})
+	return err
 }

@@ -114,6 +114,22 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  support-service:
+    build:
+      context: .
+      dockerfile: microservices/support/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Prometheus
   prometheus:
     image: prom/prometheus:latest
