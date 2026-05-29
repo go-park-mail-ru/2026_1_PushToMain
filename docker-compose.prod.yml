@@ -135,6 +135,22 @@ services:
     hostname: mail.e-smail.ru
     restart: unless-stopped
 
+  support-service:
+    build:
+      context: .
+      dockerfile: microservices/support/Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - ./configs:/app/configs
+      - ./db/migrations:/app/db/migrations
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:
