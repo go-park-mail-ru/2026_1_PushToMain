@@ -12,18 +12,26 @@ type SendEmailRequest struct {
 
 //easyjson:json
 type SendEmailResponse struct {
-	ID          int64     `json:"email_id"`
-	SenderID    int64     `json:"from"`
-	Header      string    `json:"header"`
-	Body        string    `json:"body"`
-	IsAnonymous bool      `json:"is_anonymous"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID            int64     `json:"email_id"`
+	SenderID      int64     `json:"from"`
+	Header        string    `json:"header"`
+	Body          string    `json:"body"`
+	IsAnonymous   bool      `json:"is_anonymous"`
+	ParentEmailID *int64    `json:"parent_email_id,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 //easyjson:json
 type ForwardEmailRequest struct {
 	EmailID   int64    `json:"email_id"`
 	Receivers []string `json:"receivers"`
+}
+
+//easyjson:json
+type ReplyRequest struct {
+	Header      string `json:"header"`
+	Body        string `json:"body"`
+	IsAnonymous bool   `json:"is_anonymous"`
 }
 
 //easyjson:json
@@ -39,6 +47,7 @@ type EmailResponse struct {
 	IsRead        bool      `json:"is_read"`
 	IsStarred     bool      `json:"is_starred"`
 	IsAnonymous   bool      `json:"is_anonymous"`
+	ParentEmailID *int64    `json:"parent_email_id,omitempty"`
 }
 
 //easyjson:json
@@ -59,6 +68,7 @@ type MyEmailResponse struct {
 	IsRead          bool      `json:"is_read"`
 	IsStarred       bool      `json:"is_starred"`
 	IsAnonymous     bool      `json:"is_anonymous"`
+	ParentEmailID   *int64    `json:"parent_email_id,omitempty"`
 	ReceiversEmails []string  `json:"receivers_emails"`
 }
 
@@ -82,6 +92,7 @@ type GetEmailResponse struct {
 	SenderImagePath string    `json:"sender_image_path"`
 	ReceiverList    []string  `json:"receiver_list"`
 	IsAnonymous     bool      `json:"is_anonymous"`
+	ParentEmailID   *int64    `json:"parent_email_id,omitempty"`
 }
 
 //easyjson:json

@@ -26,7 +26,7 @@ SERVICES := user email folder
 # ─────────────────────────────────────────────────────────────────
 
 ## build: compile all three microservices
-build: build-user build-email build-folder
+build: build-user build-email build-folder build-support
 
 build-user:
 	@echo "  >> Building user-service..."
@@ -39,6 +39,10 @@ build-email:
 build-folder:
 	@echo "  >> Building folder-service..."
 	@go build -ldflags="-s -w" -o $(BUILD_DIR)/folder-service ./cmd/folder/main.go
+
+build-support:
+	@echo "  >> Building support-service..."
+	@go build -ldflags="-s -w" -o $(BUILD_DIR)/support-service ./cmd/support/main.go
 
 # ─────────────────────────────────────────────────────────────────
 # Run (local, without Docker)
@@ -90,19 +94,9 @@ bench:
 generate:
 	go generate ./...
 
-## api: regenerate Swagger docs
-api:
-	swag init -g cmd/user/main.go --output docs \
-		--dir ./cmd/user,./cmd/email,./cmd/folder \
-		,./microservices/user/delivery/http \
-		,./microservices/email/delivery/http \
-		,./microservices/folder/delivery/http \
-		,./microservices/user/models \
-		,./microservices/email/models \
-		,./microservices/folder/models \
-		,./internal/pkg/response \
-		,./internal/pkg/middleware \
-		,./internal/pkg/utils
+docs:
+	swag init --output docs \
+		--dir ./cmd/user,./cmd/email,./cmd/folder,./microservices/user/delivery/http,./microservices/email/delivery/http,./microservices/folder/delivery/http,./microservices/user/models,./microservices/email/models,./microservices/folder/models,./internal/pkg/response,./internal/pkg/middleware,./internal/pkg/utils
 
 ## proto: regenerate protobuf stubs
 proto:

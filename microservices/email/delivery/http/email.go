@@ -23,6 +23,7 @@ type Service interface {
 	GetEmailsBySender(ctx context.Context, in service.GetMyEmailsInput) (*service.GetMyEmailsResult, error)
 	GetEmailByID(ctx context.Context, in service.GetEmailInput) (*service.GetEmailResult, error)
 	SendEmail(ctx context.Context, in service.SendEmailInput) (*service.SendEmailResult, error)
+	Reply(ctx context.Context, in service.ReplyInput) (*service.SendEmailResult, error)
 	ForwardEmail(ctx context.Context, in service.ForwardEmailInput) error
 	MarkEmailAsRead(ctx context.Context, in service.MarkAsReadInput) error
 	MarkEmailAsUnRead(ctx context.Context, in service.MarkAsReadInput) error
@@ -68,6 +69,7 @@ func emailToDTO(em service.EmailResult) EmailResponse {
 		IsRead:        em.IsRead,
 		IsStarred:     em.IsStarred,
 		IsAnonymous:   em.IsAnonymous,
+		ParentEmailID: em.ParentEmailID,
 	}
 }
 
@@ -171,12 +173,13 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := SendEmailResponse{
-		ID:          result.ID,
-		SenderID:    result.SenderID,
-		Header:      result.Header,
-		Body:        result.Body,
-		IsAnonymous: result.IsAnonymous,
-		CreatedAt:   result.CreatedAt,
+		ID:            result.ID,
+		SenderID:      result.SenderID,
+		Header:        result.Header,
+		Body:          result.Body,
+		IsAnonymous:   result.IsAnonymous,
+		ParentEmailID: in.ParentEmailID,
+		CreatedAt:     result.CreatedAt,
 	}
 
 	b, err := resp.MarshalJSON()
@@ -285,6 +288,7 @@ func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 			IsRead:          em.IsRead,
 			IsStarred:       em.IsStarred,
 			IsAnonymous:     em.IsAnonymous,
+			ParentEmailID:   em.ParentEmailID,
 			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
@@ -337,6 +341,7 @@ func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		SenderImagePath: result.SenderImagePath,
 		ReceiverList:    result.ReceiverList,
 		IsAnonymous:     result.IsAnonymous,
+		ParentEmailID:   result.ParentEmailID,
 	}
 
 	b, err := resp.MarshalJSON()

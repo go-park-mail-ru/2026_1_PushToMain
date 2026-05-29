@@ -8,24 +8,22 @@ type MailboxStats struct {
 }
 
 type Email struct {
-	ID          int64
-	SenderID    *int64
-	SenderEmail string
-	Header      string
-	Body        string
-	IsDraft     bool
-	// IsAnonymous помечает анонимные письма. Свойство принадлежит самому письму,
-	// поэтому одинаково для всех получателей. Скрытие отправителя — задача
-	// service-слоя при формировании ответа (в БД sender_id остаётся).
-	IsAnonymous bool
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID            int64
+	SenderID      *int64
+	SenderEmail   string
+	Header        string
+	Body          string
+	IsDraft       bool
+	IsAnonymous   bool
+	ParentEmailID *int64
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 
 	Attachments []Attachment
 }
 
 type Recipient struct {
-	UserID *int64 // nil — внешний отправитель
+	UserID *int64
 	Email  string
 }
 
@@ -39,7 +37,6 @@ type EmailWithMetadata struct {
 	Recipients []string
 }
 
-// TODO: sender image is OPTIONAL (for external senders)
 type EmailWithAvatar struct {
 	Email
 	SenderImagePath string

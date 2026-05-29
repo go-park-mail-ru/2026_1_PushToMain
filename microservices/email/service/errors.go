@@ -25,14 +25,12 @@ var (
 	ErrAttachmentNotFound = errors.New("attachment not found")
 	ErrStorageUnavailable = errors.New("object storage is not configured")
 
-	// ErrAnonymousExternal — попытка отправить анонимное письмо за пределы
-	// внутренней сети e-smail.ru. Возвращается, если среди получателей
-	// есть хотя бы один внешний адрес.
 	ErrAnonymousExternal = errors.New("anonymous emails are allowed only within e-smail.ru")
+
+	ErrReplyTargetNotAnonymous = errors.New("reply endpoint allowed only on anonymous emails")
+	ErrReplyByOriginalSender   = errors.New("original sender cannot reply to own anonymous email")
 )
 
-// ErrSavedAsDraft возвращается когда письмо не удалось отправить через Postfix,
-// но оно было автоматически сохранено как черновик.
 type ErrSavedAsDraft struct {
 	DraftID int64
 }
@@ -49,13 +47,9 @@ func (e *ErrRecipientNotFound) Error() string {
 	return fmt.Sprintf("recipient not found: %s", e.Email)
 }
 
-// ErrAnonymousRejected — один или несколько получателей не принимают анонимные
-// письма. Send отклонён ЦЕЛИКОМ, но письмо сохранено в drafts (со всем содержимым
-// включая вложения). Клиент может либо изменить состав получателей и переотправить
-// через /drafts/{id}/send, либо удалить драфт.
 type ErrAnonymousRejected struct {
-	Emails  []string // адреса, отклонившие анонимку
-	DraftID int64    // id сохранённого драфта
+	Emails  []string
+	DraftID int64
 }
 
 func (e *ErrAnonymousRejected) Error() string {

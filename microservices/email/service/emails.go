@@ -48,6 +48,7 @@ type EmailResult struct {
 	IsRead        bool
 	IsStarred     bool
 	IsAnonymous   bool
+	ParentEmailID *int64
 }
 
 type GetMyEmailsResult struct {
@@ -66,6 +67,7 @@ type MyEmailResult struct {
 	IsRead          bool
 	IsStarred       bool
 	IsAnonymous     bool
+	ParentEmailID   *int64
 	ReceiversEmails []string
 }
 
@@ -84,17 +86,19 @@ type GetEmailResult struct {
 	Body            string
 	IsStarred       bool
 	IsAnonymous     bool
+	ParentEmailID   *int64
 	CreatedAt       time.Time
 	SenderImagePath string
 	ReceiverList    []string
 }
 
 type SendEmailInput struct {
-	UserId      int64
-	Header      string
-	Body        string
-	Receivers   []string
-	IsAnonymous bool
+	UserId        int64
+	Header        string
+	Body          string
+	Receivers     []string
+	IsAnonymous   bool
+	ParentEmailID *int64
 
 	Files       []multipart.File
 	FileHeaders []*multipart.FileHeader
@@ -270,6 +274,7 @@ func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*
 			IsRead:          em.IsRead,
 			IsStarred:       em.IsStarred,
 			IsAnonymous:     em.IsAnonymous,
+			ParentEmailID:   em.ParentEmailID,
 			ReceiversEmails: em.Recipients,
 		}
 	}
@@ -323,6 +328,7 @@ func (s *Service) buildEmailsResult(
 			IsRead:        em.IsRead,
 			IsStarred:     em.IsStarred,
 			IsAnonymous:   em.IsAnonymous,
+			ParentEmailID: em.ParentEmailID,
 		}
 	}
 	return &GetEmailsResult{
@@ -344,12 +350,13 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	}
 
 	result := &GetEmailResult{
-		ID:           em.ID,
-		Header:       em.Header,
-		Body:         em.Body,
-		CreatedAt:    em.CreatedAt,
-		ReceiverList: em.Recipients,
-		IsAnonymous:  em.IsAnonymous,
+		ID:            em.ID,
+		Header:        em.Header,
+		Body:          em.Body,
+		CreatedAt:     em.CreatedAt,
+		ReceiverList:  em.Recipients,
+		IsAnonymous:   em.IsAnonymous,
+		ParentEmailID: em.ParentEmailID,
 	}
 
 	hide := em.IsAnonymous && (em.SenderID == nil || *em.SenderID != in.UserID)
@@ -401,12 +408,13 @@ func (s *Service) GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID i
 			continue
 		}
 		email := EmailResult{
-			ID:           em.ID,
-			ReceiverList: em.Recipients,
-			Header:       em.Header,
-			Body:         em.Body,
-			CreatedAt:    em.CreatedAt,
-			IsAnonymous:  em.IsAnonymous,
+			ID:            em.ID,
+			ReceiverList:  em.Recipients,
+			Header:        em.Header,
+			Body:          em.Body,
+			CreatedAt:     em.CreatedAt,
+			IsAnonymous:   em.IsAnonymous,
+			ParentEmailID: em.ParentEmailID,
 		}
 
 		hide := em.IsAnonymous && (em.SenderID == nil || *em.SenderID != userID)
@@ -438,7 +446,7 @@ func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailR
 	if err != nil {
 		return nil, err
 	}
-	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, false)
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, false, in.ParentEmailID)
 }
 func (s *Service) sendAnonymousEmail(ctx context.Context, in SendEmailInput) (*SendEmailResult, error) {
 	recipients, usersByEmail, err := s.resolveRecipientsWithUsers(ctx, in.Receivers)
@@ -472,7 +480,7 @@ func (s *Service) sendAnonymousEmail(ctx context.Context, in SendEmailInput) (*S
 		return nil, &ErrAnonymousRejected{Emails: rejected, DraftID: draftID}
 	}
 
-	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, true)
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, true, in.ParentEmailID)
 }
 
 func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error {
@@ -490,7 +498,7 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil, false)
+	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil, false, nil)
 	return err
 }
 
@@ -534,6 +542,7 @@ func (s *Service) sendEmailTx(
 	files []multipart.File,
 	fileHeaders []*multipart.FileHeader,
 	isAnonymous bool,
+	parentEmailID *int64,
 ) (*SendEmailResult, error) {
 	sender, err := s.userClient.GetUserByID(ctx, senderID)
 	if err != nil {
@@ -557,12 +566,13 @@ func (s *Service) sendEmailTx(
 	}()
 
 	emailID, err := s.repo.InsertEmail(ctx, tx, models.Email{
-		SenderID:    &senderID,
-		SenderEmail: sender.Email,
-		Header:      header,
-		Body:        body,
-		IsDraft:     false,
-		IsAnonymous: isAnonymous,
+		SenderID:      &senderID,
+		SenderEmail:   sender.Email,
+		Header:        header,
+		Body:          body,
+		IsDraft:       false,
+		IsAnonymous:   isAnonymous,
+		ParentEmailID: parentEmailID,
 	})
 	if err != nil {
 		return nil, MapRepositoryError(err)

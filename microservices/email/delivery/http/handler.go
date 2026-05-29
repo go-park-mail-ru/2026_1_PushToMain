@@ -48,17 +48,14 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 	private.HandleFunc("/emails", h.Delete).Methods(http.MethodDelete, http.MethodOptions)
 	private.HandleFunc("/spam-senders", h.UnmarkSpamSenders).Methods(http.MethodDelete, http.MethodOptions)
 
-	// Вложения: специфичный маршрут /{attachment_id} регистрируется раньше общего /attachments,
-	// чтобы gorilla/mux не перехватил его раньше.
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}", h.DownloadAttachment).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.GetAttachments).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.UploadAttachment).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.DeleteAttachments).Methods(http.MethodDelete, http.MethodOptions)
 
+	private.HandleFunc("/emails/{id:[0-9]+}/reply", h.Reply).Methods(http.MethodPost, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}", h.GetEmailByID).Methods(http.MethodGet, http.MethodOptions)
 
-	// Attachment routes — note: specific path /attachments/{attachment_id} must be
-	// registered BEFORE the general /attachments to avoid route shadowing.
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}", h.DownloadAttachment).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.GetAttachments).Methods(http.MethodGet, http.MethodOptions)
 	private.HandleFunc("/emails/{id:[0-9]+}/attachments", h.UploadAttachment).Methods(http.MethodPost, http.MethodOptions)
@@ -110,6 +107,14 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	case errors.Is(err, service.ErrAnonymousExternal):
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
 			"error": "anonymous emails are allowed only within e-smail.ru",
+		})
+	case errors.Is(err, service.ErrReplyTargetNotAnonymous):
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
+			"error": "reply endpoint is allowed only on anonymous emails",
+		})
+	case errors.Is(err, service.ErrReplyByOriginalSender):
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
+			"error": "cannot reply to your own anonymous email; use /send instead",
 		})
 	case errors.Is(err, service.ErrConflict),
 		errors.Is(err, service.ErrDraftsLimit):

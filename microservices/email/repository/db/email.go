@@ -14,13 +14,14 @@ import (
 func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error) {
 	const query = `
 		INSERT INTO emails
-			(sender_id, sender_email, header, body, is_draft, is_anonymous)
-		VALUES ($1, $2, $3, $4, $5, $6)
+			(sender_id, sender_email, header, body, is_draft, is_anonymous, parent_email_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 	var id int64
 	err := tx.QueryRowContext(ctx, query,
-		email.SenderID, email.SenderEmail, email.Header, email.Body, email.IsDraft, email.IsAnonymous,
+		email.SenderID, email.SenderEmail, email.Header, email.Body,
+		email.IsDraft, email.IsAnonymous, email.ParentEmailID,
 	).Scan(&id)
 	if err != nil {
 		return 0, mapPgError(err)
@@ -98,6 +99,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 			e.body,
 			e.is_draft,
 			e.is_anonymous,
+			e.parent_email_id,
 			e.created_at,
 			e.updated_at,
 			COALESCE(u.image_path, ''),
@@ -116,6 +118,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 		&em.Body,
 		&em.IsDraft,
 		&em.IsAnonymous,
+		&em.ParentEmailID,
 		&em.CreatedAt,
 		&em.UpdatedAt,
 		&em.SenderImagePath,
@@ -166,6 +169,7 @@ func (r *Repository) queryUserMailbox(
 			e.body,
 			e.is_draft,
 			e.is_anonymous,
+			e.parent_email_id,
 			e.created_at,
 			e.updated_at,
 			ue.is_read,
@@ -195,7 +199,7 @@ func (r *Repository) queryUserMailbox(
 		var recipients string
 		if err := rows.Scan(
 			&em.ID, &em.SenderID, &em.SenderEmail,
-			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous,
+			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous, &em.ParentEmailID,
 			&em.CreatedAt, &em.UpdatedAt,
 			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
 			&recipients,
@@ -273,7 +277,7 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 		SELECT
 			e.id, e.sender_id, e.sender_email,
 			COALESCE(e.header, ''), COALESCE(e.body, ''),
-			e.is_draft, e.is_anonymous, e.created_at, e.updated_at,
+			e.is_draft, e.is_anonymous, e.parent_email_id, e.created_at, e.updated_at,
 			COALESCE(ue.is_read, false), COALESCE(ue.is_starred, false),
 			COALESCE(ue.is_spam, false), COALESCE(ue.is_deleted, false),
 			e.created_at,
@@ -298,7 +302,7 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 		var recipients string
 		if err := rows.Scan(
 			&em.ID, &em.SenderID, &em.SenderEmail,
-			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous,
+			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous, &em.ParentEmailID,
 			&em.CreatedAt, &em.UpdatedAt,
 			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
 			&recipients,
@@ -364,17 +368,6 @@ func (r *Repository) SwitchIsInbox(ctx context.Context, emailID int64, UserID in
 	return nil
 }
 
-// ───────────────────────────────────────────────────────────────────────────────
-// SUPPORT API
-// ───────────────────────────────────────────────────────────────────────────────
-
-// GetEmailForSupport вытягивает письмо с реальным отправителем (через JOIN users)
-// и получателей. Вложения (метаданные) докидываются service-слоем через уже
-// существующий GetAttachmentsByEmailIDs — не плодим N+1 и переиспользуем код.
-//
-// Возвращает EmailWithAvatar + name + surname отдельно: модель EmailWithAvatar
-// не содержит имени/фамилии (она для пользовательских view), поэтому отдаём
-// out-of-band, чтобы не размывать существующий доменный тип.
 func (r *Repository) GetEmailForSupport(ctx context.Context, emailID int64) (*models.EmailWithAvatar, string, string, error) {
 	const query = `
 		SELECT
@@ -385,6 +378,7 @@ func (r *Repository) GetEmailForSupport(ctx context.Context, emailID int64) (*mo
 			e.body,
 			e.is_draft,
 			e.is_anonymous,
+			e.parent_email_id,
 			e.created_at,
 			e.updated_at,
 			COALESCE(u.image_path, ''),
@@ -405,6 +399,7 @@ func (r *Repository) GetEmailForSupport(ctx context.Context, emailID int64) (*mo
 		&em.Body,
 		&em.IsDraft,
 		&em.IsAnonymous,
+		&em.ParentEmailID,
 		&em.CreatedAt,
 		&em.UpdatedAt,
 		&em.SenderImagePath,

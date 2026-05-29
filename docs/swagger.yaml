@@ -1,11 +1,49 @@
 basePath: /
 definitions:
+  github_com_go-park-mail-ru_2026_1_PushToMain_microservices_folder_delivery_http.EmailResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      header:
+        type: string
+      id:
+        type: integer
+      is_read:
+        type: boolean
+      receiver_list:
+        items:
+          type: string
+        type: array
+      sender_email:
+        type: string
+      sender_name:
+        type: string
+      sender_surname:
+        type: string
+    type: object
   handler.AddEmailsInFolderRequest:
     properties:
       emails_id:
         items:
           type: integer
         type: array
+    type: object
+  handler.AttachmentResponse:
+    properties:
+      content_type:
+        type: string
+      created_at:
+        type: string
+      email_id:
+        type: integer
+      file_name:
+        type: string
+      id:
+        type: integer
+      size_bytes:
+        type: integer
     type: object
   handler.ChangeFolderNameRequest:
     properties:
@@ -22,11 +60,6 @@ definitions:
       folder_id:
         type: integer
     type: object
-  handler.DeleteEmailRequest:
-    properties:
-      email_id:
-        type: integer
-    type: object
   handler.DeleteEmailsFromFolderRequest:
     properties:
       emails_id:
@@ -34,36 +67,18 @@ definitions:
           type: integer
         type: array
     type: object
-  handler.GetEmailResponse:
+  handler.GetAttachmentsResponse:
     properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      receiver_list:
+      attachments:
         items:
-          type: string
+          $ref: '#/definitions/handler.AttachmentResponse'
         type: array
-      sender_email:
-        type: string
-      sender_id:
-        type: integer
-      sender_image_path:
-        type: string
-      sender_name:
-        type: string
-      sender_surname:
-        type: string
     type: object
   handler.GetEmailsFromFolderResponse:
     properties:
       emails:
         items:
-          $ref: '#/definitions/internal_app_folder_delivery_http.EmailResponse'
+          $ref: '#/definitions/github_com_go-park-mail-ru_2026_1_PushToMain_microservices_folder_delivery_http.EmailResponse'
         type: array
       limit:
         type: integer
@@ -74,27 +89,38 @@ definitions:
       unread_count:
         type: integer
     type: object
-  handler.GetEmailsResponse:
+  handler.IDsRequest:
     properties:
-      emails:
-        items:
-          $ref: '#/definitions/internal_app_email_delivery_http.EmailResponse'
-        type: array
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
-      unread_count:
-        type: integer
-    type: object
-  handler.MarkEmailsAsReadRequest:
-    properties:
-      email_ids:
+      ids:
         items:
           type: integer
         type: array
+    type: object
+  handler.ReplyRequest:
+    properties:
+      body:
+        type: string
+      header:
+        type: string
+      is_anonymous:
+        type: boolean
+    type: object
+  handler.SendEmailResponse:
+    properties:
+      body:
+        type: string
+      created_at:
+        type: string
+      email_id:
+        type: integer
+      from:
+        type: integer
+      header:
+        type: string
+      is_anonymous:
+        type: boolean
+      parent_email_id:
+        type: integer
     type: object
   http.SignInRequest:
     properties:
@@ -114,65 +140,12 @@ definitions:
       surname:
         type: string
     type: object
-  http.UpdateProfileRequest:
-    properties:
-      name:
-        type: string
-      surname:
-        type: string
-    type: object
-  internal_app_email_delivery_http.EmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      is_read:
-        type: boolean
-      receiver_list:
-        items:
-          type: string
-        type: array
-      sender_email:
-        type: string
-      sender_name:
-        type: string
-      sender_surname:
-        type: string
-    type: object
-  internal_app_folder_delivery_http.EmailResponse:
-    properties:
-      body:
-        type: string
-      created_at:
-        type: string
-      header:
-        type: string
-      id:
-        type: integer
-      is_read:
-        type: boolean
-      receiver_list:
-        items:
-          type: string
-        type: array
-      sender_email:
-        type: string
-      sender_name:
-        type: string
-      sender_surname:
-        type: string
-    type: object
   response.ErrorResponse:
     properties:
       message:
         type: string
     type: object
-host: localhost:8087
+host: localhost:8081
 info:
   contact: {}
   title: Smail API
@@ -269,179 +242,108 @@ paths:
       summary: Регистрация
       tags:
       - auth
-  /api/v1/emails:
-    get:
-      description: Возвращает список писем, в которых авторизованный пользователь
-        указан получателем
-      parameters:
-      - description: 'Количество записей на странице (default: 20, max: 100)'
-        in: query
-        name: limit
-        type: integer
-      - description: 'Смещение для пагинации (default: 0)'
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить письма пользователя
-      tags:
-      - emails
-  /api/v1/emails/{id}:
-    get:
-      description: Возвращает детальную информацию о письме
-      parameters:
-      - description: ID письма
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Получить письмо по ID
-      tags:
-      - emails
-  /api/v1/emails/{id}/read:
-    put:
-      consumes:
-      - application/json
-      description: Помечает указанное письмо как прочитанное.
-      parameters:
-      - description: ID письма
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отметить письмо как прочитанное
-      tags:
-      - emails
-  /api/v1/emails/{id}/unread:
-    put:
-      consumes:
-      - application/json
-      description: Помечает указанное письмо как непрочитанное.
-      parameters:
-      - description: ID письма
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отметить письмо как непрочитанное
-      tags:
-      - emails
-  /api/v1/emails/delete:
+  /api/v1/email/emails/{id}/attachments:
     delete:
       consumes:
       - application/json
-      description: Удаляет письмо из почтового ящика получателя (не удаляет само письмо)
       parameters:
-      - description: ID письма
+      - description: Email ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attachment IDs
         in: body
-        name: request
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/handler.DeleteEmailRequest'
+          $ref: '#/definitions/handler.IDsRequest'
+      responses:
+        "204":
+          description: No Content
+      summary: Delete attachments
+      tags:
+      - attachments
+    get:
+      parameters:
+      - description: Email ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Success
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GetAttachmentsResponse'
+      summary: List attachments of an email
+      tags:
+      - attachments
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Email ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.AttachmentResponse'
+      summary: Upload an attachment to an email
+      tags:
+      - attachments
+  /api/v1/email/emails/{id}/attachments/{attachment_id}:
+    get:
+      parameters:
+      - description: Email ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attachment ID
+        in: path
+        name: attachment_id
+        required: true
+        type: integer
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+      summary: Download an attachment
+      tags:
+      - attachments
+  /api/v1/folder/{id}:
+    delete:
+      description: Удаляет кастомную папку пользователя
+      parameters:
+      - description: ID папки
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
         "400":
           description: Bad Request
           schema:
@@ -464,86 +366,9 @@ paths:
             $ref: '#/definitions/response.ErrorResponse'
       security:
       - CookieAuth: []
-      summary: Удалить письмо (для получателя)
+      summary: Удалить папку
       tags:
-      - emails
-  /api/v1/emails/read:
-    put:
-      consumes:
-      - application/json
-      description: Помечает указанное письмо как прочитанное.
-      parameters:
-      - description: ID письем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.MarkEmailsAsReadRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отметить письма как прочитанные
-      tags:
-      - emails
-  /api/v1/emails/unread:
-    put:
-      consumes:
-      - application/json
-      description: Помечает указанное письмо как непрочитанное.
-      parameters:
-      - description: ID письем
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.MarkEmailsAsReadRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отметить письма как непрочитанные
-      tags:
-      - emails
-  /api/v1/folder/{id}:
+      - folders
     get:
       description: Возвращает список писем в указанной папке с пагинацией
       parameters:
@@ -793,65 +618,62 @@ paths:
       summary: Создать новую папку
       tags:
       - folders
-  /api/v1/forward:
+  /emails/{id}/reply:
     post:
-      description: Пересылает письмо получаетлям, которых указал пользователь
+      consumes:
+      - application/json
+      - multipart/form-data
+      description: |-
+        Отправляет ответ на анонимное письмо. Получатель — автор родительского письма.
+        Если is_anonymous=true, получатель не увидит email отправителя.
+      parameters:
+      - description: ID родительского письма
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Тело запроса (JSON)
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/handler.ReplyRequest'
+      - description: Тема письма (multipart)
+        in: formData
+        name: header
+        type: string
+      - description: Тело письма (multipart)
+        in: formData
+        name: body
+        type: string
+      - description: Отправить анонимно (multipart)
+        in: formData
+        name: is_anonymous
+        type: boolean
+      - description: Вложения (multipart)
+        in: formData
+        name: attachments
+        type: file
       produces:
       - application/json
       responses:
         "200":
-          description: Success
-        "400":
-          description: Bad Request
+          description: OK
           schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
+            $ref: '#/definitions/handler.SendEmailResponse'
+        "400":
+          description: Пустое тело или некорректный запрос
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Переслать письмо
-      tags:
-      - emails
-  /api/v1/myemails:
-    get:
-      description: Возвращает список писем, в которых авторизованный пользователь
-        указан отправителем
-      parameters:
-      - description: 'Количество записей на странице (default: 20, max: 100)'
-        in: query
-        name: limit
-        type: integer
-      - description: 'Смещение для пагинации (default: 0)'
-        in: query
-        name: offset
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.GetEmailsResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
+          description: Нет доступа к родительскому письму
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "404":
-          description: Not Found
+          description: Родительское письмо не найдено
+          schema:
+            $ref: '#/definitions/response.ErrorResponse'
+        "422":
+          description: Родитель не анонимный или отправитель — автор оригинала
           schema:
             $ref: '#/definitions/response.ErrorResponse'
         "500":
@@ -859,116 +681,8 @@ paths:
           schema:
             $ref: '#/definitions/response.ErrorResponse'
       security:
-      - CookieAuth: []
-      summary: Получить письма отправленные пользователем
-      tags:
-      - emails
-  /api/v1/myemails/delete:
-    delete:
-      consumes:
-      - application/json
-      description: Удаляет письмо из почтового ящика отправителя (не удаляет само
-        письмо)
-      parameters:
-      - description: ID письма
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handler.DeleteEmailRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Success
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Удалить письмо (для отправителя)
-      tags:
-      - emails
-  /api/v1/profile:
-    put:
-      consumes:
-      - application/json
-      description: Обновляет имя и фамилию авторизованного пользователя
-      parameters:
-      - description: Новые имя и фамилия
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/http.UpdateProfileRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Обновить профиль пользователя
-      tags:
-      - auth
-  /api/v1/send:
-    post:
-      description: Отправляет письмо получаетлям, которых указал пользователь
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/internal_app_email_delivery_http.EmailResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/response.ErrorResponse'
-      security:
-      - CookieAuth: []
-      summary: Отправить письмо
+      - ApiKeyAuth: []
+      summary: Ответить на анонимное письмо
       tags:
       - emails
 swagger: "2.0"
