@@ -141,13 +141,11 @@ func (handler *Handler) UploadAvatar(w http.ResponseWriter, r *http.Request) {
 
 //easyjson:json
 type UpdateProfileRequest struct {
-	Name      string     `json:"name"`
-	Surname   string     `json:"surname"`
-	Birthdate *time.Time `json:"birthdate"`
-	IsMale    *bool      `json:"is_male"`
-	// AcceptAnonymous — *bool, чтобы клиент мог отправить только те поля,
-	// которые хочет изменить (PATCH-семантика). nil = "не трогать".
-	AcceptAnonymous *bool `json:"accept_anonymous"`
+	Name            string     `json:"name"`
+	Surname         string     `json:"surname"`
+	Birthdate       *time.Time `json:"birthdate"`
+	IsMale          *bool      `json:"is_male"`
+	AcceptAnonymous *bool      `json:"accept_anonymous"`
 }
 
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
