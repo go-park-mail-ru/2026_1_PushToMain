@@ -73,16 +73,30 @@ func (h *Handler) InitRoutes(public, private *mux.Router) {
 }
 
 func parseCommonErrors(err error, w http.ResponseWriter) {
-	// Сначала проверяем типизированные ошибки через errors.As,
-	// потому что errors.Is не работает со структурами (каждый раз новый экземпляр).
 	var errSavedAsDraft *service.ErrSavedAsDraft
 	if errors.As(err, &errSavedAsDraft) {
-		// 202 Accepted: запрос принят, но письмо не отправлено — сохранено как черновик.
-		// Фронтенд должен уведомить пользователя и предложить повторить отправку из черновиков.
 		writeJSON(w, http.StatusAccepted, map[string]any{
 			"error":    "postfix unavailable, saved as draft",
 			"draft_id": errSavedAsDraft.DraftID,
 		})
+		return
+	}
+
+	var errAnonRejected *service.ErrAnonymousRejected
+	if errors.As(err, &errAnonRejected) {
+		resp := AnonymousRejectedResponse{
+			Error:          "some recipients do not accept anonymous emails",
+			RejectedEmails: errAnonRejected.Emails,
+			DraftID:        errAnonRejected.DraftID,
+		}
+		b, mErr := resp.MarshalJSON()
+		if mErr != nil {
+			response.InternalError(w)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusConflict)
+		_, _ = w.Write(b)
 		return
 	}
 
@@ -93,6 +107,10 @@ func parseCommonErrors(err error, w http.ResponseWriter) {
 	}
 
 	switch {
+	case errors.Is(err, service.ErrAnonymousExternal):
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{
+			"error": "anonymous emails are allowed only within e-smail.ru",
+		})
 	case errors.Is(err, service.ErrConflict),
 		errors.Is(err, service.ErrDraftsLimit):
 		response.StatusConflict(w)

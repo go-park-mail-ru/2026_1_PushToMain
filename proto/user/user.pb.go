@@ -22,16 +22,17 @@ const (
 )
 
 type User struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	Email         string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
-	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
-	Surname       string                 `protobuf:"bytes,4,opt,name=surname,proto3" json:"surname,omitempty"`
-	ImagePath     string                 `protobuf:"bytes,5,opt,name=image_path,json=imagePath,proto3" json:"image_path,omitempty"`
-	IsMale        bool                   `protobuf:"varint,6,opt,name=is_male,json=isMale,proto3" json:"is_male,omitempty"`
-	Birthdate     string                 `protobuf:"bytes,7,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Email           string                 `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Name            string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Surname         string                 `protobuf:"bytes,4,opt,name=surname,proto3" json:"surname,omitempty"`
+	ImagePath       string                 `protobuf:"bytes,5,opt,name=image_path,json=imagePath,proto3" json:"image_path,omitempty"`
+	IsMale          bool                   `protobuf:"varint,6,opt,name=is_male,json=isMale,proto3" json:"is_male,omitempty"`
+	Birthdate       string                 `protobuf:"bytes,7,opt,name=birthdate,proto3" json:"birthdate,omitempty"`
+	AcceptAnonymous bool                   `protobuf:"varint,8,opt,name=accept_anonymous,json=acceptAnonymous,proto3" json:"accept_anonymous,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
@@ -111,6 +112,13 @@ func (x *User) GetBirthdate() string {
 		return x.Birthdate
 	}
 	return ""
+}
+
+func (x *User) GetAcceptAnonymous() bool {
+	if x != nil {
+		return x.AcceptAnonymous
+	}
+	return false
 }
 
 type GetUserByIdRequest struct {
@@ -469,7 +477,7 @@ var File_proto_user_user_proto protoreflect.FileDescriptor
 
 const file_proto_user_user_proto_rawDesc = "" +
 	"\n" +
-	"\x15proto/user/user.proto\x12\x04user\"\xb0\x01\n" +
+	"\x15proto/user/user.proto\x12\x04user\"\xdb\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
@@ -478,7 +486,8 @@ const file_proto_user_user_proto_rawDesc = "" +
 	"\n" +
 	"image_path\x18\x05 \x01(\tR\timagePath\x12\x17\n" +
 	"\ais_male\x18\x06 \x01(\bR\x06isMale\x12\x1c\n" +
-	"\tbirthdate\x18\a \x01(\tR\tbirthdate\"-\n" +
+	"\tbirthdate\x18\a \x01(\tR\tbirthdate\x12)\n" +
+	"\x10accept_anonymous\x18\b \x01(\bR\x0facceptAnonymous\"-\n" +
 	"\x12GetUserByIdRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\"5\n" +
 	"\x13GetUserByIdResponse\x12\x1e\n" +

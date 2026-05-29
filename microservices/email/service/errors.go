@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	repository "github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/repository/db"
 	"google.golang.org/grpc/codes"
@@ -23,6 +24,11 @@ var (
 	ErrDraftsLimit        = errors.New("drafts limit reached")
 	ErrAttachmentNotFound = errors.New("attachment not found")
 	ErrStorageUnavailable = errors.New("object storage is not configured")
+
+	// ErrAnonymousExternal — попытка отправить анонимное письмо за пределы
+	// внутренней сети e-smail.ru. Возвращается, если среди получателей
+	// есть хотя бы один внешний адрес.
+	ErrAnonymousExternal = errors.New("anonymous emails are allowed only within e-smail.ru")
 )
 
 // ErrSavedAsDraft возвращается когда письмо не удалось отправить через Postfix,
@@ -41,6 +47,22 @@ type ErrRecipientNotFound struct {
 
 func (e *ErrRecipientNotFound) Error() string {
 	return fmt.Sprintf("recipient not found: %s", e.Email)
+}
+
+// ErrAnonymousRejected — один или несколько получателей не принимают анонимные
+// письма. Send отклонён ЦЕЛИКОМ, но письмо сохранено в drafts (со всем содержимым
+// включая вложения). Клиент может либо изменить состав получателей и переотправить
+// через /drafts/{id}/send, либо удалить драфт.
+type ErrAnonymousRejected struct {
+	Emails  []string // адреса, отклонившие анонимку
+	DraftID int64    // id сохранённого драфта
+}
+
+func (e *ErrAnonymousRejected) Error() string {
+	return fmt.Sprintf(
+		"recipients reject anonymous emails: %s; saved as draft %d",
+		strings.Join(e.Emails, ", "), e.DraftID,
+	)
 }
 
 func MapRepositoryError(err error) error {

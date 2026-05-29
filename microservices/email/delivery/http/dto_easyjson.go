@@ -70,6 +70,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 				}
 				in.Delim(']')
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -109,6 +115,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	out.RawByte('}')
 }
@@ -174,6 +185,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			} else {
 				out.Body = string(in.String())
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		case "created_at":
 			if in.IsNull() {
 				in.Skip()
@@ -215,6 +232,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 		const prefix string = ",\"body\":"
 		out.RawString(prefix)
 		out.String(string(in.Body))
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	{
 		const prefix string = ",\"created_at\":"
@@ -300,6 +322,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 				}
 				in.Delim(']')
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -339,6 +367,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	out.RawByte('}')
 }
@@ -418,6 +451,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			} else {
 				out.IsStarred = bool(in.Bool())
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		case "receivers_emails":
 			if in.IsNull() {
 				in.Skip()
@@ -488,6 +527,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 		const prefix string = ",\"is_starred\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.IsStarred))
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	{
 		const prefix string = ",\"receivers_emails\":"
@@ -1087,6 +1131,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 				}
 				in.Delim(']')
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1156,6 +1206,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	out.RawByte('}')
 }
@@ -1615,6 +1670,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			} else {
 				out.IsStarred = bool(in.Bool())
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1689,6 +1750,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 		const prefix string = ",\"is_starred\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.IsStarred))
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	out.RawByte('}')
 }
@@ -1781,6 +1847,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 				}
 				in.Delim(']')
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		case "created_at":
 			if in.IsNull() {
 				in.Skip()
@@ -1846,6 +1918,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	{
 		const prefix string = ",\"created_at\":"
@@ -1936,6 +2013,12 @@ func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 				}
 				in.Delim(']')
 			}
+		case "is_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.IsAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -1975,6 +2058,11 @@ func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmai
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"is_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.IsAnonymous))
 	}
 	out.RawByte('}')
 }
@@ -2123,4 +2211,123 @@ func (v *AttachmentResponse) UnmarshalJSON(data []byte) error {
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *AttachmentResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp15(l, v)
+}
+func easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(in *jlexer.Lexer, out *AnonymousRejectedResponse) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		switch key {
+		case "error":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.Error = string(in.String())
+			}
+		case "rejected_emails":
+			if in.IsNull() {
+				in.Skip()
+				out.RejectedEmails = nil
+			} else {
+				in.Delim('[')
+				if out.RejectedEmails == nil {
+					if !in.IsDelim(']') {
+						out.RejectedEmails = make([]string, 0, 4)
+					} else {
+						out.RejectedEmails = []string{}
+					}
+				} else {
+					out.RejectedEmails = (out.RejectedEmails)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v43 string
+					if in.IsNull() {
+						in.Skip()
+					} else {
+						v43 = string(in.String())
+					}
+					out.RejectedEmails = append(out.RejectedEmails, v43)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "draft_id":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.DraftID = int64(in.Int64())
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(out *jwriter.Writer, in AnonymousRejectedResponse) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"error\":"
+		out.RawString(prefix[1:])
+		out.String(string(in.Error))
+	}
+	{
+		const prefix string = ",\"rejected_emails\":"
+		out.RawString(prefix)
+		if in.RejectedEmails == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+			out.RawString("null")
+		} else {
+			out.RawByte('[')
+			for v44, v45 := range in.RejectedEmails {
+				if v44 > 0 {
+					out.RawByte(',')
+				}
+				out.String(string(v45))
+			}
+			out.RawByte(']')
+		}
+	}
+	{
+		const prefix string = ",\"draft_id\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.DraftID))
+	}
+	out.RawByte('}')
+}
+
+// MarshalJSON supports json.Marshaler interface
+func (v AnonymousRejectedResponse) MarshalJSON() ([]byte, error) {
+	w := jwriter.Writer{}
+	easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(&w, v)
+	return w.Buffer.BuildBytes(), w.Error
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v AnonymousRejectedResponse) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson56de76c1EncodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(w, v)
+}
+
+// UnmarshalJSON supports json.Unmarshaler interface
+func (v *AnonymousRejectedResponse) UnmarshalJSON(data []byte) error {
+	r := jlexer.Lexer{Data: data}
+	easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(&r, v)
+	return r.Error()
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *AnonymousRejectedResponse) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson56de76c1DecodeGithubComGoParkMailRu20261PushToMainMicroservicesEmailDeliveryHttp16(l, v)
 }

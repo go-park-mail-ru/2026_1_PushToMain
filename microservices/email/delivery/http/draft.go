@@ -11,13 +11,14 @@ import (
 
 func draftToResponse(r *service.DraftResult) DraftResponse {
 	return DraftResponse{
-		ID:        r.ID,
-		SenderID:  r.SenderID,
-		Header:    r.Header,
-		Body:      r.Body,
-		Receivers: r.Recipients,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
+		ID:          r.ID,
+		SenderID:    r.SenderID,
+		Header:      r.Header,
+		Body:        r.Body,
+		Receivers:   r.Recipients,
+		IsAnonymous: r.IsAnonymous,
+		CreatedAt:   r.CreatedAt,
+		UpdatedAt:   r.UpdatedAt,
 	}
 }
 
@@ -38,22 +39,15 @@ func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result, err := h.service.CreateDraft(r.Context(), service.CreateDraftInput{
-		UserID: userID, Header: req.Header, Body: req.Body, Receivers: req.Receivers,
+		UserID: userID, Header: req.Header, Body: req.Body,
+		Receivers: req.Receivers, IsAnonymous: req.IsAnonymous,
 	})
 	if err != nil {
 		logger.Errorf("CreateDraft: user_id=%d, err=%v", userID, err)
 		parseCommonErrors(err, w)
 		return
 	}
-	resp := DraftResponse{
-		ID:        result.ID,
-		SenderID:  result.SenderID,
-		Header:    result.Header,
-		Body:      result.Body,
-		Receivers: result.Recipients,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
-	}
+	resp := draftToResponse(result)
 
 	b, err := resp.MarshalJSON()
 	if err != nil {
@@ -91,22 +85,15 @@ func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.service.UpdateDraft(r.Context(), service.UpdateDraftInput{
 		UserID: userID, DraftID: draftID,
-		Header: req.Header, Body: req.Body, Receivers: req.Receivers,
+		Header: req.Header, Body: req.Body,
+		Receivers: req.Receivers, IsAnonymous: req.IsAnonymous,
 	})
 	if err != nil {
 		logger.Errorf("UpdateDraft: user_id=%d, draft_id=%d, err=%v", userID, draftID, err)
 		parseCommonErrors(err, w)
 		return
 	}
-	resp := DraftResponse{
-		ID:        result.ID,
-		SenderID:  result.SenderID,
-		Header:    result.Header,
-		Body:      result.Body,
-		Receivers: result.Recipients,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
-	}
+	resp := draftToResponse(result)
 
 	b, err := resp.MarshalJSON()
 	if err != nil {
@@ -141,15 +128,7 @@ func (h *Handler) GetDraftByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := DraftResponse{
-		ID:        result.ID,
-		SenderID:  result.SenderID,
-		Header:    result.Header,
-		Body:      result.Body,
-		Receivers: result.Recipients,
-		CreatedAt: result.CreatedAt,
-		UpdatedAt: result.UpdatedAt,
-	}
+	resp := draftToResponse(result)
 
 	b, err := resp.MarshalJSON()
 	if err != nil {
@@ -243,7 +222,8 @@ func (h *Handler) SendDraft(w http.ResponseWriter, r *http.Request) {
 
 	resp := SendEmailResponse{
 		ID: result.ID, SenderID: result.SenderID,
-		Header: result.Header, Body: result.Body, CreatedAt: result.CreatedAt,
+		Header: result.Header, Body: result.Body,
+		IsAnonymous: result.IsAnonymous, CreatedAt: result.CreatedAt,
 	}
 	b, err := resp.MarshalJSON()
 	if err != nil {

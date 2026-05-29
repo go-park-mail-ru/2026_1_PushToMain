@@ -73,11 +73,12 @@ func (s *Server) GetEmailById(
 
 	return &emailpb.GetEmailByIdResponse{
 		Email: &emailpb.Email{
-			Id:        email.ID,
-			SenderId:  email.SenderID,
-			Header:    email.Header,
-			Body:      email.Body,
-			CreatedAt: email.CreatedAt.String(),
+			Id:          email.ID,
+			SenderId:    email.SenderID,
+			Header:      email.Header,
+			Body:        email.Body,
+			CreatedAt:   email.CreatedAt.String(),
+			IsAnonymous: email.IsAnonymous,
 		},
 	}, nil
 }
@@ -185,8 +186,61 @@ func (s *Server) GetEmailsByIds(
 			Body:          em.Body,
 			CreatedAt:     timestamppb.New(em.CreatedAt),
 			IsRead:        em.IsRead,
+			IsAnonymous:   em.IsAnonymous,
 		})
 	}
 
 	return resp, nil
+}
+
+// GetEmailForSupport — внутренний эндпойнт для support-сервиса. ВНИМАНИЕ:
+// доступ к нему должен быть закрыт инфраструктурно (network-policy / mTLS /
+// authz-interceptor); делегация в сервис без дополнительных проверок здесь —
+// сознательное решение, чтобы единый источник истины для «выдать как есть»
+// был один.
+func (s *Server) GetEmailForSupport(
+	ctx context.Context,
+	req *emailpb.GetEmailForSupportRequest,
+) (*emailpb.GetEmailForSupportResponse, error) {
+	if req == nil || req.EmailId == 0 {
+		return nil, status.Error(codes.InvalidArgument, "email_id is required")
+	}
+
+	res, err := s.service.GetEmailForSupport(ctx, req.EmailId)
+	if err != nil {
+		// MapRepositoryError уже превратил ErrMailNotFound в ErrEmailNotFound;
+		// маппим к gRPC-кодам по типу ошибки.
+		if err == emailService.ErrEmailNotFound {
+			return nil, status.Error(codes.NotFound, err.Error())
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	pbAtt := make([]*emailpb.SupportAttachment, 0, len(res.Attachments))
+	for _, a := range res.Attachments {
+		pbAtt = append(pbAtt, &emailpb.SupportAttachment{
+			Id:          a.ID,
+			Filename:    a.FileName,
+			ContentType: a.ContentType,
+			SizeBytes:   a.SizeBytes,
+			CreatedAt:   timestamppb.New(a.CreatedAt),
+		})
+	}
+
+	return &emailpb.GetEmailForSupportResponse{
+		Id: res.ID,
+		Sender: &emailpb.SupportSenderInfo{
+			UserId:  res.Sender.UserID,
+			Email:   res.Sender.Email,
+			Name:    res.Sender.Name,
+			Surname: res.Sender.Surname,
+		},
+		Recipients:  res.Recipients,
+		Header:      res.Header,
+		Body:        res.Body,
+		CreatedAt:   timestamppb.New(res.CreatedAt),
+		IsAnonymous: res.IsAnonymous,
+		IsDraft:     res.IsDraft,
+		Attachments: pbAtt,
+	}, nil
 }

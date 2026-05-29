@@ -423,12 +423,14 @@ func (x *SwitchIsInboxResponse) GetSuccess() bool {
 }
 
 type Email struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	SenderId      *int64                 `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
-	Header        string                 `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"`
-	Body          string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	Id        int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	SenderId  *int64                 `protobuf:"varint,2,opt,name=sender_id,json=senderId,proto3,oneof" json:"sender_id,omitempty"`
+	Header    string                 `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"`
+	Body      string                 `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt string                 `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Помечено как анонимное при отправке.
+	IsAnonymous   bool `protobuf:"varint,6,opt,name=is_anonymous,json=isAnonymous,proto3" json:"is_anonymous,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -496,6 +498,13 @@ func (x *Email) GetCreatedAt() string {
 		return x.CreatedAt
 	}
 	return ""
+}
+
+func (x *Email) GetIsAnonymous() bool {
+	if x != nil {
+		return x.IsAnonymous
+	}
+	return false
 }
 
 type GetEmailByIdRequest struct {
@@ -701,6 +710,10 @@ type FolderEmail struct {
 	Body          string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	IsRead        bool                   `protobuf:"varint,9,opt,name=is_read,json=isRead,proto3" json:"is_read,omitempty"`
+	// Если true — frontend показывает "Отправлено анонимно" вместо sender_*.
+	// ВНИМАНИЕ: сервер сам решает, очищать ли sender_* для конкретного зрителя
+	// (см. service.GetEmailsByIDs / buildEmailsResult).
+	IsAnonymous   bool `protobuf:"varint,10,opt,name=is_anonymous,json=isAnonymous,proto3" json:"is_anonymous,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -794,6 +807,13 @@ func (x *FolderEmail) GetCreatedAt() *timestamppb.Timestamp {
 func (x *FolderEmail) GetIsRead() bool {
 	if x != nil {
 		return x.IsRead
+	}
+	return false
+}
+
+func (x *FolderEmail) GetIsAnonymous() bool {
+	if x != nil {
+		return x.IsAnonymous
 	}
 	return false
 }
@@ -902,6 +922,304 @@ func (x *GetEmailsByIdsResponse) GetUnreadCount() int32 {
 	return 0
 }
 
+type GetEmailForSupportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EmailId       int64                  `protobuf:"varint,1,opt,name=email_id,json=emailId,proto3" json:"email_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailForSupportRequest) Reset() {
+	*x = GetEmailForSupportRequest{}
+	mi := &file_proto_email_email_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailForSupportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailForSupportRequest) ProtoMessage() {}
+
+func (x *GetEmailForSupportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_email_email_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailForSupportRequest.ProtoReflect.Descriptor instead.
+func (*GetEmailForSupportRequest) Descriptor() ([]byte, []int) {
+	return file_proto_email_email_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetEmailForSupportRequest) GetEmailId() int64 {
+	if x != nil {
+		return x.EmailId
+	}
+	return 0
+}
+
+type SupportSenderInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// user_id может быть nil только для внешних писем (LMTP-приём).
+	// Для анонимных писем — всегда заполнен.
+	UserId        *int64 `protobuf:"varint,1,opt,name=user_id,json=userId,proto3,oneof" json:"user_id,omitempty"`
+	Email         string `protobuf:"bytes,2,opt,name=email,proto3" json:"email,omitempty"`
+	Name          string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Surname       string `protobuf:"bytes,4,opt,name=surname,proto3" json:"surname,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SupportSenderInfo) Reset() {
+	*x = SupportSenderInfo{}
+	mi := &file_proto_email_email_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SupportSenderInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SupportSenderInfo) ProtoMessage() {}
+
+func (x *SupportSenderInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_email_email_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SupportSenderInfo.ProtoReflect.Descriptor instead.
+func (*SupportSenderInfo) Descriptor() ([]byte, []int) {
+	return file_proto_email_email_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SupportSenderInfo) GetUserId() int64 {
+	if x != nil && x.UserId != nil {
+		return *x.UserId
+	}
+	return 0
+}
+
+func (x *SupportSenderInfo) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *SupportSenderInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SupportSenderInfo) GetSurname() string {
+	if x != nil {
+		return x.Surname
+	}
+	return ""
+}
+
+type SupportAttachment struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Filename      string                 `protobuf:"bytes,2,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType   string                 `protobuf:"bytes,3,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SupportAttachment) Reset() {
+	*x = SupportAttachment{}
+	mi := &file_proto_email_email_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SupportAttachment) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SupportAttachment) ProtoMessage() {}
+
+func (x *SupportAttachment) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_email_email_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SupportAttachment.ProtoReflect.Descriptor instead.
+func (*SupportAttachment) Descriptor() ([]byte, []int) {
+	return file_proto_email_email_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SupportAttachment) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *SupportAttachment) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *SupportAttachment) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *SupportAttachment) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *SupportAttachment) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type GetEmailForSupportResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Sender        *SupportSenderInfo     `protobuf:"bytes,2,opt,name=sender,proto3" json:"sender,omitempty"`
+	Recipients    []string               `protobuf:"bytes,3,rep,name=recipients,proto3" json:"recipients,omitempty"`
+	Header        string                 `protobuf:"bytes,4,opt,name=header,proto3" json:"header,omitempty"`
+	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	IsAnonymous   bool                   `protobuf:"varint,7,opt,name=is_anonymous,json=isAnonymous,proto3" json:"is_anonymous,omitempty"`
+	IsDraft       bool                   `protobuf:"varint,8,opt,name=is_draft,json=isDraft,proto3" json:"is_draft,omitempty"`
+	Attachments   []*SupportAttachment   `protobuf:"bytes,9,rep,name=attachments,proto3" json:"attachments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmailForSupportResponse) Reset() {
+	*x = GetEmailForSupportResponse{}
+	mi := &file_proto_email_email_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmailForSupportResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmailForSupportResponse) ProtoMessage() {}
+
+func (x *GetEmailForSupportResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_email_email_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmailForSupportResponse.ProtoReflect.Descriptor instead.
+func (*GetEmailForSupportResponse) Descriptor() ([]byte, []int) {
+	return file_proto_email_email_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetEmailForSupportResponse) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *GetEmailForSupportResponse) GetSender() *SupportSenderInfo {
+	if x != nil {
+		return x.Sender
+	}
+	return nil
+}
+
+func (x *GetEmailForSupportResponse) GetRecipients() []string {
+	if x != nil {
+		return x.Recipients
+	}
+	return nil
+}
+
+func (x *GetEmailForSupportResponse) GetHeader() string {
+	if x != nil {
+		return x.Header
+	}
+	return ""
+}
+
+func (x *GetEmailForSupportResponse) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *GetEmailForSupportResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *GetEmailForSupportResponse) GetIsAnonymous() bool {
+	if x != nil {
+		return x.IsAnonymous
+	}
+	return false
+}
+
+func (x *GetEmailForSupportResponse) GetIsDraft() bool {
+	if x != nil {
+		return x.IsDraft
+	}
+	return false
+}
+
+func (x *GetEmailForSupportResponse) GetAttachments() []*SupportAttachment {
+	if x != nil {
+		return x.Attachments
+	}
+	return nil
+}
+
 var File_proto_email_email_proto protoreflect.FileDescriptor
 
 const file_proto_email_email_proto_rawDesc = "" +
@@ -928,14 +1246,15 @@ const file_proto_email_email_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\x03R\x06userId\x12\x19\n" +
 	"\bemail_id\x18\x02 \x01(\x03R\aemailId\"1\n" +
 	"\x15SwitchIsInboxResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x92\x01\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\xb5\x01\n" +
 	"\x05Email\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12 \n" +
 	"\tsender_id\x18\x02 \x01(\x03H\x00R\bsenderId\x88\x01\x01\x12\x16\n" +
 	"\x06header\x18\x03 \x01(\tR\x06header\x12\x12\n" +
 	"\x04body\x18\x04 \x01(\tR\x04body\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x05 \x01(\tR\tcreatedAtB\f\n" +
+	"created_at\x18\x05 \x01(\tR\tcreatedAt\x12!\n" +
+	"\fis_anonymous\x18\x06 \x01(\bR\visAnonymousB\f\n" +
 	"\n" +
 	"_sender_id\"I\n" +
 	"\x13GetEmailByIdRequest\x12\x19\n" +
@@ -948,7 +1267,7 @@ const file_proto_email_email_proto_rawDesc = "" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"9\n" +
 	"\x18CheckEmailAccessResponse\x12\x1d\n" +
 	"\n" +
-	"has_access\x18\x01 \x01(\bR\thasAccess\"\xad\x02\n" +
+	"has_access\x18\x01 \x01(\bR\thasAccess\"\xd0\x02\n" +
 	"\vFolderEmail\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12!\n" +
 	"\fsender_email\x18\x02 \x01(\tR\vsenderEmail\x12\x1f\n" +
@@ -960,13 +1279,45 @@ const file_proto_email_email_proto_rawDesc = "" +
 	"\x04body\x18\a \x01(\tR\x04body\x129\n" +
 	"\n" +
 	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x17\n" +
-	"\ais_read\x18\t \x01(\bR\x06isRead\"M\n" +
+	"\ais_read\x18\t \x01(\bR\x06isRead\x12!\n" +
+	"\fis_anonymous\x18\n" +
+	" \x01(\bR\visAnonymous\"M\n" +
 	"\x15GetEmailsByIdsRequest\x12\x1b\n" +
 	"\temail_ids\x18\x01 \x03(\x03R\bemailIds\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\x03R\x06userId\"g\n" +
 	"\x16GetEmailsByIdsResponse\x12*\n" +
 	"\x06emails\x18\x01 \x03(\v2\x12.email.FolderEmailR\x06emails\x12!\n" +
-	"\funread_count\x18\x02 \x01(\x05R\vunreadCount2\xd8\x04\n" +
+	"\funread_count\x18\x02 \x01(\x05R\vunreadCount\"6\n" +
+	"\x19GetEmailForSupportRequest\x12\x19\n" +
+	"\bemail_id\x18\x01 \x01(\x03R\aemailId\"\x81\x01\n" +
+	"\x11SupportSenderInfo\x12\x1c\n" +
+	"\auser_id\x18\x01 \x01(\x03H\x00R\x06userId\x88\x01\x01\x12\x14\n" +
+	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x18\n" +
+	"\asurname\x18\x04 \x01(\tR\asurnameB\n" +
+	"\n" +
+	"\b_user_id\"\xbc\x01\n" +
+	"\x11SupportAttachment\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x1a\n" +
+	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xdf\x02\n" +
+	"\x1aGetEmailForSupportResponse\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x120\n" +
+	"\x06sender\x18\x02 \x01(\v2\x18.email.SupportSenderInfoR\x06sender\x12\x1e\n" +
+	"\n" +
+	"recipients\x18\x03 \x03(\tR\n" +
+	"recipients\x12\x16\n" +
+	"\x06header\x18\x04 \x01(\tR\x06header\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x129\n" +
+	"\n" +
+	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12!\n" +
+	"\fis_anonymous\x18\a \x01(\bR\visAnonymous\x12\x19\n" +
+	"\bis_draft\x18\b \x01(\bR\aisDraft\x12:\n" +
+	"\vattachments\x18\t \x03(\v2\x18.email.SupportAttachmentR\vattachments2\xb3\x05\n" +
 	"\fEmailService\x12G\n" +
 	"\fGetEmailById\x12\x1a.email.GetEmailByIdRequest\x1a\x1b.email.GetEmailByIdResponse\x12n\n" +
 	"\x19GetEmailIdsByUserEmailIds\x12'.email.GetEmailIdsByUserEmailIdsRequest\x1a(.email.GetEmailIdsByUserEmailIdsResponse\x12S\n" +
@@ -974,7 +1325,8 @@ const file_proto_email_email_proto_rawDesc = "" +
 	"\x0eGetEmailsByIds\x12\x1c.email.GetEmailsByIdsRequest\x1a\x1d.email.GetEmailsByIdsResponse\x12J\n" +
 	"\rSwitchIsInbox\x12\x1b.email.SwitchIsInboxRequest\x1a\x1c.email.SwitchIsInboxResponse\x12M\n" +
 	"\x0eGetUserEmailID\x12\x1c.email.GetUserEmailIDRequest\x1a\x1d.email.GetUserEmailIDResponse\x12P\n" +
-	"\x0fSendSystemEmail\x12\x1d.email.SendSystemEmailRequest\x1a\x1e.email.SendSystemEmailResponseB\x0fZ\r./proto/emailb\x06proto3"
+	"\x0fSendSystemEmail\x12\x1d.email.SendSystemEmailRequest\x1a\x1e.email.SendSystemEmailResponse\x12Y\n" +
+	"\x12GetEmailForSupport\x12 .email.GetEmailForSupportRequest\x1a!.email.GetEmailForSupportResponseB\x0fZ\r./proto/emailb\x06proto3"
 
 var (
 	file_proto_email_email_proto_rawDescOnce sync.Once
@@ -988,7 +1340,7 @@ func file_proto_email_email_proto_rawDescGZIP() []byte {
 	return file_proto_email_email_proto_rawDescData
 }
 
-var file_proto_email_email_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_proto_email_email_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_proto_email_email_proto_goTypes = []any{
 	(*SendSystemEmailRequest)(nil),            // 0: email.SendSystemEmailRequest
 	(*SendSystemEmailResponse)(nil),           // 1: email.SendSystemEmailResponse
@@ -1006,31 +1358,41 @@ var file_proto_email_email_proto_goTypes = []any{
 	(*FolderEmail)(nil),                       // 13: email.FolderEmail
 	(*GetEmailsByIdsRequest)(nil),             // 14: email.GetEmailsByIdsRequest
 	(*GetEmailsByIdsResponse)(nil),            // 15: email.GetEmailsByIdsResponse
-	(*timestamppb.Timestamp)(nil),             // 16: google.protobuf.Timestamp
+	(*GetEmailForSupportRequest)(nil),         // 16: email.GetEmailForSupportRequest
+	(*SupportSenderInfo)(nil),                 // 17: email.SupportSenderInfo
+	(*SupportAttachment)(nil),                 // 18: email.SupportAttachment
+	(*GetEmailForSupportResponse)(nil),        // 19: email.GetEmailForSupportResponse
+	(*timestamppb.Timestamp)(nil),             // 20: google.protobuf.Timestamp
 }
 var file_proto_email_email_proto_depIdxs = []int32{
 	8,  // 0: email.GetEmailByIdResponse.email:type_name -> email.Email
-	16, // 1: email.FolderEmail.created_at:type_name -> google.protobuf.Timestamp
+	20, // 1: email.FolderEmail.created_at:type_name -> google.protobuf.Timestamp
 	13, // 2: email.GetEmailsByIdsResponse.emails:type_name -> email.FolderEmail
-	9,  // 3: email.EmailService.GetEmailById:input_type -> email.GetEmailByIdRequest
-	2,  // 4: email.EmailService.GetEmailIdsByUserEmailIds:input_type -> email.GetEmailIdsByUserEmailIdsRequest
-	11, // 5: email.EmailService.CheckEmailAccess:input_type -> email.CheckEmailAccessRequest
-	14, // 6: email.EmailService.GetEmailsByIds:input_type -> email.GetEmailsByIdsRequest
-	6,  // 7: email.EmailService.SwitchIsInbox:input_type -> email.SwitchIsInboxRequest
-	4,  // 8: email.EmailService.GetUserEmailID:input_type -> email.GetUserEmailIDRequest
-	0,  // 9: email.EmailService.SendSystemEmail:input_type -> email.SendSystemEmailRequest
-	10, // 10: email.EmailService.GetEmailById:output_type -> email.GetEmailByIdResponse
-	3,  // 11: email.EmailService.GetEmailIdsByUserEmailIds:output_type -> email.GetEmailIdsByUserEmailIdsResponse
-	12, // 12: email.EmailService.CheckEmailAccess:output_type -> email.CheckEmailAccessResponse
-	15, // 13: email.EmailService.GetEmailsByIds:output_type -> email.GetEmailsByIdsResponse
-	7,  // 14: email.EmailService.SwitchIsInbox:output_type -> email.SwitchIsInboxResponse
-	5,  // 15: email.EmailService.GetUserEmailID:output_type -> email.GetUserEmailIDResponse
-	1,  // 16: email.EmailService.SendSystemEmail:output_type -> email.SendSystemEmailResponse
-	10, // [10:17] is the sub-list for method output_type
-	3,  // [3:10] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	20, // 3: email.SupportAttachment.created_at:type_name -> google.protobuf.Timestamp
+	17, // 4: email.GetEmailForSupportResponse.sender:type_name -> email.SupportSenderInfo
+	20, // 5: email.GetEmailForSupportResponse.created_at:type_name -> google.protobuf.Timestamp
+	18, // 6: email.GetEmailForSupportResponse.attachments:type_name -> email.SupportAttachment
+	9,  // 7: email.EmailService.GetEmailById:input_type -> email.GetEmailByIdRequest
+	2,  // 8: email.EmailService.GetEmailIdsByUserEmailIds:input_type -> email.GetEmailIdsByUserEmailIdsRequest
+	11, // 9: email.EmailService.CheckEmailAccess:input_type -> email.CheckEmailAccessRequest
+	14, // 10: email.EmailService.GetEmailsByIds:input_type -> email.GetEmailsByIdsRequest
+	6,  // 11: email.EmailService.SwitchIsInbox:input_type -> email.SwitchIsInboxRequest
+	4,  // 12: email.EmailService.GetUserEmailID:input_type -> email.GetUserEmailIDRequest
+	0,  // 13: email.EmailService.SendSystemEmail:input_type -> email.SendSystemEmailRequest
+	16, // 14: email.EmailService.GetEmailForSupport:input_type -> email.GetEmailForSupportRequest
+	10, // 15: email.EmailService.GetEmailById:output_type -> email.GetEmailByIdResponse
+	3,  // 16: email.EmailService.GetEmailIdsByUserEmailIds:output_type -> email.GetEmailIdsByUserEmailIdsResponse
+	12, // 17: email.EmailService.CheckEmailAccess:output_type -> email.CheckEmailAccessResponse
+	15, // 18: email.EmailService.GetEmailsByIds:output_type -> email.GetEmailsByIdsResponse
+	7,  // 19: email.EmailService.SwitchIsInbox:output_type -> email.SwitchIsInboxResponse
+	5,  // 20: email.EmailService.GetUserEmailID:output_type -> email.GetUserEmailIDResponse
+	1,  // 21: email.EmailService.SendSystemEmail:output_type -> email.SendSystemEmailResponse
+	19, // 22: email.EmailService.GetEmailForSupport:output_type -> email.GetEmailForSupportResponse
+	15, // [15:23] is the sub-list for method output_type
+	7,  // [7:15] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_proto_email_email_proto_init() }
@@ -1039,13 +1401,14 @@ func file_proto_email_email_proto_init() {
 		return
 	}
 	file_proto_email_email_proto_msgTypes[8].OneofWrappers = []any{}
+	file_proto_email_email_proto_msgTypes[17].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_email_email_proto_rawDesc), len(file_proto_email_email_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

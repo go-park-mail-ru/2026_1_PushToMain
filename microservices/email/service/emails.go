@@ -12,6 +12,7 @@ import (
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/delivery/lmtp"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/email/models"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/pkg/smtp"
+	userpb "github.com/go-park-mail-ru/2026_1_PushToMain/proto/user"
 )
 
 type GetEmailsInput struct {
@@ -46,6 +47,7 @@ type EmailResult struct {
 	CreatedAt     time.Time
 	IsRead        bool
 	IsStarred     bool
+	IsAnonymous   bool
 }
 
 type GetMyEmailsResult struct {
@@ -63,6 +65,7 @@ type MyEmailResult struct {
 	CreatedAt       time.Time
 	IsRead          bool
 	IsStarred       bool
+	IsAnonymous     bool
 	ReceiversEmails []string
 }
 
@@ -80,27 +83,30 @@ type GetEmailResult struct {
 	Header          string
 	Body            string
 	IsStarred       bool
+	IsAnonymous     bool
 	CreatedAt       time.Time
 	SenderImagePath string
 	ReceiverList    []string
 }
 
 type SendEmailInput struct {
-	UserId    int64
-	Header    string
-	Body      string
-	Receivers []string
+	UserId      int64
+	Header      string
+	Body        string
+	Receivers   []string
+	IsAnonymous bool
 
 	Files       []multipart.File
 	FileHeaders []*multipart.FileHeader
 }
 
 type SendEmailResult struct {
-	ID        int64
-	SenderID  int64
-	Header    string
-	Body      string
-	CreatedAt time.Time
+	ID          int64
+	SenderID    int64
+	Header      string
+	Body        string
+	IsAnonymous bool
+	CreatedAt   time.Time
 }
 
 type ForwardEmailInput struct {
@@ -117,6 +123,25 @@ type MarkAsReadInput struct {
 type GetEmailsByIDsResult struct {
 	Emails      []EmailResult
 	UnreadCount int
+}
+
+type SupportSender struct {
+	UserID  *int64
+	Email   string
+	Name    string
+	Surname string
+}
+
+type GetEmailForSupportResult struct {
+	ID          int64
+	Sender      SupportSender
+	Recipients  []string
+	Header      string
+	Body        string
+	CreatedAt   time.Time
+	IsAnonymous bool
+	IsDraft     bool
+	Attachments []AttachmentResult
 }
 
 func (s *Service) SendSystemEmail(
@@ -169,7 +194,7 @@ func (s *Service) GetEmailsByReceiver(ctx context.Context, in GetEmailsInput) (*
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+	return s.buildEmailsResult(ctx, in.UserID, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
 func (s *Service) GetAllEmailsByUser(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
@@ -186,7 +211,7 @@ func (s *Service) GetAllEmailsByUser(ctx context.Context, in GetEmailsInput) (*G
 		return nil, MapRepositoryError(err)
 	}
 	stats.Total += sentStat
-	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+	return s.buildEmailsResult(ctx, in.UserID, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
 func (s *Service) GetSpamEmails(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
@@ -198,7 +223,7 @@ func (s *Service) GetSpamEmails(ctx context.Context, in GetEmailsInput) (*GetEma
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+	return s.buildEmailsResult(ctx, in.UserID, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
 func (s *Service) GetTrashEmails(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
@@ -210,7 +235,7 @@ func (s *Service) GetTrashEmails(ctx context.Context, in GetEmailsInput) (*GetEm
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+	return s.buildEmailsResult(ctx, in.UserID, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
 func (s *Service) GetFavoriteEmails(ctx context.Context, in GetEmailsInput) (*GetEmailsResult, error) {
@@ -222,7 +247,7 @@ func (s *Service) GetFavoriteEmails(ctx context.Context, in GetEmailsInput) (*Ge
 	if err != nil {
 		return nil, MapRepositoryError(err)
 	}
-	return s.buildEmailsResult(ctx, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
+	return s.buildEmailsResult(ctx, in.UserID, emails, in.Limit, in.Offset, stats.Total, stats.Unread)
 }
 
 func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*GetMyEmailsResult, error) {
@@ -244,6 +269,7 @@ func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*
 			CreatedAt:       em.CreatedAt,
 			IsRead:          em.IsRead,
 			IsStarred:       em.IsStarred,
+			IsAnonymous:     em.IsAnonymous,
 			ReceiversEmails: em.Recipients,
 		}
 	}
@@ -257,15 +283,22 @@ func (s *Service) GetEmailsBySender(ctx context.Context, in GetMyEmailsInput) (*
 
 func (s *Service) buildEmailsResult(
 	ctx context.Context,
+	viewerID int64,
 	emails []models.EmailWithMetadata,
 	limit, offset, total, unread int,
 ) (*GetEmailsResult, error) {
 	out := make([]EmailResult, len(emails))
 	for i, em := range emails {
+		hide := em.IsAnonymous && (em.SenderID == nil || *em.SenderID != viewerID)
+
+		var senderID *int64
 		var senderEmail, senderName, senderSurname string
 
-		if em.SenderID != nil {
+		if hide {
+			// ...
+		} else if em.SenderID != nil {
 			user, err := s.userClient.GetUserByID(ctx, *em.SenderID)
+			senderID = em.SenderID
 			if err != nil {
 				senderEmail = em.SenderEmail
 			} else {
@@ -279,7 +312,7 @@ func (s *Service) buildEmailsResult(
 
 		out[i] = EmailResult{
 			ID:            em.ID,
-			SenderID:      em.SenderID,
+			SenderID:      senderID,
 			SenderEmail:   senderEmail,
 			SenderName:    senderName,
 			SenderSurname: senderSurname,
@@ -289,6 +322,7 @@ func (s *Service) buildEmailsResult(
 			CreatedAt:     em.CreatedAt,
 			IsRead:        em.IsRead,
 			IsStarred:     em.IsStarred,
+			IsAnonymous:   em.IsAnonymous,
 		}
 	}
 	return &GetEmailsResult{
@@ -310,24 +344,28 @@ func (s *Service) GetEmailByID(ctx context.Context, in GetEmailInput) (*GetEmail
 	}
 
 	result := &GetEmailResult{
-		ID:              em.ID,
-		SenderID:        em.SenderID,
-		SenderEmail:     em.SenderEmail,
-		Header:          em.Header,
-		Body:            em.Body,
-		CreatedAt:       em.CreatedAt,
-		SenderImagePath: em.SenderImagePath,
-		ReceiverList:    em.Recipients,
+		ID:           em.ID,
+		Header:       em.Header,
+		Body:         em.Body,
+		CreatedAt:    em.CreatedAt,
+		ReceiverList: em.Recipients,
+		IsAnonymous:  em.IsAnonymous,
 	}
 
-	if em.SenderID != nil {
-		user, err := s.userClient.GetUserByID(ctx, *em.SenderID)
-		if err != nil {
-			return nil, MapRepositoryError(err)
+	hide := em.IsAnonymous && (em.SenderID == nil || *em.SenderID != in.UserID)
+	if !hide {
+		result.SenderID = em.SenderID
+		result.SenderEmail = em.SenderEmail
+		result.SenderImagePath = em.SenderImagePath
+		if em.SenderID != nil {
+			user, err := s.userClient.GetUserByID(ctx, *em.SenderID)
+			if err != nil {
+				return nil, MapRepositoryError(err)
+			}
+			result.SenderEmail = user.Email
+			result.SenderName = user.Name
+			result.SenderSurname = user.Surname
 		}
-		result.SenderEmail = user.Email
-		result.SenderName = user.Name
-		result.SenderSurname = user.Surname
 	}
 
 	return result, nil
@@ -368,13 +406,16 @@ func (s *Service) GetEmailsByIDs(ctx context.Context, emailIDs []int64, userID i
 			Header:       em.Header,
 			Body:         em.Body,
 			CreatedAt:    em.CreatedAt,
+			IsAnonymous:  em.IsAnonymous,
 		}
-		if em.SenderID != nil {
+
+		hide := em.IsAnonymous && (em.SenderID == nil || *em.SenderID != userID)
+		if !hide && em.SenderID != nil {
 			senderUser, err := s.userClient.GetUserByID(ctx, *em.SenderID)
 			if err != nil {
 				return nil, MapRepositoryError(err)
 			}
-
+			email.SenderID = em.SenderID
 			email.SenderEmail = senderUser.Email
 			email.SenderName = senderUser.Name
 			email.SenderSurname = senderUser.Surname
@@ -390,11 +431,48 @@ func (s *Service) CheckEmailAccess(ctx context.Context, in GetEmailInput) error 
 }
 
 func (s *Service) SendEmail(ctx context.Context, in SendEmailInput) (*SendEmailResult, error) {
+	if in.IsAnonymous {
+		return s.sendAnonymousEmail(ctx, in)
+	}
 	recipients, err := s.resolveRecipients(ctx, in.Receivers)
 	if err != nil {
 		return nil, err
 	}
-	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders)
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, false)
+}
+func (s *Service) sendAnonymousEmail(ctx context.Context, in SendEmailInput) (*SendEmailResult, error) {
+	recipients, usersByEmail, err := s.resolveRecipientsWithUsers(ctx, in.Receivers)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, r := range recipients {
+		if r.UserID == nil {
+			return nil, ErrAnonymousExternal
+		}
+	}
+
+	var rejected []string
+	for _, r := range recipients {
+		u := usersByEmail[r.Email]
+		if u == nil || !u.AcceptAnonymous {
+			rejected = append(rejected, r.Email)
+		}
+	}
+
+	if len(rejected) > 0 {
+		payloads, err := readFilePayloads(in.Files, in.FileHeaders)
+		if err != nil {
+			return nil, err
+		}
+		draftID, err := s.saveDraftWithPayloads(ctx, in.UserId, in.Header, in.Body, recipients, true, payloads)
+		if err != nil {
+			return nil, err
+		}
+		return nil, &ErrAnonymousRejected{Emails: rejected, DraftID: draftID}
+	}
+
+	return s.sendEmailTx(ctx, in.UserId, in.Header, in.Body, recipients, in.Files, in.FileHeaders, true)
 }
 
 func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error {
@@ -412,12 +490,10 @@ func (s *Service) ForwardEmail(ctx context.Context, in ForwardEmailInput) error 
 	if err != nil {
 		return err
 	}
-	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil)
+	_, err = s.sendEmailTx(ctx, in.UserID, src.Header, src.Body, recipients, nil, nil, false)
 	return err
 }
 
-// filePayload хранит байты файла, прочитанные один раз для использования
-// и в MinIO, и в SMTP.
 type filePayload struct {
 	data        []byte
 	filename    string
@@ -425,19 +501,7 @@ type filePayload struct {
 	size        int64
 }
 
-func (s *Service) sendEmailTx(
-	ctx context.Context,
-	senderID int64,
-	header, body string,
-	recipients []models.Recipient,
-	files []multipart.File,
-	fileHeaders []*multipart.FileHeader,
-) (*SendEmailResult, error) {
-	sender, err := s.userClient.GetUserByID(ctx, senderID)
-	if err != nil {
-		return nil, MapRepositoryError(err)
-	}
-
+func readFilePayloads(files []multipart.File, fileHeaders []*multipart.FileHeader) ([]filePayload, error) {
 	payloads := make([]filePayload, 0, len(files))
 	for i, f := range files {
 		if i >= len(fileHeaders) {
@@ -459,6 +523,27 @@ func (s *Service) sendEmailTx(
 			size:        fh.Size,
 		})
 	}
+	return payloads, nil
+}
+
+func (s *Service) sendEmailTx(
+	ctx context.Context,
+	senderID int64,
+	header, body string,
+	recipients []models.Recipient,
+	files []multipart.File,
+	fileHeaders []*multipart.FileHeader,
+	isAnonymous bool,
+) (*SendEmailResult, error) {
+	sender, err := s.userClient.GetUserByID(ctx, senderID)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+
+	payloads, err := readFilePayloads(files, fileHeaders)
+	if err != nil {
+		return nil, err
+	}
 
 	tx, err := s.repo.BeginTx(ctx)
 	if err != nil {
@@ -477,6 +562,7 @@ func (s *Service) sendEmailTx(
 		Header:      header,
 		Body:        body,
 		IsDraft:     false,
+		IsAnonymous: isAnonymous,
 	})
 	if err != nil {
 		return nil, MapRepositoryError(err)
@@ -525,7 +611,7 @@ func (s *Service) sendEmailTx(
 	}
 	committed = true
 
-	if s.smtpClient != nil {
+	if !isAnonymous && s.smtpClient != nil {
 		external := collectExternal(recipients)
 		if len(external) > 0 {
 			smtpAttachments := make([]smtp.Attachment, 0, len(payloads))
@@ -544,9 +630,88 @@ func (s *Service) sendEmailTx(
 	}
 
 	return &SendEmailResult{
-		ID: emailID, SenderID: senderID,
-		Header: header, Body: body, CreatedAt: time.Now(),
+		ID:          emailID,
+		SenderID:    senderID,
+		Header:      header,
+		Body:        body,
+		IsAnonymous: isAnonymous,
+		CreatedAt:   time.Now(),
 	}, nil
+}
+
+func (s *Service) saveDraftWithPayloads(
+	ctx context.Context,
+	senderID int64,
+	header, body string,
+	recipients []models.Recipient,
+	isAnonymous bool,
+	payloads []filePayload,
+) (int64, error) {
+	sender, err := s.userClient.GetUserByID(ctx, senderID)
+	if err != nil {
+		return 0, MapRepositoryError(err)
+	}
+
+	tx, err := s.repo.BeginTx(ctx)
+	if err != nil {
+		return 0, ErrTransaction
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	emailID, err := s.repo.InsertEmail(ctx, tx, models.Email{
+		SenderID:    &senderID,
+		SenderEmail: sender.Email,
+		Header:      header,
+		Body:        body,
+		IsDraft:     true,
+		IsAnonymous: isAnonymous,
+	})
+	if err != nil {
+		return 0, MapRepositoryError(err)
+	}
+
+	if err := s.repo.InsertEmailRecipients(ctx, tx, emailID, recipients); err != nil {
+		return 0, MapRepositoryError(err)
+	}
+
+	var uploadedKeys []string
+	if len(payloads) > 0 && s.storage != nil {
+		for _, p := range payloads {
+			key, err := s.storage.UploadAttachment(
+				ctx, emailID, p.filename, bytes.NewReader(p.data), p.size, p.contentType,
+			)
+			if err != nil {
+				for _, k := range uploadedKeys {
+					_ = s.storage.DeleteAttachment(ctx, k)
+				}
+				return 0, err
+			}
+			uploadedKeys = append(uploadedKeys, key)
+			if _, err := s.repo.InsertAttachment(ctx, tx, models.Attachment{
+				EmailID: emailID, FileName: p.filename, ContentType: p.contentType,
+				SizeBytes: p.size, StoragePath: key,
+			}); err != nil {
+				for _, k := range uploadedKeys {
+					_ = s.storage.DeleteAttachment(ctx, k)
+				}
+				return 0, MapRepositoryError(err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		for _, k := range uploadedKeys {
+			_ = s.storage.DeleteAttachment(ctx, k)
+		}
+		return 0, ErrTransaction
+	}
+	committed = true
+	return emailID, nil
 }
 
 func (s *Service) ReceiveExternalEmail(ctx context.Context, from string, to []string, subject string, parsed lmtp.ParsedEmail) error {
@@ -670,16 +835,23 @@ func (s *Service) UnblockSenders(ctx context.Context, in BatchInput) error {
 }
 
 func (s *Service) resolveRecipients(ctx context.Context, emails []string) ([]models.Recipient, error) {
+	recipients, _, err := s.resolveRecipientsWithUsers(ctx, emails)
+	return recipients, err
+}
+
+func (s *Service) resolveRecipientsWithUsers(
+	ctx context.Context, emails []string,
+) ([]models.Recipient, map[string]*userpb.User, error) {
 	if len(emails) == 0 {
-		return nil, ErrNoValidReceivers
+		return nil, nil, ErrNoValidReceivers
 	}
 	users, err := s.userClient.GetUsersByEmails(ctx, emails)
 	if err != nil {
-		return nil, MapRepositoryError(err)
+		return nil, nil, MapRepositoryError(err)
 	}
-	byEmail := make(map[string]int64, len(users))
+	byEmail := make(map[string]*userpb.User, len(users))
 	for _, u := range users {
-		byEmail[u.Email] = u.Id
+		byEmail[u.Email] = u
 	}
 
 	out := make([]models.Recipient, 0, len(emails))
@@ -687,15 +859,49 @@ func (s *Service) resolveRecipients(ctx context.Context, emails []string) ([]mod
 		domain := extractDomain(e)
 		rec := models.Recipient{Email: e}
 
-		if id, ok := byEmail[e]; ok {
+		if u, ok := byEmail[e]; ok {
+			id := u.Id
 			rec.UserID = &id
 		} else if isLocalDomain(domain) {
-			return nil, &ErrRecipientNotFound{Email: e}
+			return nil, nil, &ErrRecipientNotFound{Email: e}
 		}
 		out = append(out, rec)
 	}
 
-	return out, nil
+	return out, byEmail, nil
+}
+
+func (s *Service) GetEmailForSupport(ctx context.Context, emailID int64) (*GetEmailForSupportResult, error) {
+	em, senderName, senderSurname, err := s.repo.GetEmailForSupport(ctx, emailID)
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+
+	attachments, err := s.repo.GetAttachmentsByEmailIDs(ctx, []int64{emailID})
+	if err != nil {
+		return nil, MapRepositoryError(err)
+	}
+	attResults := make([]AttachmentResult, 0, len(attachments))
+	for _, a := range attachments {
+		attResults = append(attResults, attachmentToResult(a))
+	}
+
+	return &GetEmailForSupportResult{
+		ID: em.ID,
+		Sender: SupportSender{
+			UserID:  em.SenderID,
+			Email:   em.SenderEmail,
+			Name:    senderName,
+			Surname: senderSurname,
+		},
+		Recipients:  em.Recipients,
+		Header:      em.Header,
+		Body:        em.Body,
+		CreatedAt:   em.CreatedAt,
+		IsAnonymous: em.IsAnonymous,
+		IsDraft:     em.IsDraft,
+		Attachments: attResults,
+	}, nil
 }
 
 func collectExternal(recipients []models.Recipient) []string {

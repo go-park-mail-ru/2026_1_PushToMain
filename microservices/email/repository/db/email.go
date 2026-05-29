@@ -14,13 +14,13 @@ import (
 func (r *Repository) InsertEmail(ctx context.Context, tx *sql.Tx, email models.Email) (int64, error) {
 	const query = `
 		INSERT INTO emails
-			(sender_id, sender_email, header, body, is_draft)
-		VALUES ($1, $2, $3, $4, $5)
+			(sender_id, sender_email, header, body, is_draft, is_anonymous)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 	var id int64
 	err := tx.QueryRowContext(ctx, query,
-		email.SenderID, email.SenderEmail, email.Header, email.Body, email.IsDraft,
+		email.SenderID, email.SenderEmail, email.Header, email.Body, email.IsDraft, email.IsAnonymous,
 	).Scan(&id)
 	if err != nil {
 		return 0, mapPgError(err)
@@ -97,6 +97,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 			e.header,
 			e.body,
 			e.is_draft,
+			e.is_anonymous,
 			e.created_at,
 			e.updated_at,
 			COALESCE(u.image_path, ''),
@@ -114,6 +115,7 @@ func (r *Repository) GetEmailByID(ctx context.Context, emailID int64) (*models.E
 		&em.Header,
 		&em.Body,
 		&em.IsDraft,
+		&em.IsAnonymous,
 		&em.CreatedAt,
 		&em.UpdatedAt,
 		&em.SenderImagePath,
@@ -163,6 +165,7 @@ func (r *Repository) queryUserMailbox(
 			e.header,
 			e.body,
 			e.is_draft,
+			e.is_anonymous,
 			e.created_at,
 			e.updated_at,
 			ue.is_read,
@@ -192,7 +195,8 @@ func (r *Repository) queryUserMailbox(
 		var recipients string
 		if err := rows.Scan(
 			&em.ID, &em.SenderID, &em.SenderEmail,
-			&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
+			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous,
+			&em.CreatedAt, &em.UpdatedAt,
 			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
 			&recipients,
 		); err != nil {
@@ -225,21 +229,17 @@ func (r *Repository) GetAllEmails(ctx context.Context, userID int64, limit, offs
 		return nil, fmt.Errorf("failed to get inbox emails: %w", err)
 	}
 
-	// Получаем отправленные
 	sentEmails, err := r.GetSentEmails(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sent emails: %w", err)
 	}
 
-	// Объединяем
 	allEmails := append(inboxEmails, sentEmails...)
 
-	// Сортируем по дате
 	sort.Slice(allEmails, func(i, j int) bool {
 		return allEmails[i].CreatedAt.After(allEmails[j].CreatedAt)
 	})
 
-	// Применяем пагинацию
 	if offset >= len(allEmails) {
 		return []models.EmailWithMetadata{}, nil
 	}
@@ -273,7 +273,7 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 		SELECT
 			e.id, e.sender_id, e.sender_email,
 			COALESCE(e.header, ''), COALESCE(e.body, ''),
-			e.is_draft, e.created_at, e.updated_at,
+			e.is_draft, e.is_anonymous, e.created_at, e.updated_at,
 			COALESCE(ue.is_read, false), COALESCE(ue.is_starred, false),
 			COALESCE(ue.is_spam, false), COALESCE(ue.is_deleted, false),
 			e.created_at,
@@ -298,7 +298,8 @@ func (r *Repository) GetSentEmails(ctx context.Context, userID int64, limit, off
 		var recipients string
 		if err := rows.Scan(
 			&em.ID, &em.SenderID, &em.SenderEmail,
-			&em.Header, &em.Body, &em.IsDraft, &em.CreatedAt, &em.UpdatedAt,
+			&em.Header, &em.Body, &em.IsDraft, &em.IsAnonymous,
+			&em.CreatedAt, &em.UpdatedAt,
 			&em.IsRead, &em.IsStarred, &em.IsSpam, &em.IsDeleted, &em.ReceivedAt,
 			&recipients,
 		); err != nil {
@@ -361,4 +362,62 @@ func (r *Repository) SwitchIsInbox(ctx context.Context, emailID int64, UserID in
 		return ErrQueryFail
 	}
 	return nil
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// SUPPORT API
+// ───────────────────────────────────────────────────────────────────────────────
+
+// GetEmailForSupport вытягивает письмо с реальным отправителем (через JOIN users)
+// и получателей. Вложения (метаданные) докидываются service-слоем через уже
+// существующий GetAttachmentsByEmailIDs — не плодим N+1 и переиспользуем код.
+//
+// Возвращает EmailWithAvatar + name + surname отдельно: модель EmailWithAvatar
+// не содержит имени/фамилии (она для пользовательских view), поэтому отдаём
+// out-of-band, чтобы не размывать существующий доменный тип.
+func (r *Repository) GetEmailForSupport(ctx context.Context, emailID int64) (*models.EmailWithAvatar, string, string, error) {
+	const query = `
+		SELECT
+			e.id,
+			e.sender_id,
+			e.sender_email,
+			e.header,
+			e.body,
+			e.is_draft,
+			e.is_anonymous,
+			e.created_at,
+			e.updated_at,
+			COALESCE(u.image_path, ''),
+			COALESCE(u.name, ''),
+			COALESCE(u.surname, ''),
+			COALESCE((SELECT string_agg(er.recipient_email, ',') FROM email_recipients er WHERE er.email_id = e.id), '')
+		FROM emails e
+		LEFT JOIN users u ON u.id = e.sender_id
+		WHERE e.id = $1
+	`
+	var em models.EmailWithAvatar
+	var recipients, senderName, senderSurname string
+	err := r.db.QueryRowContext(ctx, query, emailID).Scan(
+		&em.ID,
+		&em.SenderID,
+		&em.SenderEmail,
+		&em.Header,
+		&em.Body,
+		&em.IsDraft,
+		&em.IsAnonymous,
+		&em.CreatedAt,
+		&em.UpdatedAt,
+		&em.SenderImagePath,
+		&senderName,
+		&senderSurname,
+		&recipients,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, "", "", ErrMailNotFound
+	}
+	if err != nil {
+		return nil, "", "", ErrQueryFail
+	}
+	em.Recipients = parsePgTextArray(recipients)
+	return &em, senderName, senderSurname, nil
 }

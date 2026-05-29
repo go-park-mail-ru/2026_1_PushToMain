@@ -17,5 +17,11 @@ type User struct {
 	IsMale    *bool
 	Birthdate *time.Time
 
+	// AcceptAnonymous — указатель, чтобы различать "не задано в запросе"
+	// и "явно установлено false" в UpdateProfile (PATCH-семантика, как у IsMale).
+	// На уровне БД колонка NOT NULL DEFAULT false, так что nil тут только
+	// для UpdateProfile-инпута, а Read-операции всегда возвращают конкретное значение.
+	AcceptAnonymous *bool
+
 	Folders []Folder
 }

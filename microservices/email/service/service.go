@@ -90,6 +90,10 @@ type Repository interface {
 	GetAttachmentsByEmailIDs(ctx context.Context, emailIDs []int64) ([]models.Attachment, error)
 	GetAttachmentByID(ctx context.Context, attachmentID, emailID int64) (*models.Attachment, error)
 	DeleteAttachments(ctx context.Context, tx *sql.Tx, ids []int64) error
+
+	// Support API: возвращает письмо вместе с реальным sender (name/surname)
+	// и списком получателей. Не маскирует анонимность — для саппорта.
+	GetEmailForSupport(ctx context.Context, emailID int64) (*models.EmailWithAvatar, string, string, error)
 }
 
 type DraftsConfig struct {

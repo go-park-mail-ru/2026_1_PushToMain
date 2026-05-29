@@ -14,6 +14,10 @@ type Email struct {
 	Header      string
 	Body        string
 	IsDraft     bool
+	// IsAnonymous помечает анонимные письма. Свойство принадлежит самому письму,
+	// поэтому одинаково для всех получателей. Скрытие отправителя — задача
+	// service-слоя при формировании ответа (в БД sender_id остаётся).
+	IsAnonymous bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 
@@ -48,6 +52,7 @@ type Draft struct {
 	SenderEmail string
 	Header      string
 	Body        string
+	IsAnonymous bool
 	Recipients  []string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time

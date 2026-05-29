@@ -28,7 +28,17 @@ func New(userDb *sql.DB) *Repository {
 	}
 }
 
-func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surname string, isMale *bool, birthdate *time.Time) error {
+// UpdateProfile теперь умеет дополнительно обновлять accept_anonymous.
+// acceptAnonymous == nil ⇒ поле не трогаем (PATCH-семантика), как и для остальных
+// необязательных полей (isMale, birthdate).
+func (r *Repository) UpdateProfile(
+	ctx context.Context,
+	userID int64,
+	name, surname string,
+	isMale *bool,
+	birthdate *time.Time,
+	acceptAnonymous *bool,
+) error {
 	var setParts []string
 	var args []interface{}
 	argCounter := 1
@@ -54,6 +64,12 @@ func (r *Repository) UpdateProfile(ctx context.Context, userID int64, name, surn
 	if birthdate != nil {
 		setParts = append(setParts, fmt.Sprintf("birthdate = $%d", argCounter))
 		args = append(args, *birthdate)
+		argCounter++
+	}
+
+	if acceptAnonymous != nil {
+		setParts = append(setParts, fmt.Sprintf("accept_anonymous = $%d", argCounter))
+		args = append(args, *acceptAnonymous)
 		argCounter++
 	}
 
@@ -191,9 +207,13 @@ func (r *Repository) GetUserPasswordByID(ctx context.Context, userID int64) (str
 	return passwordHash, nil
 }
 
+// FindByID теперь читает accept_anonymous. Сканируем в *bool через указатель
+// на bool: на уровне БД колонка NOT NULL, так что nil тут не приходит,
+// но в модели лежит *bool из-за PATCH-семантики UpdateProfile.
 func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, error) {
 	query := `
-        SELECT id, email, password_hash, name, surname, image_path, is_male, birthdate
+        SELECT id, email, password_hash, name, surname, image_path,
+               is_male, birthdate, accept_anonymous
         FROM users
         WHERE id = $1
     `
@@ -202,14 +222,19 @@ func (r *Repository) FindByID(ctx context.Context, userID int64) (*models.User, 
 	}
 
 	user := &models.User{}
+	var acceptAnonymous bool
 	err := r.userDb.QueryRowContext(ctx, query, userID).
-		Scan(&user.ID, &user.Email, &user.Password, &user.Name, &user.Surname, &user.ImagePath, &user.IsMale, &user.Birthdate)
+		Scan(
+			&user.ID, &user.Email, &user.Password, &user.Name, &user.Surname,
+			&user.ImagePath, &user.IsMale, &user.Birthdate, &acceptAnonymous,
+		)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
 	}
 	if err != nil {
 		return nil, ErrQueryError
 	}
+	user.AcceptAnonymous = &acceptAnonymous
 
 	return user, nil
 }
@@ -244,7 +269,7 @@ func (r *Repository) FindByEmails(ctx context.Context, emails []string) ([]model
 	}
 
 	const query = `
-    	SELECT id, email, name, surname, image_path, is_male, birthdate
+    	SELECT id, email, name, surname, image_path, is_male, birthdate, accept_anonymous
         FROM users
         WHERE email = ANY($1)
     `
@@ -260,10 +285,12 @@ func (r *Repository) FindByEmails(ctx context.Context, emails []string) ([]model
 	var users []models.User
 	for rows.Next() {
 		var u models.User
+		var acceptAnonymous bool
 		if err := rows.Scan(&u.ID, &u.Email, &u.Name, &u.Surname,
-			&u.ImagePath, &u.IsMale, &u.Birthdate); err != nil {
+			&u.ImagePath, &u.IsMale, &u.Birthdate, &acceptAnonymous); err != nil {
 			return nil, fmt.Errorf("FindByEmails scan: %w", err)
 		}
+		u.AcceptAnonymous = &acceptAnonymous
 		users = append(users, u)
 	}
 	if err := rows.Err(); err != nil {

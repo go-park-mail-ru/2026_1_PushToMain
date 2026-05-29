@@ -8,28 +8,31 @@ import (
 )
 
 type DraftResult struct {
-	ID         int64
-	SenderID   int64
-	Header     string
-	Body       string
-	Recipients []string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID          int64
+	SenderID    int64
+	Header      string
+	Body        string
+	IsAnonymous bool
+	Recipients  []string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type CreateDraftInput struct {
-	UserID    int64
-	Header    string
-	Body      string
-	Receivers []string
+	UserID      int64
+	Header      string
+	Body        string
+	Receivers   []string
+	IsAnonymous bool
 }
 
 type UpdateDraftInput struct {
-	UserID    int64
-	DraftID   int64
-	Header    string
-	Body      string
-	Receivers []string
+	UserID      int64
+	DraftID     int64
+	Header      string
+	Body        string
+	Receivers   []string
+	IsAnonymous bool
 }
 
 type GetDraftInput struct {
@@ -69,13 +72,14 @@ func validateDraftPayload(header, body string, receivers []string) error {
 
 func draftToResult(d *models.Draft) *DraftResult {
 	return &DraftResult{
-		ID:         d.ID,
-		SenderID:   d.SenderID,
-		Header:     d.Header,
-		Body:       d.Body,
-		Recipients: d.Recipients,
-		CreatedAt:  d.CreatedAt,
-		UpdatedAt:  d.UpdatedAt,
+		ID:          d.ID,
+		SenderID:    d.SenderID,
+		Header:      d.Header,
+		Body:        d.Body,
+		IsAnonymous: d.IsAnonymous,
+		Recipients:  d.Recipients,
+		CreatedAt:   d.CreatedAt,
+		UpdatedAt:   d.UpdatedAt,
 	}
 }
 
@@ -93,10 +97,11 @@ func (s *Service) CreateDraft(ctx context.Context, in CreateDraftInput) (*DraftR
 		}
 	}
 	draft, err := s.repo.CreateDraft(ctx, models.Draft{
-		SenderID:   in.UserID,
-		Header:     in.Header,
-		Body:       in.Body,
-		Recipients: in.Receivers,
+		SenderID:    in.UserID,
+		Header:      in.Header,
+		Body:        in.Body,
+		IsAnonymous: in.IsAnonymous,
+		Recipients:  in.Receivers,
 	})
 	if err != nil {
 		return nil, MapRepositoryError(err)
@@ -109,11 +114,12 @@ func (s *Service) UpdateDraft(ctx context.Context, in UpdateDraftInput) (*DraftR
 		return nil, err
 	}
 	if err := s.repo.UpdateDraft(ctx, in.UserID, models.Draft{
-		ID:         in.DraftID,
-		SenderID:   in.UserID,
-		Header:     in.Header,
-		Body:       in.Body,
-		Recipients: in.Receivers,
+		ID:          in.DraftID,
+		SenderID:    in.UserID,
+		Header:      in.Header,
+		Body:        in.Body,
+		IsAnonymous: in.IsAnonymous,
+		Recipients:  in.Receivers,
 	}); err != nil {
 		return nil, MapRepositoryError(err)
 	}
@@ -168,9 +174,28 @@ func (s *Service) SendDraft(ctx context.Context, in SendDraftInput) (*SendEmailR
 	if d.Header == "" || d.Body == "" || len(d.Recipients) == 0 {
 		return nil, ErrDraftNotReady
 	}
-	recipients, err := s.resolveRecipients(ctx, d.Recipients)
+
+	recipients, usersByEmail, err := s.resolveRecipientsWithUsers(ctx, d.Recipients)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.IsAnonymous {
+		for _, r := range recipients {
+			if r.UserID == nil {
+				return nil, ErrAnonymousExternal
+			}
+		}
+		var rejected []string
+		for _, r := range recipients {
+			u := usersByEmail[r.Email]
+			if u == nil || !u.AcceptAnonymous {
+				rejected = append(rejected, r.Email)
+			}
+		}
+		if len(rejected) > 0 {
+			return nil, &ErrAnonymousRejected{Emails: rejected, DraftID: in.DraftID}
+		}
 	}
 
 	tx, err := s.repo.BeginTx(ctx)
@@ -207,7 +232,11 @@ func (s *Service) SendDraft(ctx context.Context, in SendDraftInput) (*SendEmailR
 	committed = true
 
 	return &SendEmailResult{
-		ID: in.DraftID, SenderID: in.UserID,
-		Header: d.Header, Body: d.Body, CreatedAt: d.CreatedAt,
+		ID:          in.DraftID,
+		SenderID:    in.UserID,
+		Header:      d.Header,
+		Body:        d.Body,
+		IsAnonymous: d.IsAnonymous,
+		CreatedAt:   d.CreatedAt,
 	}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/middleware"
 	"github.com/go-park-mail-ru/2026_1_PushToMain/internal/pkg/response"
@@ -66,6 +67,7 @@ func emailToDTO(em service.EmailResult) EmailResponse {
 		CreatedAt:     em.CreatedAt,
 		IsRead:        em.IsRead,
 		IsStarred:     em.IsStarred,
+		IsAnonymous:   em.IsAnonymous,
 	}
 }
 
@@ -94,11 +96,6 @@ func writeEmailsList(w http.ResponseWriter, result *service.GetEmailsResult) {
 
 }
 
-// SendEmail accepts either:
-//   - application/json  – plain email without attachments (legacy)
-//   - multipart/form-data – email with optional file attachments
-//
-// For multipart the text fields are: header, body, receivers (JSON array string).
 func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 	logger := middleware.GetLogger(r.Context())
 	userID, ok := userIDFromCtx(r, w)
@@ -110,7 +107,6 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 	in := service.SendEmailInput{UserId: userID}
 
 	if isMultipart(ct) {
-		// Parse multipart form.
 		if err := r.ParseMultipartForm(maxSendFormSize); err != nil {
 			response.BadRequest(w)
 			return
@@ -118,7 +114,6 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		in.Header = r.FormValue("header")
 		in.Body = r.FormValue("body")
 
-		// receivers is a JSON-encoded string array: '["a@b.com","c@d.com"]'
 		receiversRaw := r.FormValue("receivers")
 		if receiversRaw != "" {
 			if err := json.Unmarshal([]byte(receiversRaw), &in.Receivers); err != nil {
@@ -127,7 +122,12 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Collect uploaded files.
+		if v := r.FormValue("is_anonymous"); v != "" {
+			if parsed, err := strconv.ParseBool(v); err == nil {
+				in.IsAnonymous = parsed
+			}
+		}
+
 		if r.MultipartForm != nil {
 			for _, fhs := range r.MultipartForm.File {
 				for _, fh := range fhs {
@@ -136,14 +136,12 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 						response.BadRequest(w)
 						return
 					}
-					// Files are closed after SendEmail returns via multipart form GC.
 					in.Files = append(in.Files, f)
 					in.FileHeaders = append(in.FileHeaders, fh)
 				}
 			}
 		}
 	} else {
-		// Plain JSON body (no attachments).
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			response.BadRequest(w)
@@ -158,6 +156,7 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		in.Header = req.Header
 		in.Body = req.Body
 		in.Receivers = req.Receivers
+		in.IsAnonymous = req.IsAnonymous
 	}
 
 	if (in.Header == "" && in.Body == "") || !validEmails(in.Receivers) {
@@ -172,8 +171,12 @@ func (h *Handler) SendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := SendEmailResponse{
-		ID: result.ID, SenderID: result.SenderID,
-		Header: result.Header, Body: result.Body, CreatedAt: result.CreatedAt,
+		ID:          result.ID,
+		SenderID:    result.SenderID,
+		Header:      result.Header,
+		Body:        result.Body,
+		IsAnonymous: result.IsAnonymous,
+		CreatedAt:   result.CreatedAt,
 	}
 
 	b, err := resp.MarshalJSON()
@@ -210,7 +213,9 @@ func (h *Handler) ForwardEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.service.ForwardEmail(r.Context(), service.ForwardEmailInput{
-		UserID: userID, EmailID: req.EmailID, Receivers: req.Receivers,
+		UserID:    userID,
+		EmailID:   req.EmailID,
+		Receivers: req.Receivers,
 	}); err != nil {
 		logger.Errorf("ForwardEmail: user_id=%d, email_id=%d, err=%v", userID, req.EmailID, err)
 		parseCommonErrors(err, w)
@@ -279,6 +284,7 @@ func (h *Handler) GetSentEmails(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:       em.CreatedAt,
 			IsRead:          em.IsRead,
 			IsStarred:       em.IsStarred,
+			IsAnonymous:     em.IsAnonymous,
 			ReceiversEmails: em.ReceiversEmails,
 		}
 	}
@@ -330,6 +336,7 @@ func (h *Handler) GetEmailByID(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:       result.CreatedAt,
 		SenderImagePath: result.SenderImagePath,
 		ReceiverList:    result.ReceiverList,
+		IsAnonymous:     result.IsAnonymous,
 	}
 
 	b, err := resp.MarshalJSON()

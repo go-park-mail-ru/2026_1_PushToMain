@@ -41,19 +41,20 @@ func (s *Server) GetUserById(
 	}
 
 	var birthdate string
-	if user.Birthdate != nil { // если *time.Time
+	if user.Birthdate != nil {
 		birthdate = user.Birthdate.String()
 	}
 
 	return &userpb.GetUserByIdResponse{
 		User: &userpb.User{
-			Id:        user.UserID,
-			Email:     user.Email,
-			Name:      user.Name,
-			Surname:   user.Surname,
-			ImagePath: user.ImagePath,
-			IsMale:    isMale,
-			Birthdate: birthdate,
+			Id:              user.UserID,
+			Email:           user.Email,
+			Name:            user.Name,
+			Surname:         user.Surname,
+			ImagePath:       user.ImagePath,
+			IsMale:          isMale,
+			Birthdate:       birthdate,
+			AcceptAnonymous: user.AcceptAnonymous,
 		},
 	}, nil
 }
@@ -87,13 +88,14 @@ func (s *Server) GetUsersByEmails(
 	pbUsers := make([]*userpb.User, 0, len(users))
 	for _, u := range users {
 		pbUsers = append(pbUsers, &userpb.User{
-			Id:        u.ID,
-			Email:     u.Email,
-			Name:      u.Name,
-			Surname:   u.Surname,
-			ImagePath: u.ImagePath,
-			IsMale:    u.IsMale,
-			Birthdate: u.Birthdate,
+			Id:              u.ID,
+			Email:           u.Email,
+			Name:            u.Name,
+			Surname:         u.Surname,
+			ImagePath:       u.ImagePath,
+			IsMale:          u.IsMale,
+			Birthdate:       u.Birthdate,
+			AcceptAnonymous: u.AcceptAnonymous,
 		})
 	}
 	return &userpb.GetUsersByEmailsResponse{Users: pbUsers}, nil

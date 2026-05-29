@@ -74,6 +74,20 @@ func easyjson521a5691DecodeGithubComGoParkMailRu20261PushToMainMicroservicesUser
 					*out.IsMale = bool(in.Bool())
 				}
 			}
+		case "accept_anonymous":
+			if in.IsNull() {
+				in.Skip()
+				out.AcceptAnonymous = nil
+			} else {
+				if out.AcceptAnonymous == nil {
+					out.AcceptAnonymous = new(bool)
+				}
+				if in.IsNull() {
+					in.Skip()
+				} else {
+					*out.AcceptAnonymous = bool(in.Bool())
+				}
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -114,6 +128,15 @@ func easyjson521a5691EncodeGithubComGoParkMailRu20261PushToMainMicroservicesUser
 			out.RawString("null")
 		} else {
 			out.Bool(bool(*in.IsMale))
+		}
+	}
+	{
+		const prefix string = ",\"accept_anonymous\":"
+		out.RawString(prefix)
+		if in.AcceptAnonymous == nil {
+			out.RawString("null")
+		} else {
+			out.Bool(bool(*in.AcceptAnonymous))
 		}
 	}
 	out.RawByte('}')
@@ -243,6 +266,12 @@ func easyjson521a5691DecodeGithubComGoParkMailRu20261PushToMainMicroservicesUser
 					}
 				}
 			}
+		case "accept_anonymous":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				out.AcceptAnonymous = bool(in.Bool())
+			}
 		default:
 			in.SkipRecursive()
 		}
@@ -307,6 +336,11 @@ func easyjson521a5691EncodeGithubComGoParkMailRu20261PushToMainMicroservicesUser
 		const prefix string = ",\"birthdate\":"
 		out.RawString(prefix)
 		out.Raw((*in.Birthdate).MarshalJSON())
+	}
+	{
+		const prefix string = ",\"accept_anonymous\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.AcceptAnonymous))
 	}
 	out.RawByte('}')
 }

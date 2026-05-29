@@ -14,6 +14,7 @@ service EmailService {
     rpc SwitchIsInbox(SwitchIsInboxRequest) returns (SwitchIsInboxResponse);
     rpc GetUserEmailID(GetUserEmailIDRequest) returns (GetUserEmailIDResponse);
     rpc SendSystemEmail(SendSystemEmailRequest) returns (SendSystemEmailResponse);
+    rpc GetEmailForSupport(GetEmailForSupportRequest) returns (GetEmailForSupportResponse);
 }
 
 message SendSystemEmailRequest {
@@ -60,6 +61,8 @@ message Email {
     string header = 3;
     string body = 4;
     string created_at = 5;
+    // Помечено как анонимное при отправке.
+    bool is_anonymous = 6;
 }
 
 message GetEmailByIdRequest {
@@ -81,30 +84,68 @@ message CheckEmailAccessResponse {
 }
 
 message FolderEmail {
-  int64 id = 1;
+    int64 id = 1;
 
-  string sender_email = 2;
-  string sender_name = 3;
-  string sender_surname = 4;
+    string sender_email = 2;
+    string sender_name = 3;
+    string sender_surname = 4;
 
-  repeated string receiver_list = 5;
+    repeated string receiver_list = 5;
 
-  string header = 6;
-  string body = 7;
+    string header = 6;
+    string body = 7;
 
-  google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp created_at = 8;
 
-  bool is_read = 9;
+    bool is_read = 9;
+
+    // Если true — frontend показывает "Отправлено анонимно" вместо sender_*.
+    // ВНИМАНИЕ: сервер сам решает, очищать ли sender_* для конкретного зрителя
+    // (см. service.GetEmailsByIDs / buildEmailsResult).
+    bool is_anonymous = 10;
 }
 
 message GetEmailsByIdsRequest {
-  repeated int64 email_ids = 1;
-
-  int64 user_id = 2;
+    repeated int64 email_ids = 1;
+    int64 user_id = 2;
 }
 
 message GetEmailsByIdsResponse {
-  repeated FolderEmail emails = 1;
+    repeated FolderEmail emails = 1;
+    int32 unread_count = 2;
+}
 
-  int32 unread_count = 2;
+// ── Support API ──────────────────────────────────────────────────────────────
+
+message GetEmailForSupportRequest {
+    int64 email_id = 1;
+}
+
+message SupportSenderInfo {
+    // user_id может быть nil только для внешних писем (LMTP-приём).
+    // Для анонимных писем — всегда заполнен.
+    optional int64 user_id = 1;
+    string email   = 2;
+    string name    = 3;
+    string surname = 4;
+}
+
+message SupportAttachment {
+    int64  id           = 1;
+    string filename     = 2;
+    string content_type = 3;
+    int64  size_bytes   = 4;
+    google.protobuf.Timestamp created_at = 5;
+}
+
+message GetEmailForSupportResponse {
+    int64  id                = 1;
+    SupportSenderInfo sender = 2;
+    repeated string recipients = 3;
+    string header            = 4;
+    string body              = 5;
+    google.protobuf.Timestamp created_at = 6;
+    bool   is_anonymous      = 7;
+    bool   is_draft          = 8;
+    repeated SupportAttachment attachments = 9;
 }

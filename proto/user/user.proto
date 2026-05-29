@@ -19,6 +19,7 @@ message User {
     string image_path = 5;
     bool is_male = 6;
     string birthdate = 7;
+    bool accept_anonymous = 8;
 }
 
 message GetUserByIdRequest {

@@ -20,10 +20,10 @@ func (r *Repository) CreateDraft(ctx context.Context, draft models.Draft) (*mode
 	}()
 
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO emails (sender_id, sender_email, header, body, is_draft)
-		SELECT $1, u.email, $2, $3, true FROM users u WHERE u.id = $1
+		INSERT INTO emails (sender_id, sender_email, header, body, is_draft, is_anonymous)
+		SELECT $1, u.email, $2, $3, true, $4 FROM users u WHERE u.id = $1
 		RETURNING id, sender_email, created_at, updated_at
-	`, draft.SenderID, draft.Header, draft.Body).Scan(
+	`, draft.SenderID, draft.Header, draft.Body, draft.IsAnonymous).Scan(
 		&draft.ID, &draft.SenderEmail, &draft.CreatedAt, &draft.UpdatedAt,
 	)
 	if err != nil {
@@ -54,9 +54,9 @@ func (r *Repository) UpdateDraft(ctx context.Context, userID int64, draft models
 
 	res, err := tx.ExecContext(ctx, `
 		UPDATE emails
-		SET header = $1, body = $2, updated_at = NOW()
-		WHERE id = $3 AND sender_id = $4 AND is_draft = true
-	`, draft.Header, draft.Body, draft.ID, userID)
+		SET header = $1, body = $2, is_anonymous = $3, updated_at = NOW()
+		WHERE id = $4 AND sender_id = $5 AND is_draft = true
+	`, draft.Header, draft.Body, draft.IsAnonymous, draft.ID, userID)
 	if err != nil {
 		return mapPgError(err)
 	}
@@ -85,7 +85,7 @@ func (r *Repository) UpdateDraft(ctx context.Context, userID int64, draft models
 func (r *Repository) GetDraftByID(ctx context.Context, draftID, userID int64) (*models.Draft, error) {
 	var d models.Draft
 	err := r.db.QueryRowContext(ctx, `
-		SELECT id, sender_id, sender_email, header, body, created_at, updated_at
+		SELECT id, sender_id, sender_email, header, body, is_anonymous, created_at, updated_at
 		FROM emails
 		WHERE id = $1 AND sender_id = $2 AND is_draft = true
 	`, draftID, userID).Scan(
@@ -94,6 +94,7 @@ func (r *Repository) GetDraftByID(ctx context.Context, draftID, userID int64) (*
 		&d.SenderEmail,
 		&d.Header,
 		&d.Body,
+		&d.IsAnonymous,
 		&d.CreatedAt,
 		&d.UpdatedAt,
 	)
@@ -114,7 +115,7 @@ func (r *Repository) GetDraftByID(ctx context.Context, draftID, userID int64) (*
 
 func (r *Repository) GetDrafts(ctx context.Context, userID int64, limit, offset int) ([]models.Draft, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, sender_id, sender_email, header, body, created_at, updated_at
+		SELECT id, sender_id, sender_email, header, body, is_anonymous, created_at, updated_at
 		FROM emails
 		WHERE sender_id = $1 AND is_draft = true
 		ORDER BY created_at DESC
@@ -133,7 +134,7 @@ func (r *Repository) GetDrafts(ctx context.Context, userID int64, limit, offset 
 
 	for rows.Next() {
 		var d models.Draft
-		if err := rows.Scan(&d.ID, &d.SenderID, &d.SenderEmail, &d.Header, &d.Body, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		if err := rows.Scan(&d.ID, &d.SenderID, &d.SenderEmail, &d.Header, &d.Body, &d.IsAnonymous, &d.CreatedAt, &d.UpdatedAt); err != nil {
 			return nil, ErrQueryFail
 		}
 		idxByID[d.ID] = len(drafts)
