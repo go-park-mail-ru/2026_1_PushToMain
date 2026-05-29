@@ -5,16 +5,16 @@ import (
 	"log"
 
 	_ "github.com/go-park-mail-ru/2026_1_PushToMain/docs"
-	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/folder/app"
+	"github.com/go-park-mail-ru/2026_1_PushToMain/microservices/support/app"
 )
 
 // @title           Smail API
 // @version         1.0
-// @host            localhost:8083
+// @host            localhost:8084
 // @BasePath        /
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "config", "configs/folder/config.yaml", "path to config file")
+	flag.StringVar(&configPath, "config", "configs/support/config.yaml", "path to config file")
 	flag.Parse()
 
 	application := app.New(configPath)
